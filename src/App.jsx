@@ -3,7 +3,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import {
   Heart, MessageCircle, Zap, Wallet, Send, X, Sparkles,
-  Share2, UserPlus, UserCheck, Crown, Trophy, Loader2, LogOut, MapPin, ArrowLeft, Home, User,
+  Share2, UserPlus, UserCheck, Crown, Trophy, Loader2, LogOut, MapPin, ArrowLeft, Home, User, Medal,
 } from "lucide-react";
 
 // ==========================================================
@@ -51,6 +51,17 @@ const TOPIC_KEYWORDS = {
 const CATEGORY_TH = { attraction: "ที่เที่ยว", hotel: "ที่พัก", restaurant: "ร้านอาหาร", cafe: "คาเฟ่", other: "อื่นๆ" };
 const CHECKIN_RADIUS_M = 150;
 
+const ACHIEVEMENTS = [
+  { id: "first", icon: "🌱", label: "ก้าวแรก", desc: "เช็คอินครั้งแรก", test: t => t.total >= 1 },
+  { id: "five", icon: "🔥", label: "นักเดินทาง", desc: "เช็คอินครบ 5 ครั้ง", test: t => t.total >= 5 },
+  { id: "ten", icon: "🏆", label: "ขาลุย", desc: "เช็คอินครบ 10 ครั้ง", test: t => t.total >= 10 },
+  { id: "cafe3", icon: "☕", label: "สายคาเฟ่", desc: "เช็คอินคาเฟ่ 3 ครั้ง", test: t => (t.by_cat.cafe || 0) >= 3 },
+  { id: "food3", icon: "🍜", label: "นักชิม", desc: "เช็คอินร้านอาหาร 3 ครั้ง", test: t => (t.by_cat.restaurant || 0) >= 3 },
+  { id: "temple3", icon: "⛩️", label: "สายมู", desc: "เช็คอินที่เที่ยว 3 ครั้ง", test: t => (t.by_cat.attraction || 0) >= 3 },
+  { id: "prov3", icon: "🗺️", label: "ล่าจังหวัด", desc: "เช็คอินครบ 3 จังหวัด", test: t => t.provinces.length >= 3 },
+  { id: "hotel", icon: "🏨", label: "นักนอน", desc: "เช็คอินที่พัก 1 ครั้ง", test: t => (t.by_cat.hotel || 0) >= 1 },
+];
+
 const CAT_COLOR = { attraction: "#17B890", hotel: "#4A90E2", restaurant: "#EF4565", cafe: "#FFB020", other: "#9199A8" };
 
 // แผนที่ Leaflet + OpenStreetMap (ไม่ต้องใช้ API key) แสดงตำแหน่งเรา วงรัศมีเช็คอิน และหมุดสถานที่
@@ -91,7 +102,7 @@ function PlaceMap({ pos, places, onPick }) {
   return <div ref={el} className="w-full rounded-2xl overflow-hidden" style={{ height: 260 }} role="img" aria-label="แผนที่แสดงตำแหน่งของคุณและสถานที่ใกล้เคียง" />;
 }
 
-function CheckinTab({ rest, onBack, showToast }) {
+function CheckinTab({ rest, onBack, showToast, onOpenPlace }) {
   const [pos, setPos] = useState(null);
   const [places, setPlaces] = useState([]);
   const [cat, setCat] = useState("all");
@@ -104,7 +115,7 @@ function CheckinTab({ rest, onBack, showToast }) {
 
   const load = useCallback(async (p) => {
     try {
-      setPlaces(await rest("/rest/v1/rpc/nearby_places", { method: "POST", body: { p_lat: p.lat, p_lng: p.lng, p_radius_m: 5000 } }));
+      setPlaces(await rest("/rest/v1/rpc/nearby_places_v2", { method: "POST", body: { p_lat: p.lat, p_lng: p.lng, p_radius_m: 5000 } }));
     } catch (e) { showToast("โหลดสถานที่ไม่สำเร็จ: " + e.message); }
   }, [rest]);
 
@@ -176,7 +187,7 @@ function CheckinTab({ rest, onBack, showToast }) {
           return (
             <div key={pl.id} className="bg-white rounded-2xl p-3 flex items-center gap-3 shadow-sm">
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{pl.name}{pl.is_verified && <span className="ml-1.5 text-[10px] text-[#178A5D] bg-[#E8F8F1] rounded-full px-2 py-0.5">ยืนยันแล้ว</span>}</p>
+                <p className="text-sm font-medium truncate"><button onClick={() => onOpenPlace(pl.id)} className="hover:underline text-left">{pl.name}</button>{pl.is_boosted && <span className="ml-1.5 text-[10px] text-[#B77600] bg-[#FFF4DD] rounded-full px-2 py-0.5">โปรโมท</span>}{pl.is_verified && <span className="ml-1.5 text-[10px] text-[#178A5D] bg-[#E8F8F1] rounded-full px-2 py-0.5">ยืนยันแล้ว</span>}</p>
                 <p className="text-xs text-[#6B7280]">{CATEGORY_TH[pl.category]} · {pl.distance_m < 1000 ? `${Math.round(pl.distance_m)} ม.` : `${(pl.distance_m / 1000).toFixed(1)} กม.`} · เช็คอินแล้ว {pl.checkin_count} ครั้ง</p>
               </div>
               <button disabled={!near} onClick={() => setTarget(pl)} className={`text-sm font-medium px-3.5 py-2 rounded-full ${near ? "bg-[#6C5CE7] text-white" : "bg-[#EEF0F5] text-[#9199A8]"}`}>{near ? "เช็คอิน" : "ไกลไป"}</button>
@@ -228,8 +239,18 @@ function dayLabel(iso) {
 }
 
 // หน้าสถานที่: คะแนนเฉลี่ย + รีวิวของทุกคนเรียงเป็นไทม์ไลน์รายวัน
-function PlaceDetail({ placeId, rest, posts, userId, onLike, onBack, onProfile, onCheckin, showToast }) {
+function PlaceDetail({ placeId, rest, posts, userId, wallet, onBoosted, onLike, onBack, onProfile, onCheckin, showToast }) {
   const [info, setInfo] = useState(null);
+  const [boosted, setBoosted] = useState(false);
+  const [showBoost, setShowBoost] = useState(false);
+  const boost = async (opt) => {
+    if (wallet < opt.credits) { showToast("เครดิตไม่พอ"); return; }
+    try {
+      await rest("/rest/v1/rpc/boost_place", { method: "POST", body: { p_place_id: placeId, p_credits: opt.credits } });
+      setBoosted(true); setShowBoost(false); onBoosted(); showToast(`โปรโมทสถานที่ ${opt.label} สำเร็จ`);
+    } catch (e) { showToast("โปรโมทไม่สำเร็จ: " + e.message); }
+  };
+  useEffect(() => { rest("/rest/v1/rpc/place_boosted", { method: "POST", body: { p_place_id: placeId } }).then(setBoosted).catch(() => {}); }, [placeId]);
   useEffect(() => {
     (async () => {
       try { const r = await rest("/rest/v1/rpc/place_summary", { method: "POST", body: { p_place_id: placeId } }); setInfo(r[0] || null); }
@@ -264,6 +285,17 @@ function PlaceDetail({ placeId, rest, posts, userId, onLike, onBack, onProfile, 
               <div className="pb-1"><Stars n={Number(info.avg_rating || 0)} size={16} /><p className="text-xs text-[#6B7280]">{info.review_count} เช็คอิน · {info.visitors} คน</p></div>
             </div>
             <button onClick={onCheckin} className="w-full bg-[#6C5CE7] text-white text-sm font-semibold py-2.5 rounded-full flex items-center justify-center gap-1.5"><MapPin size={15} /> ไปเช็คอินที่นี่</button>
+            <button onClick={() => setShowBoost(v => !v)} className="w-full border border-[#FFB020]/50 text-[#B77600] text-sm font-medium py-2 rounded-full flex items-center justify-center gap-1.5"><Zap size={15} /> {boosted ? "กำลังโปรโมท · ต่อเวลา" : "โปรโมทสถานที่นี้"} ({wallet} เครดิต)</button>
+            {showBoost && (
+              <div className="space-y-2 pt-1">
+                {BOOST_OPTIONS.map(o => (
+                  <button key={o.credits} onClick={() => boost(o)} className="w-full flex items-center justify-between border border-black/10 rounded-xl px-3 py-2 text-left">
+                    <div><p className="text-sm font-medium">{o.label}</p><p className="text-xs text-[#9199A8]">ขึ้นบนสุดในรายการสถานที่ใกล้เคียง</p></div>
+                    <span className="text-sm font-semibold text-[#B77600]">{o.credits} เครดิต</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
         {groups.length === 0 && <p className="text-center text-xs text-[#9199A8] py-6">ยังไม่มีรีวิว เป็นคนแรกเลย</p>}
@@ -299,8 +331,82 @@ function PlaceDetail({ placeId, rest, posts, userId, onLike, onBack, onProfile, 
   );
 }
 
+function RankTab({ rest, userId, onProfile, showToast }) {
+  const [sort, setSort] = useState("checkins");
+  const [rows, setRows] = useState(null);
+  useEffect(() => {
+    setRows(null);
+    rest("/rest/v1/rpc/leaderboard", { method: "POST", body: { p_sort: sort } }).then(setRows).catch(e => { showToast("โหลดอันดับไม่สำเร็จ: " + e.message); setRows([]); });
+  }, [sort]);
+  const sorts = [["checkins", "เช็คอิน", "ครั้ง"], ["rating_sum", "คะแนนรีวิว", "คะแนน"], ["likes_received", "ยอดไลค์", "ไลค์"]];
+  const unit = sorts.find(x => x[0] === sort)[2];
+  return (
+    <div style={{ fontFamily: "'IBM Plex Sans Thai', sans-serif" }} className="min-h-screen bg-[#F3F5FA] text-[#1A1D29] pb-20">
+      <style>{FONT_IMPORT}</style>
+      <header className="sticky top-0 z-20 bg-[#F3F5FA]/90 backdrop-blur border-b border-black/5">
+        <div className="max-w-xl mx-auto px-4 py-3"><h1 style={{ fontFamily: "'Kanit', sans-serif" }} className="text-xl font-semibold text-[#6C5CE7]">อันดับนักเดินทาง</h1></div>
+      </header>
+      <main className="max-w-xl mx-auto px-4 pt-3 space-y-2">
+        <div className="flex gap-2">
+          {sorts.map(([k, l]) => <button key={k} onClick={() => setSort(k)} className={`text-xs px-3 py-1.5 rounded-full ${sort === k ? "bg-[#6C5CE7] text-white" : "bg-white border border-black/10"}`}>{l}</button>)}
+        </div>
+        {rows === null && <p className="text-center text-xs text-[#9199A8] py-6">กำลังโหลด...</p>}
+        {rows && rows.length === 0 && <p className="text-center text-xs text-[#9199A8] py-6">ยังไม่มีใครเช็คอิน</p>}
+        {rows && rows.map((r, i) => (
+          <button key={r.user_id} onClick={() => onProfile(r.user_id)} className={`w-full bg-white rounded-2xl p-3 shadow-sm flex items-center gap-3 text-left ${r.user_id === userId ? "ring-1 ring-[#FFB020]" : ""}`}>
+            <span className="w-6 text-center font-semibold" style={{ color: i < 3 ? "#B77600" : "#9199A8" }}>{i < 3 ? <Medal size={18} className="mx-auto" /> : i + 1}</span>
+            <span className="flex-1 min-w-0"><span className="block text-sm font-medium truncate">{r.username}{r.user_id === userId ? " (คุณ)" : ""}</span><span className="block text-xs text-[#9199A8]">{r.checkins} เช็คอิน</span></span>
+            <span className="text-sm font-semibold text-[#6C5CE7]">{r[sort]} {unit}</span>
+          </button>
+        ))}
+      </main>
+    </div>
+  );
+}
+
+// พาสปอร์ตเดินทาง: ตราประทับ อันดับที่ไปบ่อย และ % การสำรวจแต่ละจังหวัด
+function Passport({ t }) {
+  const stamps = ACHIEVEMENTS.map(a => ({ ...a, on: a.test(t) }));
+  return (
+    <>
+      <div className="bg-white rounded-2xl p-4 shadow-sm">
+        <p className="text-sm font-medium mb-2">ตราประทับ {stamps.filter(x => x.on).length}/{stamps.length}</p>
+        <div className="grid grid-cols-4 gap-2">
+          {stamps.map(a => (
+            <div key={a.id} title={a.desc} className="aspect-square rounded-full flex flex-col items-center justify-center text-center p-1 text-[10px]"
+              style={a.on ? { border: "2px solid #B8862B", color: "#B8862B", background: "#FFF9EC", transform: "rotate(-5deg)" } : { border: "2px dashed #D5D9E2", color: "#B8BDC9" }}>
+              <span className="text-lg leading-none">{a.on ? a.icon : "🔒"}</span>{a.label}
+            </div>
+          ))}
+        </div>
+      </div>
+      {t.top.length > 0 && (
+        <div className="bg-white rounded-2xl p-4 shadow-sm space-y-2">
+          <p className="text-sm font-medium">สถานที่ที่ไปบ่อยที่สุด</p>
+          {t.top.map((x, i) => (
+            <div key={x.id} className="flex items-center gap-2 text-sm"><span className="w-5 text-[#B77600] font-semibold">#{i + 1}</span><span className="flex-1 truncate">{x.name}</span><span className="text-xs text-[#6B7280]">{CATEGORY_TH[x.category]} · {x.visits} ครั้ง</span></div>
+          ))}
+        </div>
+      )}
+      <div className="bg-white rounded-2xl p-4 shadow-sm space-y-2.5">
+        <p className="text-sm font-medium">สำรวจแต่ละจังหวัด</p>
+        {t.provinces.length === 0 && <p className="text-xs text-[#9199A8]">ยังไม่มีจังหวัดที่เช็คอิน</p>}
+        {t.provinces.map(pv => {
+          const pct = pv.total ? Math.round((pv.visited / pv.total) * 100) : 0;
+          return (
+            <div key={pv.name}>
+              <div className="flex justify-between text-xs mb-1"><span>{pv.name}</span><span className="text-[#6B7280]">{pct}% ({pv.visited}/{pv.total} แห่ง)</span></div>
+              <div className="h-1.5 rounded bg-[#EEF0F5] overflow-hidden"><div className="h-full bg-[#B8862B]" style={{ width: pct + "%" }} /></div>
+            </div>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
 function TabBar({ tab, setTab }) {
-  const items = [["feed", "ฟีด", Home], ["checkin", "เช็คอิน", MapPin], ["profile", "โปรไฟล์", User]];
+  const items = [["feed", "ฟีด", Home], ["checkin", "เช็คอิน", MapPin], ["rank", "อันดับ", Trophy], ["profile", "โปรไฟล์", User]];
   return (
     <>
       <div className="h-16" />
@@ -320,6 +426,8 @@ function ProfileTab({ rest, session, userId, onLogout, onPrivacy, showToast }) {
   const [p, setP] = useState(null);
   const [stats, setStats] = useState({ posts: 0, checkins: 0, friends: 0 });
   const [posts, setPosts] = useState([]);
+  const [travel, setTravel] = useState(null);
+  const [following, setFollowing] = useState(false);
   const [edit, setEdit] = useState(false);
   const [name, setName] = useState("");
   const [bio, setBio] = useState("");
@@ -327,6 +435,8 @@ function ProfileTab({ rest, session, userId, onLogout, onPrivacy, showToast }) {
   useEffect(() => {
     (async () => {
       try {
+        rest("/rest/v1/rpc/travel_stats", { method: "POST", body: { p_user: userId } }).then(setTravel).catch(() => {});
+        if (!isMe) rest(`/rest/v1/follows?follower_id=eq.${session.user_id}&followee_id=eq.${userId}&select=followee_id`).then(r => setFollowing(r.length > 0)).catch(() => {});
         const [pr, st, ps] = await Promise.all([
           rest(`/rest/v1/profiles?id=eq.${userId}&select=display_name,bio`),
           rest("/rest/v1/rpc/profile_stats", { method: "POST", body: { p_user: userId } }),
@@ -342,6 +452,15 @@ function ProfileTab({ rest, session, userId, onLogout, onPrivacy, showToast }) {
       const r = await rest(`/rest/v1/profiles?id=eq.${userId}`, { method: "PATCH", body: { display_name: name.trim(), bio: bio.trim() || null } });
       setP(r[0]); setEdit(false); showToast("บันทึกโปรไฟล์แล้ว");
     } catch (e) { showToast(e.message.includes("check") ? "ชื่อต้องยาว 2–30 ตัวอักษร คำแนะนำตัวไม่เกิน 160" : "บันทึกไม่สำเร็จ: " + e.message); }
+  };
+
+  const toggleFollow = async () => {
+    try {
+      if (following) await rest(`/rest/v1/follows?follower_id=eq.${session.user_id}&followee_id=eq.${userId}`, { method: "DELETE" });
+      else await rest("/rest/v1/follows", { method: "POST", body: { follower_id: session.user_id, followee_id: userId } });
+      setFollowing(!following);
+      setTravel(t => t && { ...t, followers: t.followers + (following ? -1 : 1) });
+    } catch (e) { showToast("ติดตามไม่สำเร็จ: " + e.message); }
   };
 
   if (!p) return <div className="min-h-screen bg-[#F3F5FA] flex items-center justify-center text-sm text-[#9199A8]">กำลังโหลด...</div>;
@@ -372,6 +491,8 @@ function ProfileTab({ rest, session, userId, onLogout, onPrivacy, showToast }) {
               <div key={l} className="bg-[#F3F5FA] rounded-xl py-2"><p className="text-lg font-semibold">{n}</p><p className="text-xs text-[#6B7280]">{l}</p></div>
             ))}
           </div>
+          {travel && <p className="text-xs text-[#6B7280] mt-3">ผู้ติดตาม {travel.followers} · กำลังติดตาม {travel.following}</p>}
+          {!isMe && <button onClick={toggleFollow} className={`mt-3 w-full text-sm font-medium py-2 rounded-lg ${following ? "border border-black/10 text-[#6B7280]" : "bg-[#6C5CE7] text-white"}`}>{following ? "กำลังติดตาม" : "ติดตาม"}</button>}
           {isMe && !edit && (
             <div className="flex gap-2 mt-4">
               <button onClick={() => setEdit(true)} className="flex-1 border border-[#6C5CE7]/30 text-[#6C5CE7] text-sm font-medium py-2 rounded-lg">แก้ไขโปรไฟล์</button>
@@ -379,6 +500,7 @@ function ProfileTab({ rest, session, userId, onLogout, onPrivacy, showToast }) {
             </div>
           )}
         </div>
+        {travel && <Passport t={travel} />}
         {isMe && <button onClick={onPrivacy} className="w-full bg-white rounded-2xl p-3 shadow-sm text-sm text-left text-[#6C5CE7]">ตั้งค่าความเป็นส่วนตัวและการใช้ข้อมูล</button>}
         {posts.map(po => (
           <div key={po.id} className="bg-white rounded-2xl p-4 shadow-sm">
@@ -733,16 +855,18 @@ export default function FeedApp() {
   const goTab = (t) => { if (t === "profile") setProfileId(null); setPlaceView(null); setTab(t); };
   if (placeView) return (
     <>
-      <PlaceDetail placeId={placeView} rest={rest} posts={posts} userId={session.user_id} onLike={toggleLike} onBack={() => setPlaceView(null)}
+      <PlaceDetail placeId={placeView} rest={rest} posts={posts} userId={session.user_id} wallet={wallet} onBoosted={loadFeed} onLike={toggleLike} onBack={() => setPlaceView(null)}
         onProfile={(id) => { setPlaceView(null); setProfileId(id); setTab("profile"); }} onCheckin={() => { setPlaceView(null); setTab("checkin"); }} showToast={showToast} />
       <TabBar tab={tab} setTab={goTab} />
       {toast && <div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-[#1A1D29] text-white text-sm px-4 py-2 rounded-full shadow-lg z-40 max-w-[90%] text-center">{toast}</div>}
     </>
   );
-  if (tab === "checkin" || tab === "profile") return (
+  if (tab === "checkin" || tab === "profile" || tab === "rank") return (
     <>
       {tab === "checkin"
-        ? <CheckinTab rest={rest} onBack={() => setTab("feed")} showToast={showToast} />
+        ? <CheckinTab rest={rest} onBack={() => setTab("feed")} showToast={showToast} onOpenPlace={openPlace} />
+        : tab === "rank"
+        ? <RankTab rest={rest} userId={session.user_id} onProfile={(id) => { setProfileId(id); setTab("profile"); }} showToast={showToast} />
         : <ProfileTab key={profileId || session.user_id} rest={rest} session={session} userId={profileId || session.user_id} onLogout={logout} onPrivacy={() => setShowConsent(true)} showToast={showToast} />}
       <TabBar tab={tab} setTab={goTab} />
       {consentModal}
