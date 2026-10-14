@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Heart, MessageCircle, Zap, Wallet, Send, X, Sparkles,
-  Share2, UserPlus, UserCheck, Crown, Trophy, Loader2, LogOut, MapPin, ArrowLeft,
+  Share2, UserPlus, UserCheck, Crown, Trophy, Loader2, LogOut, MapPin, ArrowLeft, Home, User,
 } from "lucide-react";
 
 // ==========================================================
@@ -39,6 +39,13 @@ function timeAgo(iso) {
 
 const configured = SUPABASE_URL !== "YOUR_SUPABASE_URL" && SUPABASE_ANON_KEY !== "YOUR_SUPABASE_ANON_KEY";
 
+const TOPIC_KEYWORDS = {
+  van_custom: ["รถตู้", "แต่งรถ", "ช่วงล่าง", "พ่นสี"],
+  food: ["กิน", "อร่อย", "ร้านอาหาร", "ก๋วยเตี๋ยว", "หมูปิ้ง"],
+  cafe: ["คาเฟ่", "กาแฟ"],
+  travel: ["เที่ยว", "ทริป", "ทะเล", "ภูเขา"],
+  hotel: ["ที่พัก", "โรงแรม", "รีสอร์ท"],
+};
 const CATEGORY_TH = { attraction: "ที่เที่ยว", hotel: "ที่พัก", restaurant: "ร้านอาหาร", cafe: "คาเฟ่", other: "อื่นๆ" };
 const CHECKIN_RADIUS_M = 150;
 
@@ -74,6 +81,7 @@ function CheckinTab({ rest, onBack, showToast }) {
     try {
       await rest("/rest/v1/rpc/check_in", { method: "POST", body: { p_place_id: target.id, p_lat: pos.lat, p_lng: pos.lng, p_rating: rating, p_caption: caption } });
       showToast(`เช็คอินที่ ${target.name} สำเร็จ`);
+      rest("/rest/v1/rpc/record_interest", { method: "POST", body: { p_topic: target.category, p_weight: 3 } }).catch(() => {});
       setTarget(null); setCaption(""); load(pos);
     } catch (e) {
       const m = e.message;
@@ -154,12 +162,106 @@ function CheckinTab({ rest, onBack, showToast }) {
   );
 }
 
+function TabBar({ tab, setTab }) {
+  const items = [["feed", "ฟีด", Home], ["checkin", "เช็คอิน", MapPin], ["profile", "โปรไฟล์", User]];
+  return (
+    <>
+      <div className="h-16" />
+      <nav className="fixed bottom-0 inset-x-0 z-30 bg-white border-t border-black/5 flex">
+        {items.map(([k, label, Icon]) => (
+          <button key={k} onClick={() => setTab(k)} className={`flex-1 flex flex-col items-center gap-0.5 py-2 text-[11px] ${tab === k ? "text-[#6C5CE7] font-semibold" : "text-[#9199A8]"}`}>
+            <Icon size={20} />{label}
+          </button>
+        ))}
+      </nav>
+    </>
+  );
+}
+
+function ProfileTab({ rest, session, userId, onLogout, onPrivacy, showToast }) {
+  const isMe = userId === session.user_id;
+  const [p, setP] = useState(null);
+  const [stats, setStats] = useState({ posts: 0, checkins: 0, friends: 0 });
+  const [posts, setPosts] = useState([]);
+  const [edit, setEdit] = useState(false);
+  const [name, setName] = useState("");
+  const [bio, setBio] = useState("");
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [pr, st, ps] = await Promise.all([
+          rest(`/rest/v1/profiles?id=eq.${userId}&select=display_name,bio`),
+          rest("/rest/v1/rpc/profile_stats", { method: "POST", body: { p_user: userId } }),
+          rest(`/rest/v1/posts?user_id=eq.${userId}&select=id,content,created_at&order=created_at.desc&limit=20`),
+        ]);
+        setP(pr[0]); setName(pr[0]?.display_name || ""); setBio(pr[0]?.bio || ""); setStats(st); setPosts(ps);
+      } catch (e) { showToast("โหลดโปรไฟล์ไม่สำเร็จ: " + e.message); }
+    })();
+  }, [userId]);
+
+  const save = async () => {
+    try {
+      const r = await rest(`/rest/v1/profiles?id=eq.${userId}`, { method: "PATCH", body: { display_name: name.trim(), bio: bio.trim() || null } });
+      setP(r[0]); setEdit(false); showToast("บันทึกโปรไฟล์แล้ว");
+    } catch (e) { showToast(e.message.includes("check") ? "ชื่อต้องยาว 2–30 ตัวอักษร คำแนะนำตัวไม่เกิน 160" : "บันทึกไม่สำเร็จ: " + e.message); }
+  };
+
+  if (!p) return <div className="min-h-screen bg-[#F3F5FA] flex items-center justify-center text-sm text-[#9199A8]">กำลังโหลด...</div>;
+
+  return (
+    <div style={{ fontFamily: "'IBM Plex Sans Thai', sans-serif" }} className="min-h-screen bg-[#F3F5FA] text-[#1A1D29]">
+      <style>{FONT_IMPORT}</style>
+      <main className="max-w-xl mx-auto px-4 pt-6 space-y-3">
+        <div className="bg-white rounded-2xl p-5 shadow-sm text-center">
+          <div className="w-16 h-16 mx-auto rounded-full bg-[#6C5CE7]/10 text-[#6C5CE7] flex items-center justify-center text-2xl font-semibold">{p.display_name?.[0]?.toUpperCase()}</div>
+          {edit ? (
+            <div className="mt-3 space-y-2 text-left">
+              <input value={name} maxLength={30} onChange={e => setName(e.target.value)} placeholder="ชื่อที่แสดง" className="w-full text-sm bg-[#F3F5FA] rounded-lg px-3 py-2 outline-none" />
+              <textarea value={bio} maxLength={160} rows={3} onChange={e => setBio(e.target.value)} placeholder="แนะนำตัวสั้นๆ (ไม่เกิน 160 ตัวอักษร)" className="w-full text-sm bg-[#F3F5FA] rounded-lg px-3 py-2 outline-none resize-none" />
+              <div className="flex gap-2">
+                <button onClick={() => setEdit(false)} className="flex-1 border border-black/10 text-sm py-2 rounded-lg">ยกเลิก</button>
+                <button onClick={save} disabled={name.trim().length < 2} className="flex-1 bg-[#6C5CE7] disabled:opacity-40 text-white text-sm font-medium py-2 rounded-lg">บันทึก</button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <h1 style={{ fontFamily: "'Kanit', sans-serif" }} className="text-xl font-semibold mt-3">{p.display_name}</h1>
+              <p className="text-sm text-[#6B7280] mt-1 whitespace-pre-wrap">{p.bio || (isMe ? "ยังไม่มีคำแนะนำตัว" : "")}</p>
+            </>
+          )}
+          <div className="grid grid-cols-3 gap-2 mt-4 text-center">
+            {[["โพสต์", stats.posts], ["เช็คอิน", stats.checkins], ["เพื่อน", stats.friends]].map(([l, n]) => (
+              <div key={l} className="bg-[#F3F5FA] rounded-xl py-2"><p className="text-lg font-semibold">{n}</p><p className="text-xs text-[#6B7280]">{l}</p></div>
+            ))}
+          </div>
+          {isMe && !edit && (
+            <div className="flex gap-2 mt-4">
+              <button onClick={() => setEdit(true)} className="flex-1 border border-[#6C5CE7]/30 text-[#6C5CE7] text-sm font-medium py-2 rounded-lg">แก้ไขโปรไฟล์</button>
+              <button onClick={onLogout} className="flex-1 border border-black/10 text-[#6B7280] text-sm py-2 rounded-lg">ออกจากระบบ</button>
+            </div>
+          )}
+        </div>
+        {isMe && <button onClick={onPrivacy} className="w-full bg-white rounded-2xl p-3 shadow-sm text-sm text-left text-[#6C5CE7]">ตั้งค่าความเป็นส่วนตัวและการใช้ข้อมูล</button>}
+        {posts.map(po => (
+          <div key={po.id} className="bg-white rounded-2xl p-4 shadow-sm">
+            <p className="text-xs text-[#9199A8] mb-1">{timeAgo(po.created_at)}</p>
+            <p className="text-sm whitespace-pre-wrap">{po.content}</p>
+          </div>
+        ))}
+        {posts.length === 0 && <p className="text-center text-xs text-[#9199A8] py-4">ยังไม่มีโพสต์</p>}
+      </main>
+    </div>
+  );
+}
+
 export default function FeedApp() {
   const [session, setSession] = useState(null); // { access_token, user_id, email }
   const [booting, setBooting] = useState(true);
   const [authMode, setAuthMode] = useState("login");
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
+  const [authName, setAuthName] = useState("");
   const [authBusy, setAuthBusy] = useState(false);
   const [authError, setAuthError] = useState("");
 
@@ -176,6 +278,12 @@ export default function FeedApp() {
   const [leaderboard, setLeaderboard] = useState([]);
   const [friendStatus, setFriendStatus] = useState({});
   const [tab, setTab] = useState("feed");
+  const [profileId, setProfileId] = useState(null); // null = โปรไฟล์ตัวเอง
+  const [consent, setConsent] = useState(null);
+  const [showConsent, setShowConsent] = useState(false);
+  const [cA, setCA] = useState(false);
+  const [cP, setCP] = useState(false);
+  const sid = useRef(crypto.randomUUID());
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2500); };
 
@@ -256,7 +364,7 @@ export default function FeedApp() {
       const res = await fetch(`${SUPABASE_URL}${path}`, {
         method: "POST",
         headers: { apikey: SUPABASE_ANON_KEY, "Content-Type": "application/json" },
-        body: JSON.stringify({ email: authEmail, password: authPassword }),
+        body: JSON.stringify({ email: authEmail, password: authPassword, ...(authMode === "signup" ? { data: { display_name: authName.trim() } } : {}) }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error_description || data.msg || "เข้าสู่ระบบไม่สำเร็จ");
@@ -280,7 +388,7 @@ export default function FeedApp() {
     setLoadingFeed(true);
     try {
       const rows = await rest(
-        "/rest/v1/posts?select=id,content,is_boosted,boost_expire_at,created_at,author:profiles!posts_user_id_fkey(id,username),comments(id,content,created_at,author:profiles!comments_user_id_fkey(username)),likes(user_id)&order=created_at.desc"
+        "/rest/v1/posts?select=id,content,is_boosted,boost_expire_at,created_at,author:profiles!posts_user_id_fkey(id,username:display_name),comments(id,content,created_at,author:profiles!comments_user_id_fkey(username:display_name)),likes(user_id)&order=created_at.desc"
       );
       setPosts(rows.map(p => ({ ...p, is_boosted: boostActive(p) })).sort((a, b) => Number(b.is_boosted) - Number(a.is_boosted)));
       const w = await rest(`/rest/v1/wallets?user_id=eq.${session.user_id}&select=credit_balance`);
@@ -293,6 +401,56 @@ export default function FeedApp() {
   }, [rest, session]);
 
   useEffect(() => { if (session) loadFeed(); }, [session, loadFeed]);
+
+  // โหลดสถานะการยินยอม ถ้ายังไม่เคยเลือกให้ถามก่อน (ค่าเริ่มต้น = ไม่เก็บ)
+  useEffect(() => {
+    if (!session) return;
+    rest(`/rest/v1/user_consents?user_id=eq.${session.user_id}&select=analytics,personalized_ads`)
+      .then(r => { if (r[0]) { setConsent(r[0]); setCA(r[0].analytics); setCP(r[0].personalized_ads); } else setShowConsent(true); })
+      .catch(() => {});
+  }, [session]);
+
+  // เก็บเวลาใช้งาน: ส่ง heartbeat ทุก 60 วินาทีเฉพาะตอนหน้าจอเปิดอยู่ และผู้ใช้ยินยอมแล้ว
+  useEffect(() => {
+    if (!session || !consent?.analytics) return;
+    const beat = () => {
+      if (document.visibilityState === "visible")
+        rest("/rest/v1/rpc/track_session", { method: "POST", body: { p_session_id: sid.current } }).catch(() => {});
+    };
+    beat();
+    const t = setInterval(beat, 60000);
+    return () => clearInterval(t);
+  }, [session, consent?.analytics]);
+
+  // บันทึกความสนใจจากข้อความ (เฉพาะผู้ที่ยินยอมโฆษณาตรงใจ; เซิร์ฟเวอร์ตรวจซ้ำอีกชั้น)
+  const track = (text, w) => {
+    if (!consent?.personalized_ads) return;
+    for (const [topic, words] of Object.entries(TOPIC_KEYWORDS)) {
+      if (words.some(k => (text || "").includes(k)))
+        rest("/rest/v1/rpc/record_interest", { method: "POST", body: { p_topic: topic, p_weight: w } }).catch(() => {});
+    }
+  };
+
+  const saveConsent = async () => {
+    try {
+      await rest("/rest/v1/rpc/set_consent", { method: "POST", body: { p_analytics: cA, p_ads: cP } });
+      setConsent({ analytics: cA, personalized_ads: cP });
+      setShowConsent(false);
+      showToast("บันทึกการตั้งค่าแล้ว");
+    } catch (e) { showToast("บันทึกไม่สำเร็จ: " + e.message); }
+  };
+
+  const consentModal = showConsent && (
+    <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 px-4">
+      <div className="bg-white rounded-2xl w-full max-w-sm p-4 space-y-3">
+        <h3 style={{ fontFamily: "'Kanit', sans-serif" }} className="font-semibold">ความเป็นส่วนตัวของคุณ</h3>
+        <p className="text-xs text-[#6B7280]">เลือกได้ว่าจะให้ feedTH ใช้ข้อมูลอะไร ปิดได้ทุกเมื่อและข้อมูลที่เก็บไว้ในข้อนั้นจะถูกลบ แอปใช้งานได้ปกติไม่ว่าจะเลือกอะไร</p>
+        <label className="flex gap-2 text-sm"><input type="checkbox" checked={cA} onChange={e => setCA(e.target.checked)} /><span>เก็บสถิติการใช้งาน (ช่วงเวลาและระยะเวลาที่ใช้แอป) เพื่อปรับปรุงแอป</span></label>
+        <label className="flex gap-2 text-sm"><input type="checkbox" checked={cP} onChange={e => setCP(e.target.checked)} /><span>เรียนรู้ความสนใจของฉัน เพื่อแสดงโฆษณาที่ตรงใจ</span></label>
+        <button onClick={saveConsent} className="w-full bg-[#6C5CE7] text-white text-sm font-semibold py-2.5 rounded-full">บันทึก</button>
+      </div>
+    </div>
+  );
 
   // ---------- ให้คะแนนเพื่อนรัก (ครั้งเดียวต่อโพสต์ต่อประเภท กันฟาร์มด้วย unique constraint จริงในฐานข้อมูล) ----------
   const awardFanPoints = async (toUserId, toUsername, postId, action, points) => {
@@ -310,6 +468,7 @@ export default function FeedApp() {
     if (!draft.trim()) return;
     try {
       await rest("/rest/v1/posts", { method: "POST", body: { user_id: session.user_id, content: draft.trim() } });
+      track(draft, 2);
       setDraft("");
       loadFeed();
     } catch (e) { showToast("โพสต์ไม่สำเร็จ: " + e.message); }
@@ -323,6 +482,7 @@ export default function FeedApp() {
       } else {
         await rest("/rest/v1/likes", { method: "POST", body: { post_id: post.id, user_id: session.user_id } });
         await awardFanPoints(post.author.id, post.author.username, post.id, "like", 1);
+        track(post.content, 1);
       }
       loadFeed();
     } catch (e) { showToast("กดไลค์ไม่สำเร็จ: " + e.message); }
@@ -335,6 +495,7 @@ export default function FeedApp() {
       await rest("/rest/v1/comments", { method: "POST", body: { post_id: post.id, user_id: session.user_id, content: text } });
       setCommentDraft(prev => ({ ...prev, [post.id]: "" }));
       await awardFanPoints(post.author.id, post.author.username, post.id, "comment", 2);
+      track(text, 2);
       loadFeed();
     } catch (e) { showToast("คอมเมนต์ไม่สำเร็จ: " + e.message); }
   };
@@ -375,7 +536,7 @@ export default function FeedApp() {
   const openLeaderboard = async (author) => {
     setLeaderboardFor(author);
     try {
-      const rows = await rest(`/rest/v1/fan_scores?to_user_id=eq.${author.id}&select=points,from:profiles!fan_scores_from_user_id_fkey(username)&order=points.desc&limit=10`);
+      const rows = await rest(`/rest/v1/fan_scores?to_user_id=eq.${author.id}&select=points,from:profiles!fan_scores_from_user_id_fkey(username:display_name)&order=points.desc&limit=10`);
       setLeaderboard(rows);
     } catch { setLeaderboard([]); }
   };
@@ -414,11 +575,12 @@ export default function FeedApp() {
         <div className="bg-white rounded-2xl shadow-sm border border-black/5 p-6 w-full max-w-sm">
           <h1 style={{ fontFamily: "'Kanit', sans-serif" }} className="text-xl font-semibold text-[#6C5CE7] mb-4">feedTH</h1>
           <div className="space-y-2 mb-3">
+            {authMode === "signup" && <input placeholder="ชื่อที่แสดง (2–30 ตัวอักษร)" maxLength={30} value={authName} onChange={e => setAuthName(e.target.value)} className="w-full text-sm bg-[#F3F5FA] rounded-lg px-3 py-2 outline-none" />}
             <input type="email" placeholder="อีเมล" value={authEmail} onChange={e => setAuthEmail(e.target.value)} className="w-full text-sm bg-[#F3F5FA] rounded-lg px-3 py-2 outline-none" />
             <input type="password" placeholder="รหัสผ่าน" value={authPassword} onChange={e => setAuthPassword(e.target.value)} className="w-full text-sm bg-[#F3F5FA] rounded-lg px-3 py-2 outline-none" />
           </div>
           {authError && <p className="text-xs text-[#C43D3D] mb-2">{authError}</p>}
-          <button onClick={handleAuth} disabled={authBusy || !authEmail || !authPassword} className="w-full bg-[#6C5CE7] disabled:opacity-40 text-white text-sm font-medium py-2 rounded-lg mb-2">
+          <button onClick={handleAuth} disabled={authBusy || !authEmail || !authPassword || (authMode === "signup" && authName.trim().length < 2)} className="w-full bg-[#6C5CE7] disabled:opacity-40 text-white text-sm font-medium py-2 rounded-lg mb-2">
             {authBusy ? "กำลังทำรายการ..." : authMode === "signup" ? "สมัครสมาชิก" : "เข้าสู่ระบบ"}
           </button>
           <button onClick={() => setAuthMode(m => m === "signup" ? "login" : "signup")} className="w-full text-xs text-[#6B7280]">
@@ -429,7 +591,17 @@ export default function FeedApp() {
     );
   }
 
-  if (tab === "checkin") return <><CheckinTab rest={rest} onBack={() => setTab("feed")} showToast={showToast} />{toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#1A1D29] text-white text-sm px-4 py-2 rounded-full shadow-lg z-40">{toast}</div>}</>;
+  const goTab = (t) => { if (t === "profile") setProfileId(null); setTab(t); };
+  if (tab === "checkin" || tab === "profile") return (
+    <>
+      {tab === "checkin"
+        ? <CheckinTab rest={rest} onBack={() => setTab("feed")} showToast={showToast} />
+        : <ProfileTab key={profileId || session.user_id} rest={rest} session={session} userId={profileId || session.user_id} onLogout={logout} onPrivacy={() => setShowConsent(true)} showToast={showToast} />}
+      <TabBar tab={tab} setTab={goTab} />
+      {consentModal}
+      {toast && <div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-[#1A1D29] text-white text-sm px-4 py-2 rounded-full shadow-lg z-40 max-w-[90%] text-center">{toast}</div>}
+    </>
+  );
 
   // ---------- หน้าจอหลัก ----------
   return (
@@ -476,7 +648,7 @@ export default function FeedApp() {
               <div className="flex items-center gap-2.5 mb-2">
                 <div className="w-9 h-9 rounded-full bg-[#6C5CE7]/10 text-[#6C5CE7] flex items-center justify-center font-semibold text-sm shrink-0">{post.author.username[0]?.toUpperCase()}</div>
                 <div className="leading-tight flex-1">
-                  <p className="text-sm font-medium">{post.author.username}</p>
+                  <button onClick={() => { setProfileId(post.author.id); setTab("profile"); }} className="block text-sm font-medium text-left hover:underline">{post.author.username}</button>
                   <p className="text-xs text-[#9199A8]">{timeAgo(post.created_at)}</p>
                 </div>
                 {isOther && (
@@ -575,7 +747,9 @@ export default function FeedApp() {
         </div>
       )}
 
-      {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#1A1D29] text-white text-sm px-4 py-2 rounded-full shadow-lg z-40 max-w-[90%] text-center">{toast}</div>}
+      <TabBar tab="feed" setTab={goTab} />
+      {consentModal}
+      {toast && <div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-[#1A1D29] text-white text-sm px-4 py-2 rounded-full shadow-lg z-40 max-w-[90%] text-center">{toast}</div>}
     </div>
   );
 }
