@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import {
   Heart, MessageCircle, Zap, Wallet, Send, X, Sparkles,
   Share2, UserPlus, UserCheck, Crown, Trophy, Loader2, LogOut, MapPin, ArrowLeft, Home, User,
@@ -49,6 +51,46 @@ const TOPIC_KEYWORDS = {
 const CATEGORY_TH = { attraction: "ที่เที่ยว", hotel: "ที่พัก", restaurant: "ร้านอาหาร", cafe: "คาเฟ่", other: "อื่นๆ" };
 const CHECKIN_RADIUS_M = 150;
 
+const CAT_COLOR = { attraction: "#17B890", hotel: "#4A90E2", restaurant: "#EF4565", cafe: "#FFB020", other: "#9199A8" };
+
+// แผนที่ Leaflet + OpenStreetMap (ไม่ต้องใช้ API key) แสดงตำแหน่งเรา วงรัศมีเช็คอิน และหมุดสถานที่
+function PlaceMap({ pos, places, onPick }) {
+  const el = useRef(null);
+  const map = useRef(null);
+  const layer = useRef(null);
+  const pickRef = useRef(onPick);
+  pickRef.current = onPick;
+
+  useEffect(() => {
+    if (!el.current || map.current) return;
+    map.current = L.map(el.current).setView([pos.lat, pos.lng], 16);
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: "&copy; OpenStreetMap contributors",
+    }).addTo(map.current);
+    layer.current = L.layerGroup().addTo(map.current);
+    return () => { map.current.remove(); map.current = null; };
+  }, []);
+
+  useEffect(() => {
+    if (!map.current) return;
+    layer.current.clearLayers();
+    L.circle([pos.lat, pos.lng], { radius: CHECKIN_RADIUS_M, color: "#6C5CE7", weight: 1.5, dashArray: "4 4", fillColor: "#6C5CE7", fillOpacity: 0.1 }).addTo(layer.current);
+    L.circleMarker([pos.lat, pos.lng], { radius: 8, color: "#fff", weight: 3, fillColor: "#6C5CE7", fillOpacity: 1 }).addTo(layer.current);
+    places.forEach(pl => {
+      const m = L.circleMarker([pl.lat, pl.lng], { radius: 10, color: "#fff", weight: 3, fillColor: CAT_COLOR[pl.category] || "#9199A8", fillOpacity: 1 });
+      const tip = document.createElement("div");
+      tip.textContent = pl.name; // ใช้ textContent กันโค้ดแฝงในชื่อสถานที่
+      m.bindTooltip(tip, { direction: "top" });
+      m.on("click", () => pickRef.current(pl));
+      m.addTo(layer.current);
+    });
+    map.current.setView([pos.lat, pos.lng], map.current.getZoom());
+  }, [pos, places]);
+
+  return <div ref={el} className="w-full rounded-2xl overflow-hidden" style={{ height: 260 }} role="img" aria-label="แผนที่แสดงตำแหน่งของคุณและสถานที่ใกล้เคียง" />;
+}
+
 function CheckinTab({ rest, onBack, showToast }) {
   const [pos, setPos] = useState(null);
   const [places, setPlaces] = useState([]);
@@ -97,6 +139,11 @@ function CheckinTab({ rest, onBack, showToast }) {
     } catch (e) { showToast(e.message.includes("exists") ? "มีสถานที่นี้อยู่แล้วใกล้ๆ" : "เพิ่มไม่สำเร็จ: " + e.message); }
   };
 
+  const pickPlace = (pl) => {
+    if (pl.distance_m <= CHECKIN_RADIUS_M) setTarget(pl);
+    else showToast(`${pl.name} อยู่ไกลเกินไป (${Math.round(pl.distance_m)} ม.) ต้องอยู่ในรัศมี ${CHECKIN_RADIUS_M} ม.`);
+  };
+
   const shown = places.filter(pl => cat === "all" || pl.category === cat);
 
   return (
@@ -110,7 +157,12 @@ function CheckinTab({ rest, onBack, showToast }) {
         </div>
       </header>
       <main className="max-w-xl mx-auto px-4 pt-3 space-y-3">
-        {/* แผนที่ OpenStreetMap + Leaflet จะใส่ตอนทำเป็นโปรเจกต์ที่ deploy (ในแชทโหลดรูปแผนที่ไม่ได้) */}
+        {pos && (
+          <div className="relative isolate z-0">
+            <PlaceMap pos={pos} places={places} onPick={pickPlace} />
+            <p className="text-[11px] text-[#9199A8] mt-1">จุดสีม่วง = คุณ · วงประ = รัศมีเช็คอิน 150 ม. · กดหมุดเพื่อเช็คอิน</p>
+          </div>
+        )}
         <div className="flex gap-2 overflow-x-auto">
           {["all", ...Object.keys(CATEGORY_TH)].map(c => (
             <button key={c} onClick={() => setCat(c)} className={`text-xs px-3 py-1.5 rounded-full whitespace-nowrap ${cat === c ? "bg-[#6C5CE7] text-white" : "bg-white border border-black/10"}`}>
