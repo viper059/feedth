@@ -280,7 +280,7 @@ export default function FeedApp() {
     setLoadingFeed(true);
     try {
       const rows = await rest(
-        "/rest/v1/posts?select=id,content,is_boosted,boost_expire_at,created_at,author:profiles(id,username),comments(id,content,created_at,author:profiles(username)),likes(user_id)&order=created_at.desc"
+        "/rest/v1/posts?select=id,content,is_boosted,boost_expire_at,created_at,author:profiles!posts_user_id_fkey(id,username),comments(id,content,created_at,author:profiles!comments_user_id_fkey(username)),likes(user_id)&order=created_at.desc"
       );
       setPosts(rows.map(p => ({ ...p, is_boosted: boostActive(p) })).sort((a, b) => Number(b.is_boosted) - Number(a.is_boosted)));
       const w = await rest(`/rest/v1/wallets?user_id=eq.${session.user_id}&select=credit_balance`);
@@ -375,7 +375,7 @@ export default function FeedApp() {
   const openLeaderboard = async (author) => {
     setLeaderboardFor(author);
     try {
-      const rows = await rest(`/rest/v1/fan_scores?to_user_id=eq.${author.id}&select=points,from:profiles(username)&order=points.desc&limit=10`);
+      const rows = await rest(`/rest/v1/fan_scores?to_user_id=eq.${author.id}&select=points,from:profiles!fan_scores_from_user_id_fkey(username)&order=points.desc&limit=10`);
       setLeaderboard(rows);
     } catch { setLeaderboard([]); }
   };
