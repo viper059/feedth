@@ -209,7 +209,7 @@ function CheckinTab({ rest, onBack, showToast, onOpenPlace }) {
       </main>
 
       {target && (
-        <div className="fixed inset-0 bg-black/40 flex items-end justify-center z-30 px-4">
+        <div className="fixed inset-0 bg-black/40 flex items-end justify-center z-50 px-4">
           <div className="bg-white rounded-t-2xl w-full max-w-sm p-4 relative space-y-3">
             <button onClick={() => setTarget(null)} aria-label="ปิด" className="absolute top-3 right-3 text-[#9199A8]"><X size={18} /></button>
             <h3 style={{ fontFamily: "'Kanit', sans-serif" }} className="font-semibold">{target.name}</h3>
@@ -532,7 +532,7 @@ function ProfileTab({ rest, session, userId, onLogout, onPrivacy, showToast }) {
   return (
     <div style={{ fontFamily: "'IBM Plex Sans Thai', sans-serif" }} className="min-h-screen bg-[#F3F5FA] text-[#1A1D29]">
       <style>{FONT_IMPORT}</style>
-      <main className="max-w-xl mx-auto px-4 pt-6 space-y-3">
+      <main className="max-w-xl mx-auto px-4 pt-6 pb-24 space-y-3">
         <div className="bg-white rounded-2xl p-5 shadow-sm text-center">
           <div className="w-16 h-16 mx-auto rounded-full bg-[#6C5CE7]/10 text-[#6C5CE7] flex items-center justify-center text-2xl font-semibold">{p.display_name?.[0]?.toUpperCase()}</div>
           {edit ? (
@@ -1049,7 +1049,7 @@ export default function FeedApp() {
       </main>
 
       {boostTarget !== null && (
-        <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-30 px-4">
+        <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 px-4">
           <div className="bg-white rounded-2xl w-full max-w-sm p-4 relative">
             <button onClick={() => setBoostTarget(null)} className="absolute top-3 right-3 text-[#9199A8]"><X size={18} /></button>
             <h3 style={{ fontFamily: "'Kanit', sans-serif" }} className="font-semibold mb-1 flex items-center gap-1.5"><Zap size={16} className="text-[#FFB020]" /> เลือกแพ็กบูสต์</h3>
@@ -1067,7 +1067,7 @@ export default function FeedApp() {
       )}
 
       {leaderboardFor && (
-        <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-30 px-4">
+        <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 px-4">
           <div className="bg-white rounded-2xl w-full max-w-sm p-4 relative">
             <button onClick={() => setLeaderboardFor(null)} className="absolute top-3 right-3 text-[#9199A8]"><X size={18} /></button>
             <h3 style={{ fontFamily: "'Kanit', sans-serif" }} className="font-semibold mb-3 flex items-center gap-1.5"><Trophy size={16} className="text-[#FFB020]" /> เพื่อนรักของ {leaderboardFor.username}</h3>
