@@ -214,6 +214,91 @@ function CheckinTab({ rest, onBack, showToast }) {
   );
 }
 
+const Stars = ({ n, size = 13 }) => (
+  <span style={{ color: "#FFB020", fontSize: size, letterSpacing: 1 }} aria-label={`${n} ดาว`}>{"★".repeat(Math.round(n))}<span style={{ color: "#D5D9E2" }}>{"★".repeat(5 - Math.round(n))}</span></span>
+);
+
+function dayLabel(iso) {
+  const d = new Date(iso), n = new Date();
+  const day = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diff = Math.round((day(n) - day(d)) / 86400000);
+  if (diff === 0) return "วันนี้";
+  if (diff === 1) return "เมื่อวาน";
+  return d.toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" });
+}
+
+// หน้าสถานที่: คะแนนเฉลี่ย + รีวิวของทุกคนเรียงเป็นไทม์ไลน์รายวัน
+function PlaceDetail({ placeId, rest, posts, userId, onLike, onBack, onProfile, onCheckin, showToast }) {
+  const [info, setInfo] = useState(null);
+  useEffect(() => {
+    (async () => {
+      try { const r = await rest("/rest/v1/rpc/place_summary", { method: "POST", body: { p_place_id: placeId } }); setInfo(r[0] || null); }
+      catch (e) { showToast("โหลดสถานที่ไม่สำเร็จ: " + e.message); }
+    })();
+  }, [placeId, posts.length]);
+
+  const reviews = posts.filter(p => p.place_id === placeId).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  const groups = [];
+  reviews.forEach(r => {
+    const label = dayLabel(r.created_at);
+    const g = groups.find(x => x.label === label);
+    g ? g.items.push(r) : groups.push({ label, items: [r] });
+  });
+
+  return (
+    <div style={{ fontFamily: "'IBM Plex Sans Thai', sans-serif" }} className="min-h-screen bg-[#F3F5FA] text-[#1A1D29] pb-20">
+      <style>{FONT_IMPORT}</style>
+      <header className="sticky top-0 z-20 bg-[#F3F5FA]/90 backdrop-blur border-b border-black/5">
+        <div className="max-w-xl mx-auto flex items-center gap-3 px-4 py-3">
+          <button onClick={onBack} aria-label="กลับ" className="text-[#6B7280]"><ArrowLeft size={18} /></button>
+          <h1 style={{ fontFamily: "'Kanit', sans-serif" }} className="text-lg font-semibold text-[#6C5CE7] truncate">{info?.name || "สถานที่"}</h1>
+        </div>
+      </header>
+      <main className="max-w-xl mx-auto px-4 pt-4 space-y-3">
+        {info && (
+          <div className="bg-white rounded-2xl p-4 shadow-sm space-y-2">
+            <span className="text-[11px] font-medium px-2 py-0.5 rounded-full text-white" style={{ background: CAT_COLOR[info.category] }}>{CATEGORY_TH[info.category]}</span>
+            {info.is_verified && <span className="ml-1.5 text-[10px] text-[#178A5D] bg-[#E8F8F1] rounded-full px-2 py-0.5">ยืนยันแล้ว</span>}
+            <div className="flex items-end gap-3">
+              <span style={{ fontFamily: "'Kanit', sans-serif" }} className="text-3xl font-semibold">{info.avg_rating ?? "-"}</span>
+              <div className="pb-1"><Stars n={Number(info.avg_rating || 0)} size={16} /><p className="text-xs text-[#6B7280]">{info.review_count} เช็คอิน · {info.visitors} คน</p></div>
+            </div>
+            <button onClick={onCheckin} className="w-full bg-[#6C5CE7] text-white text-sm font-semibold py-2.5 rounded-full flex items-center justify-center gap-1.5"><MapPin size={15} /> ไปเช็คอินที่นี่</button>
+          </div>
+        )}
+        {groups.length === 0 && <p className="text-center text-xs text-[#9199A8] py-6">ยังไม่มีรีวิว เป็นคนแรกเลย</p>}
+        {groups.map(g => (
+          <section key={g.label}>
+            <p className="text-[11px] tracking-wide text-[#9199A8] mb-2 flex items-center gap-2">{g.label}<span className="flex-1 h-px bg-black/10" /></p>
+            {g.items.map(r => {
+              const liked = r.likes.some(l => l.user_id === userId);
+              return (
+                <article key={r.id} className="bg-white rounded-2xl p-3.5 shadow-sm mb-2.5">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-full bg-[#6C5CE7]/10 text-[#6C5CE7] flex items-center justify-center font-semibold text-sm">{r.author.username[0]?.toUpperCase()}</div>
+                    <div className="leading-tight flex-1">
+                      <button onClick={() => onProfile(r.author.id)} className="text-sm font-medium hover:underline">{r.author.username}</button>
+                      <p className="text-xs text-[#9199A8]">{new Date(r.created_at).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })}</p>
+                    </div>
+                    <span className="text-[10px] border border-[#B77600] text-[#B77600] rounded px-1.5 py-0.5 -rotate-3">CHECK-IN</span>
+                  </div>
+                  <p className="text-sm my-2 whitespace-pre-wrap">{r.content}</p>
+                  <div className="flex items-center justify-between">
+                    {r.rating ? <Stars n={r.rating} /> : <span />}
+                    <button onClick={() => onLike(r)} className={`flex items-center gap-1.5 text-sm ${liked ? "text-[#EF4565]" : "text-[#6B7280]"}`}>
+                      <Heart size={16} fill={liked ? "#EF4565" : "none"} /> {r.likes.length}
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </section>
+        ))}
+      </main>
+    </div>
+  );
+}
+
 function TabBar({ tab, setTab }) {
   const items = [["feed", "ฟีด", Home], ["checkin", "เช็คอิน", MapPin], ["profile", "โปรไฟล์", User]];
   return (
@@ -330,6 +415,7 @@ export default function FeedApp() {
   const [leaderboard, setLeaderboard] = useState([]);
   const [friendStatus, setFriendStatus] = useState({});
   const [tab, setTab] = useState("feed");
+  const [placeView, setPlaceView] = useState(null);
   const [profileId, setProfileId] = useState(null); // null = โปรไฟล์ตัวเอง
   const [consent, setConsent] = useState(null);
   const [showConsent, setShowConsent] = useState(false);
@@ -440,7 +526,7 @@ export default function FeedApp() {
     setLoadingFeed(true);
     try {
       const rows = await rest(
-        "/rest/v1/posts?select=id,content,is_boosted,boost_expire_at,created_at,author:profiles!posts_user_id_fkey(id,username:display_name),comments(id,content,created_at,author:profiles!comments_user_id_fkey(username:display_name)),likes(user_id)&order=created_at.desc"
+        "/rest/v1/posts?select=id,content,is_boosted,boost_expire_at,created_at,place_id,rating,place:places(id,name,category),author:profiles!posts_user_id_fkey(id,username:display_name),comments(id,content,created_at,author:profiles!comments_user_id_fkey(username:display_name)),likes(user_id)&order=created_at.desc"
       );
       setPosts(rows.map(p => ({ ...p, is_boosted: boostActive(p) })).sort((a, b) => Number(b.is_boosted) - Number(a.is_boosted)));
       const w = await rest(`/rest/v1/wallets?user_id=eq.${session.user_id}&select=credit_balance`);
@@ -643,7 +729,16 @@ export default function FeedApp() {
     );
   }
 
-  const goTab = (t) => { if (t === "profile") setProfileId(null); setTab(t); };
+  const openPlace = (id) => setPlaceView(id);
+  const goTab = (t) => { if (t === "profile") setProfileId(null); setPlaceView(null); setTab(t); };
+  if (placeView) return (
+    <>
+      <PlaceDetail placeId={placeView} rest={rest} posts={posts} userId={session.user_id} onLike={toggleLike} onBack={() => setPlaceView(null)}
+        onProfile={(id) => { setPlaceView(null); setProfileId(id); setTab("profile"); }} onCheckin={() => { setPlaceView(null); setTab("checkin"); }} showToast={showToast} />
+      <TabBar tab={tab} setTab={goTab} />
+      {toast && <div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-[#1A1D29] text-white text-sm px-4 py-2 rounded-full shadow-lg z-40 max-w-[90%] text-center">{toast}</div>}
+    </>
+  );
   if (tab === "checkin" || tab === "profile") return (
     <>
       {tab === "checkin"
@@ -712,6 +807,13 @@ export default function FeedApp() {
               </div>
 
               <p className="text-sm leading-relaxed mb-2 whitespace-pre-wrap">{post.content}</p>
+
+              {post.place && (
+                <button onClick={() => openPlace(post.place.id)} className="flex items-center gap-1.5 mb-2 text-xs px-2.5 py-1 rounded-full w-fit" style={{ background: CAT_COLOR[post.place.category] + "1A", color: "#1A1D29" }}>
+                  <MapPin size={12} style={{ color: CAT_COLOR[post.place.category] }} /> {post.place.name}
+                  {post.rating && <Stars n={post.rating} size={11} />}
+                </button>
+              )}
 
               {isOther && (
                 <button onClick={() => openLeaderboard(post.author)} className="flex items-center gap-1 mb-2 text-[11px] font-medium px-2 py-0.5 rounded-full w-fit text-[#6C5CE7] bg-[#F0EDFF]">
