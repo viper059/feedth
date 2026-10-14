@@ -3,7 +3,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import {
   Heart, MessageCircle, Zap, Wallet, Send, X, Sparkles,
-  Share2, UserPlus, UserCheck, Crown, Trophy, Loader2, LogOut, MapPin, ArrowLeft, Home, User, Medal,
+  Share2, UserPlus, UserCheck, Crown, Trophy, Loader2, LogOut, MapPin, ArrowLeft, Home, User, Medal, Compass,
 } from "lucide-react";
 
 // ==========================================================
@@ -405,8 +405,72 @@ function Passport({ t }) {
   );
 }
 
+function ExploreTab({ rest, prov, setProv, onOpenPlace, showToast }) {
+  const [provs, setProvs] = useState(null);
+  const [places, setPlaces] = useState(null);
+  const [cat, setCat] = useState("all");
+  useEffect(() => {
+    if (prov) return;
+    rest("/rest/v1/rpc/explore_provinces", { method: "POST", body: {} }).then(setProvs).catch(e => { showToast("โหลดจังหวัดไม่สำเร็จ: " + e.message); setProvs([]); });
+  }, [prov]);
+  useEffect(() => {
+    if (!prov) return;
+    setPlaces(null);
+    rest("/rest/v1/rpc/explore_places", { method: "POST", body: { p_province: prov } }).then(setPlaces).catch(e => { showToast("โหลดสถานที่ไม่สำเร็จ: " + e.message); setPlaces([]); });
+  }, [prov]);
+  const shown = (places || []).filter(x => cat === "all" || x.category === cat);
+  return (
+    <div style={{ fontFamily: "'IBM Plex Sans Thai', sans-serif" }} className="min-h-screen bg-[#F3F5FA] text-[#1A1D29] pb-20">
+      <style>{FONT_IMPORT}</style>
+      <header className="sticky top-0 z-20 bg-[#F3F5FA]/90 backdrop-blur border-b border-black/5">
+        <div className="max-w-xl mx-auto flex items-center gap-3 px-4 py-3">
+          {prov && <button onClick={() => { setProv(null); setCat("all"); }} aria-label="กลับ" className="text-[#6B7280]"><ArrowLeft size={18} /></button>}
+          <h1 style={{ fontFamily: "'Kanit', sans-serif" }} className="text-xl font-semibold text-[#6C5CE7]">{prov ? prov : "สำรวจจังหวัด"}</h1>
+        </div>
+      </header>
+      <main className="max-w-xl mx-auto px-4 pt-3 space-y-2">
+        {!prov && provs === null && <p className="text-center text-xs text-[#9199A8] py-6">กำลังโหลด...</p>}
+        {!prov && provs && provs.length === 0 && <p className="text-center text-xs text-[#9199A8] py-6">ยังไม่มีสถานที่ในระบบ</p>}
+        {!prov && provs && provs.map(pv => {
+          const pct = pv.places ? Math.round((pv.visited / pv.places) * 100) : 0;
+          return (
+            <button key={pv.name} onClick={() => setProv(pv.name)} className="w-full bg-white rounded-2xl p-3.5 shadow-sm text-left">
+              <div className="flex justify-between items-center"><span className="text-sm font-medium">{pv.name}</span><span className="text-xs text-[#6B7280]">{pv.places} สถานที่ ›</span></div>
+              <div className="h-1.5 rounded bg-[#EEF0F5] overflow-hidden mt-2"><div className="h-full bg-[#B8862B]" style={{ width: pct + "%" }} /></div>
+              <p className="text-[11px] text-[#9199A8] mt-1">คุณไปมาแล้ว {pv.visited}/{pv.places} แห่ง ({pct}%)</p>
+            </button>
+          );
+        })}
+        {!prov && provs && provs.length > 0 && <p className="text-[11px] text-center text-[#9199A8] pt-2">จังหวัดอื่นจะขึ้นเมื่อมีคนเพิ่มสถานที่ในจังหวัดนั้น</p>}
+
+        {prov && (
+          <>
+            <div className="flex gap-2 overflow-x-auto">
+              {["all", ...Object.keys(CATEGORY_TH)].map(c => (
+                <button key={c} onClick={() => setCat(c)} className={`text-xs px-3 py-1.5 rounded-full whitespace-nowrap ${cat === c ? "bg-[#6C5CE7] text-white" : "bg-white border border-black/10"}`}>{c === "all" ? "ทั้งหมด" : CATEGORY_TH[c]}</button>
+              ))}
+            </div>
+            {places === null && <p className="text-center text-xs text-[#9199A8] py-6">กำลังโหลด...</p>}
+            {places && shown.length === 0 && <p className="text-center text-xs text-[#9199A8] py-6">ยังไม่มีสถานที่ในหมวดนี้</p>}
+            {shown.map(pl => (
+              <button key={pl.id} onClick={() => onOpenPlace(pl.id)} className="w-full bg-white rounded-2xl p-3 shadow-sm flex items-center gap-3 text-left">
+                <span className="w-2 self-stretch rounded-full" style={{ background: CAT_COLOR[pl.category] }} />
+                <span className="flex-1 min-w-0">
+                  <span className="block text-sm font-medium truncate">{pl.name}{pl.is_boosted && <span className="ml-1.5 text-[10px] text-[#B77600] bg-[#FFF4DD] rounded-full px-2 py-0.5">โปรโมท</span>}{pl.visited_by_me && <span className="ml-1.5 text-[10px] text-[#178A5D] bg-[#E8F8F1] rounded-full px-2 py-0.5">ไปแล้ว</span>}</span>
+                  <span className="block text-xs text-[#6B7280]">{CATEGORY_TH[pl.category]} · {pl.checkin_count} เช็คอิน</span>
+                </span>
+                {pl.avg_rating && <span className="text-right"><Stars n={Number(pl.avg_rating)} size={12} /><span className="block text-[11px] text-[#6B7280]">{pl.avg_rating}</span></span>}
+              </button>
+            ))}
+          </>
+        )}
+      </main>
+    </div>
+  );
+}
+
 function TabBar({ tab, setTab }) {
-  const items = [["feed", "ฟีด", Home], ["checkin", "เช็คอิน", MapPin], ["rank", "อันดับ", Trophy], ["profile", "โปรไฟล์", User]];
+  const items = [["feed", "ฟีด", Home], ["explore", "สำรวจ", Compass], ["checkin", "เช็คอิน", MapPin], ["rank", "อันดับ", Trophy], ["profile", "โปรไฟล์", User]];
   return (
     <>
       <div className="h-16" />
@@ -538,6 +602,7 @@ export default function FeedApp() {
   const [friendStatus, setFriendStatus] = useState({});
   const [tab, setTab] = useState("feed");
   const [placeView, setPlaceView] = useState(null);
+  const [exploreProv, setExploreProv] = useState(null);
   const [profileId, setProfileId] = useState(null); // null = โปรไฟล์ตัวเอง
   const [consent, setConsent] = useState(null);
   const [showConsent, setShowConsent] = useState(false);
@@ -861,10 +926,12 @@ export default function FeedApp() {
       {toast && <div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-[#1A1D29] text-white text-sm px-4 py-2 rounded-full shadow-lg z-40 max-w-[90%] text-center">{toast}</div>}
     </>
   );
-  if (tab === "checkin" || tab === "profile" || tab === "rank") return (
+  if (tab === "checkin" || tab === "profile" || tab === "rank" || tab === "explore") return (
     <>
       {tab === "checkin"
         ? <CheckinTab rest={rest} onBack={() => setTab("feed")} showToast={showToast} onOpenPlace={openPlace} />
+        : tab === "explore"
+        ? <ExploreTab rest={rest} prov={exploreProv} setProv={setExploreProv} onOpenPlace={openPlace} showToast={showToast} />
         : tab === "rank"
         ? <RankTab rest={rest} userId={session.user_id} onProfile={(id) => { setProfileId(id); setTab("profile"); }} showToast={showToast} />
         : <ProfileTab key={profileId || session.user_id} rest={rest} session={session} userId={profileId || session.user_id} onLogout={logout} onPrivacy={() => setShowConsent(true)} showToast={showToast} />}
