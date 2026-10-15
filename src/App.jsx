@@ -57,15 +57,45 @@ const TOPIC_KEYWORDS = {
 const CATEGORY_TH = { attraction: "ที่เที่ยว", hotel: "ที่พัก", restaurant: "ร้านอาหาร", cafe: "คาเฟ่", other: "อื่นๆ" };
 const CHECKIN_RADIUS_M = 150;
 
+// ตราประทับ: ปลดล็อกอัตโนมัติจากสถิติ (t = ผลของ travel_stats) แบ่งเป็นหมวด
+const U = (t, k) => Number((t.u || {})[k] || 0);
+const CAT = (t, k) => Number((t.by_cat || {})[k] || 0);
 const ACHIEVEMENTS = [
-  { id: "first", icon: "🌱", label: "ก้าวแรก", desc: "เช็คอินครั้งแรก", test: t => t.total >= 1 },
-  { id: "five", icon: "🔥", label: "นักเดินทาง", desc: "เช็คอินครบ 5 ครั้ง", test: t => t.total >= 5 },
-  { id: "ten", icon: "🏆", label: "ขาลุย", desc: "เช็คอินครบ 10 ครั้ง", test: t => t.total >= 10 },
-  { id: "cafe3", icon: "☕", label: "สายคาเฟ่", desc: "เช็คอินคาเฟ่ 3 ครั้ง", test: t => (t.by_cat.cafe || 0) >= 3 },
-  { id: "food3", icon: "🍜", label: "นักชิม", desc: "เช็คอินร้านอาหาร 3 ครั้ง", test: t => (t.by_cat.restaurant || 0) >= 3 },
-  { id: "temple3", icon: "⛩️", label: "สายมู", desc: "เช็คอินที่เที่ยว 3 ครั้ง", test: t => (t.by_cat.attraction || 0) >= 3 },
-  { id: "prov3", icon: "🗺️", label: "ล่าจังหวัด", desc: "เช็คอินครบ 3 จังหวัด", test: t => t.provinces.length >= 3 },
-  { id: "hotel", icon: "🏨", label: "นักนอน", desc: "เช็คอินที่พัก 1 ครั้ง", test: t => (t.by_cat.hotel || 0) >= 1 },
+  { g: "เช็คอิน", id: "first", icon: "🌱", label: "ก้าวแรก", desc: "เช็คอินครั้งแรก", test: t => t.total >= 1 },
+  { g: "เช็คอิน", id: "five", icon: "🔥", label: "นักเดินทาง", desc: "เช็คอินครบ 5 ครั้ง", test: t => t.total >= 5 },
+  { g: "เช็คอิน", id: "ten", icon: "🏆", label: "ขาลุย", desc: "เช็คอินครบ 10 ครั้ง", test: t => t.total >= 10 },
+  { g: "เช็คอิน", id: "fifty", icon: "💯", label: "ตัวจริง", desc: "เช็คอินครบ 50 ครั้ง", test: t => t.total >= 50 },
+  { g: "เช็คอิน", id: "hundred", icon: "🚀", label: "สายบิน", desc: "เช็คอินครบ 100 ครั้ง", test: t => t.total >= 100 },
+  { g: "เช็คอิน", id: "places10", icon: "📍", label: "นักสะสมที่เที่ยว", desc: "เช็คอิน 10 สถานที่ไม่ซ้ำกัน", test: t => t.places >= 10 },
+  { g: "เช็คอิน", id: "places50", icon: "🧭", label: "นักสำรวจตัวยง", desc: "เช็คอิน 50 สถานที่ไม่ซ้ำกัน", test: t => t.places >= 50 },
+  { g: "แผนที่", id: "con1", icon: "🌏", label: "ผู้พิชิตทวีป", desc: "ปลดล็อกทวีปแรก", test: t => U(t, "con") >= 1 },
+  { g: "แผนที่", id: "con3", icon: "🌍", label: "ข้ามทวีป", desc: "ปลดล็อก 3 ทวีป", test: t => U(t, "con") >= 3 },
+  { g: "แผนที่", id: "cty1", icon: "🚩", label: "ผู้พิชิตประเทศ", desc: "ปลดล็อกประเทศแรก", test: t => U(t, "cty") >= 1 },
+  { g: "แผนที่", id: "cty5", icon: "🛂", label: "พาสปอร์ตเต็มเล่ม", desc: "ปลดล็อก 5 ประเทศ", test: t => U(t, "cty") >= 5 },
+  { g: "แผนที่", id: "reg3", icon: "🧳", label: "สามภาค", desc: "ปลดล็อก 3 ภูมิภาค", test: t => U(t, "reg") >= 3 },
+  { g: "แผนที่", id: "reg6", icon: "🗾", label: "ผู้พิชิตภูมิภาค", desc: "ปลดล็อกครบ 6 ภูมิภาค", test: t => U(t, "reg") >= 6 },
+  { g: "แผนที่", id: "prov3", icon: "🗺️", label: "ล่าจังหวัด", desc: "เช็คอินครบ 3 จังหวัด", test: t => (t.provinces || []).length >= 3 },
+  { g: "แผนที่", id: "pro10", icon: "🏔️", label: "นักสะสมจังหวัด", desc: "ปลดล็อก 10 จังหวัด", test: t => U(t, "pro") >= 10 },
+  { g: "แผนที่", id: "pro30", icon: "🛣️", label: "ครึ่งทางแผนที่", desc: "ปลดล็อก 30 จังหวัด", test: t => U(t, "pro") >= 30 },
+  { g: "แผนที่", id: "pro77", icon: "👑", label: "ราชาแผนที่", desc: "ปลดล็อกครบ 77 จังหวัด", test: t => U(t, "pro") >= 77 },
+  { g: "แผนที่", id: "dis10", icon: "🏘️", label: "นักตะลุยอำเภอ", desc: "ปลดล็อก 10 อำเภอ", test: t => U(t, "dis") >= 10 },
+  { g: "แผนที่", id: "dis100", icon: "🏙️", label: "ร้อยอำเภอ", desc: "ปลดล็อก 100 อำเภอ", test: t => U(t, "dis") >= 100 },
+  { g: "แผนที่", id: "sub10", icon: "🔎", label: "นักเก็บตำบล", desc: "ปลดล็อก 10 ตำบล", test: t => U(t, "sub") >= 10 },
+  { g: "แผนที่", id: "sub100", icon: "🧩", label: "ตำบลทะลุร้อย", desc: "ปลดล็อก 100 ตำบล", test: t => U(t, "sub") >= 100 },
+  { g: "แผนที่", id: "sub500", icon: "🏅", label: "ตำนานตำบล", desc: "ปลดล็อก 500 ตำบล", test: t => U(t, "sub") >= 500 },
+  { g: "สายกิน-สายเที่ยว", id: "cafe3", icon: "☕", label: "สายคาเฟ่", desc: "เช็คอินคาเฟ่ 3 ครั้ง", test: t => CAT(t, "cafe") >= 3 },
+  { g: "สายกิน-สายเที่ยว", id: "cafe15", icon: "🧋", label: "ขาประจำคาเฟ่", desc: "เช็คอินคาเฟ่ 15 ครั้ง", test: t => CAT(t, "cafe") >= 15 },
+  { g: "สายกิน-สายเที่ยว", id: "food3", icon: "🍜", label: "นักชิม", desc: "เช็คอินร้านอาหาร 3 ครั้ง", test: t => CAT(t, "restaurant") >= 3 },
+  { g: "สายกิน-สายเที่ยว", id: "food15", icon: "🍽️", label: "เทพนักชิม", desc: "เช็คอินร้านอาหาร 15 ครั้ง", test: t => CAT(t, "restaurant") >= 15 },
+  { g: "สายกิน-สายเที่ยว", id: "temple3", icon: "⛩️", label: "สายมู", desc: "เช็คอินที่เที่ยว 3 ครั้ง", test: t => CAT(t, "attraction") >= 3 },
+  { g: "สายกิน-สายเที่ยว", id: "temple15", icon: "🪷", label: "สายมูขั้นเทพ", desc: "เช็คอินที่เที่ยว 15 ครั้ง", test: t => CAT(t, "attraction") >= 15 },
+  { g: "สายกิน-สายเที่ยว", id: "hotel", icon: "🏨", label: "นักนอน", desc: "เช็คอินที่พัก 1 ครั้ง", test: t => CAT(t, "hotel") >= 1 },
+  { g: "สายกิน-สายเที่ยว", id: "hotel5", icon: "🛌", label: "เซียนที่พัก", desc: "เช็คอินที่พัก 5 ครั้ง", test: t => CAT(t, "hotel") >= 5 },
+  { g: "สตรีคและสังคม", id: "streak3", icon: "📆", label: "ไฟติด", desc: "เช็คอินต่อเนื่อง 3 วัน", test: t => (t.best_streak || 0) >= 3 },
+  { g: "สตรีคและสังคม", id: "streak7", icon: "⚡", label: "ไฟลุกทั้งสัปดาห์", desc: "เช็คอินต่อเนื่อง 7 วัน", test: t => (t.best_streak || 0) >= 7 },
+  { g: "สตรีคและสังคม", id: "streak30", icon: "🌋", label: "มาราธอน 30 วัน", desc: "เช็คอินต่อเนื่อง 30 วัน", test: t => (t.best_streak || 0) >= 30 },
+  { g: "สตรีคและสังคม", id: "fans1", icon: "👥", label: "มีแฟนคลับ", desc: "มีผู้ติดตาม 1 คน", test: t => (t.followers || 0) >= 1 },
+  { g: "สตรีคและสังคม", id: "fans10", icon: "🌟", label: "ดาวเด่น", desc: "มีผู้ติดตาม 10 คน", test: t => (t.followers || 0) >= 10 },
 ];
 
 const CAT_COLOR = { attraction: "#17B890", hotel: "#4A90E2", restaurant: "#EF4565", cafe: "#FFB020", other: "#9199A8" };
@@ -352,16 +382,25 @@ function Passport({ t }) {
   const stamps = ACHIEVEMENTS.map(a => ({ ...a, on: a.test(t) }));
   return (
     <>
-      <div className="bg-white rounded-2xl p-4 shadow-sm">
-        <p className="text-sm font-medium mb-2">ตราประทับ {stamps.filter(x => x.on).length}/{stamps.length}</p>
-        <div className="grid grid-cols-4 gap-2">
-          {stamps.map(a => (
-            <div key={a.id} title={a.desc} className="aspect-square rounded-full flex flex-col items-center justify-center text-center p-1 text-[10px]"
-              style={a.on ? { border: "2px solid #B8862B", color: "#B8862B", background: "#FFF9EC", transform: "rotate(-5deg)" } : { border: "2px dashed #D5D9E2", color: "#B8BDC9" }}>
-              <span className="text-lg leading-none">{a.on ? a.icon : "🔒"}</span>{a.label}
+      <div className="bg-white rounded-2xl p-4 shadow-sm space-y-3">
+        <p className="text-sm font-medium">ตราประทับ {stamps.filter(x => x.on).length}/{stamps.length}</p>
+        {[...new Set(stamps.map(x => x.g))].map(g => {
+          const list = stamps.filter(x => x.g === g);
+          return (
+            <div key={g}>
+              <p className="text-[11px] text-[#9199A8] mb-1.5">{g} · {list.filter(x => x.on).length}/{list.length}</p>
+              <div className="grid grid-cols-4 gap-2">
+                {list.map(a => (
+                  <div key={a.id} title={a.desc} className="aspect-square rounded-full flex flex-col items-center justify-center text-center p-1 text-[10px] leading-tight"
+                    style={a.on ? { border: "2px solid #B8862B", color: "#B8862B", background: "#FFF9EC", transform: "rotate(-5deg)" } : { border: "2px dashed #D5D9E2", color: "#B8BDC9" }}>
+                    <span className="text-lg leading-none">{a.on ? a.icon : "🔒"}</span>{a.label}
+                    {!a.on && <span className="text-[8px] mt-0.5">{a.desc}</span>}
+                  </div>
+                ))}
+              </div>
             </div>
-          ))}
-        </div>
+          );
+        })}
       </div>
       {t.top.length > 0 && (
         <div className="bg-white rounded-2xl p-4 shadow-sm space-y-2">
