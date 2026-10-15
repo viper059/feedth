@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
+import FogMapPanel from "./FogMap.jsx";
+import { locateAt, LEVELS, REGION_TH, CONTINENT_TH, COUNTRY_TH } from "./geo.js";
 import {
   Heart, MessageCircle, Zap, Wallet, Send, X, Sparkles,
   Share2, UserPlus, UserCheck, Crown, Trophy, Loader2, LogOut, MapPin, ArrowLeft, Home, User, Medal, Compass,
@@ -64,45 +64,7 @@ const ACHIEVEMENTS = [
 
 const CAT_COLOR = { attraction: "#17B890", hotel: "#4A90E2", restaurant: "#EF4565", cafe: "#FFB020", other: "#9199A8" };
 
-// แผนที่ Leaflet + OpenStreetMap (ไม่ต้องใช้ API key) แสดงตำแหน่งเรา วงรัศมีเช็คอิน และหมุดสถานที่
-function PlaceMap({ pos, places, onPick }) {
-  const el = useRef(null);
-  const map = useRef(null);
-  const layer = useRef(null);
-  const pickRef = useRef(onPick);
-  pickRef.current = onPick;
-
-  useEffect(() => {
-    if (!el.current || map.current) return;
-    map.current = L.map(el.current).setView([pos.lat, pos.lng], 16);
-    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19,
-      attribution: "&copy; OpenStreetMap contributors",
-    }).addTo(map.current);
-    layer.current = L.layerGroup().addTo(map.current);
-    return () => { map.current.remove(); map.current = null; };
-  }, []);
-
-  useEffect(() => {
-    if (!map.current) return;
-    layer.current.clearLayers();
-    L.circle([pos.lat, pos.lng], { radius: CHECKIN_RADIUS_M, color: "#6C5CE7", weight: 1.5, dashArray: "4 4", fillColor: "#6C5CE7", fillOpacity: 0.1 }).addTo(layer.current);
-    L.circleMarker([pos.lat, pos.lng], { radius: 8, color: "#fff", weight: 3, fillColor: "#6C5CE7", fillOpacity: 1 }).addTo(layer.current);
-    places.forEach(pl => {
-      const m = L.circleMarker([pl.lat, pl.lng], { radius: 10, color: "#fff", weight: 3, fillColor: CAT_COLOR[pl.category] || "#9199A8", fillOpacity: 1 });
-      const tip = document.createElement("div");
-      tip.textContent = pl.name; // ใช้ textContent กันโค้ดแฝงในชื่อสถานที่
-      m.bindTooltip(tip, { direction: "top" });
-      m.on("click", () => pickRef.current(pl));
-      m.addTo(layer.current);
-    });
-    map.current.setView([pos.lat, pos.lng], map.current.getZoom());
-  }, [pos, places]);
-
-  return <div ref={el} className="w-full rounded-2xl overflow-hidden" style={{ height: 260 }} role="img" aria-label="แผนที่แสดงตำแหน่งของคุณและสถานที่ใกล้เคียง" />;
-}
-
-function CheckinTab({ rest, onBack, showToast, onOpenPlace }) {
+function CheckinTab({ rest, onBack, showToast, onOpenPlace, onOpenMap }) {
   const [pos, setPos] = useState(null);
   const [places, setPlaces] = useState([]);
   const [cat, setCat] = useState("all");
@@ -112,6 +74,7 @@ function CheckinTab({ rest, onBack, showToast, onOpenPlace }) {
   const [caption, setCaption] = useState("");
   const [newName, setNewName] = useState("");
   const [newCat, setNewCat] = useState("cafe");
+  const [result, setResult] = useState(null); // ผลเช็คอิน: คะแนน + พื้นที่ที่ปลดล็อก
 
   const load = useCallback(async (p) => {
     try {
@@ -132,8 +95,10 @@ function CheckinTab({ rest, onBack, showToast, onOpenPlace }) {
 
   const submitCheckin = async () => {
     try {
-      await rest("/rest/v1/rpc/check_in", { method: "POST", body: { p_place_id: target.id, p_lat: pos.lat, p_lng: pos.lng, p_rating: rating, p_caption: caption } });
-      showToast(`เช็คอินที่ ${target.name} สำเร็จ`);
+      // หาจังหวัด/อำเภอ/ตำบลของสถานที่ (เซิร์ฟเวอร์ตรวจซ้ำกับตาราง admin_areas)
+      const loc = (await locateAt(target.lat, target.lng).catch(() => null)) || {};
+      const r = await rest("/rest/v1/rpc/check_in_v2", { method: "POST", body: { p_place_id: target.id, p_lat: pos.lat, p_lng: pos.lng, p_rating: rating, p_caption: caption, p_pro: loc.pro || null, p_dis: loc.dis || null, p_sub: loc.sub || null } });
+      setResult({ place: target.name, points: r.points, unlocks: r.unlocks || [] });
       rest("/rest/v1/rpc/record_interest", { method: "POST", body: { p_topic: target.category, p_weight: 3 } }).catch(() => {});
       setTarget(null); setCaption(""); load(pos);
     } catch (e) {
@@ -168,12 +133,7 @@ function CheckinTab({ rest, onBack, showToast, onOpenPlace }) {
         </div>
       </header>
       <main className="max-w-xl mx-auto px-4 pt-3 space-y-3">
-        {pos && (
-          <div className="relative isolate z-0">
-            <PlaceMap pos={pos} places={places} onPick={pickPlace} />
-            <p className="text-[11px] text-[#9199A8] mt-1">จุดสีม่วง = คุณ · วงประ = รัศมีเช็คอิน 150 ม. · กดหมุดเพื่อเช็คอิน</p>
-          </div>
-        )}
+        {pos && <p className="text-[11px] text-[#9199A8]">เช็คอินได้เมื่ออยู่ในรัศมี {CHECKIN_RADIUS_M} ม. จากสถานที่ · เช็คอินเพื่อปลดล็อกตำบล/อำเภอ/จังหวัดบนแผนที่สำรวจ</p>}
         <div className="flex gap-2 overflow-x-auto">
           {["all", ...Object.keys(CATEGORY_TH)].map(c => (
             <button key={c} onClick={() => setCat(c)} className={`text-xs px-3 py-1.5 rounded-full whitespace-nowrap ${cat === c ? "bg-[#6C5CE7] text-white" : "bg-white border border-black/10"}`}>
@@ -190,6 +150,7 @@ function CheckinTab({ rest, onBack, showToast, onOpenPlace }) {
                 <p className="text-sm font-medium truncate"><button onClick={() => onOpenPlace(pl.id)} className="hover:underline text-left">{pl.name}</button>{pl.is_boosted && <span className="ml-1.5 text-[10px] text-[#B77600] bg-[#FFF4DD] rounded-full px-2 py-0.5">โปรโมท</span>}{pl.is_verified && <span className="ml-1.5 text-[10px] text-[#178A5D] bg-[#E8F8F1] rounded-full px-2 py-0.5">ยืนยันแล้ว</span>}</p>
                 <p className="text-xs text-[#6B7280]">{CATEGORY_TH[pl.category]} · {pl.distance_m < 1000 ? `${Math.round(pl.distance_m)} ม.` : `${(pl.distance_m / 1000).toFixed(1)} กม.`} · เช็คอินแล้ว {pl.checkin_count} ครั้ง</p>
               </div>
+              <a href={`https://www.google.com/maps/search/?api=1&query=${pl.lat},${pl.lng}`} target="_blank" rel="noopener noreferrer" aria-label={`เปิด ${pl.name} ใน Google Maps`} className="text-[#6C5CE7] p-1.5"><MapPin size={16} /></a>
               <button disabled={!near} onClick={() => setTarget(pl)} className={`text-sm font-medium px-3.5 py-2 rounded-full ${near ? "bg-[#6C5CE7] text-white" : "bg-[#EEF0F5] text-[#9199A8]"}`}>{near ? "เช็คอิน" : "ไกลไป"}</button>
             </div>
           );
@@ -218,6 +179,22 @@ function CheckinTab({ rest, onBack, showToast, onOpenPlace }) {
             </div>
             <textarea value={caption} onChange={e => setCaption(e.target.value)} rows={2} placeholder="เล่าบรรยากาศสั้นๆ..." className="w-full text-sm bg-[#F3F5FA] rounded-lg px-3 py-2 outline-none resize-none" />
             <button onClick={submitCheckin} className="w-full bg-[#6C5CE7] text-white text-sm font-semibold py-2.5 rounded-full">เช็คอินที่นี่</button>
+          </div>
+        </div>
+      )}
+      {result && (
+        <div className="fixed inset-0 bg-black/40 flex items-end justify-center z-50 px-4">
+          <div className="bg-white rounded-t-2xl w-full max-w-sm p-4 relative space-y-2" role="status">
+            <button onClick={() => setResult(null)} aria-label="ปิด" className="absolute top-3 right-3 text-[#9199A8]"><X size={18} /></button>
+            <h3 style={{ fontFamily: "'Kanit', sans-serif" }} className="font-semibold">เช็คอินสำเร็จ <span className="text-[#B8862B]">+{result.points}</span></h3>
+            <p className="text-xs text-[#6B7280]">{result.place}</p>
+            <ul className="text-sm space-y-1">
+              <li className="flex justify-between"><span>เช็คอิน</span><span className="text-[#178A5D]">+5</span></li>
+              {result.unlocks.map(u => (
+                <li key={u.level + u.code} className="flex justify-between"><span>ปลดล็อก{LEVELS.find(l => l.k === u.level).name} {u.name || (u.level === "reg" ? REGION_TH[u.code] : u.level === "con" ? CONTINENT_TH[u.code] : COUNTRY_TH[u.code]) || u.code}</span><span className="text-[#178A5D]">+{u.points}</span></li>
+              ))}
+            </ul>
+            <button onClick={() => { setResult(null); onOpenMap(); }} className="w-full bg-[#6C5CE7] text-white text-sm font-semibold py-2.5 rounded-full">ดูแผนที่สำรวจ</button>
           </div>
         </div>
       )}
@@ -409,10 +386,11 @@ function ExploreTab({ rest, prov, setProv, onOpenPlace, showToast }) {
   const [provs, setProvs] = useState(null);
   const [places, setPlaces] = useState(null);
   const [cat, setCat] = useState("all");
+  const [view, setView] = useState("map");
   useEffect(() => {
-    if (prov) return;
+    if (prov || view !== "list") return;
     rest("/rest/v1/rpc/explore_provinces", { method: "POST", body: {} }).then(setProvs).catch(e => { showToast("โหลดจังหวัดไม่สำเร็จ: " + e.message); setProvs([]); });
-  }, [prov]);
+  }, [prov, view]);
   useEffect(() => {
     if (!prov) return;
     setPlaces(null);
@@ -425,13 +403,19 @@ function ExploreTab({ rest, prov, setProv, onOpenPlace, showToast }) {
       <header className="sticky top-0 z-20 bg-[#F3F5FA]/90 backdrop-blur border-b border-black/5">
         <div className="max-w-xl mx-auto flex items-center gap-3 px-4 py-3">
           {prov && <button onClick={() => { setProv(null); setCat("all"); }} aria-label="กลับ" className="text-[#6B7280]"><ArrowLeft size={18} /></button>}
-          <h1 style={{ fontFamily: "'Kanit', sans-serif" }} className="text-xl font-semibold text-[#6C5CE7]">{prov ? prov : "สำรวจจังหวัด"}</h1>
+          <h1 style={{ fontFamily: "'Kanit', sans-serif" }} className="text-xl font-semibold text-[#6C5CE7]">{prov ? prov : view === "map" ? "สำรวจ" : "สำรวจจังหวัด"}</h1>
+          {!prov && (
+            <div className="ml-auto flex bg-white rounded-full border border-black/10 p-0.5 text-xs">
+              {[["map", "แผนที่"], ["list", "รายการจังหวัด"]].map(([k, l]) => <button key={k} onClick={() => setView(k)} className={`px-3 py-1 rounded-full ${view === k ? "bg-[#6C5CE7] text-white" : "text-[#6B7280]"}`}>{l}</button>)}
+            </div>
+          )}
         </div>
       </header>
       <main className="max-w-xl mx-auto px-4 pt-3 space-y-2">
-        {!prov && provs === null && <p className="text-center text-xs text-[#9199A8] py-6">กำลังโหลด...</p>}
-        {!prov && provs && provs.length === 0 && <p className="text-center text-xs text-[#9199A8] py-6">ยังไม่มีสถานที่ในระบบ</p>}
-        {!prov && provs && provs.map(pv => {
+        {!prov && view === "map" && <FogMapPanel rest={rest} showToast={showToast} />}
+        {!prov && view === "list" && provs === null && <p className="text-center text-xs text-[#9199A8] py-6">กำลังโหลด...</p>}
+        {!prov && view === "list" && provs && provs.length === 0 && <p className="text-center text-xs text-[#9199A8] py-6">ยังไม่มีสถานที่ในระบบ</p>}
+        {!prov && view === "list" && provs && provs.map(pv => {
           const pct = pv.places ? Math.round((pv.visited / pv.places) * 100) : 0;
           return (
             <button key={pv.name} onClick={() => setProv(pv.name)} className="w-full bg-white rounded-2xl p-3.5 shadow-sm text-left">
@@ -441,7 +425,7 @@ function ExploreTab({ rest, prov, setProv, onOpenPlace, showToast }) {
             </button>
           );
         })}
-        {!prov && provs && provs.length > 0 && <p className="text-[11px] text-center text-[#9199A8] pt-2">จังหวัดอื่นจะขึ้นเมื่อมีคนเพิ่มสถานที่ในจังหวัดนั้น</p>}
+        {!prov && view === "list" && provs && provs.length > 0 && <p className="text-[11px] text-center text-[#9199A8] pt-2">จังหวัดอื่นจะขึ้นเมื่อมีคนเพิ่มสถานที่ในจังหวัดนั้น</p>}
 
         {prov && (
           <>
@@ -929,7 +913,7 @@ export default function FeedApp() {
   if (tab === "checkin" || tab === "profile" || tab === "rank" || tab === "explore") return (
     <>
       {tab === "checkin"
-        ? <CheckinTab rest={rest} onBack={() => setTab("feed")} showToast={showToast} onOpenPlace={openPlace} />
+        ? <CheckinTab rest={rest} onBack={() => setTab("feed")} showToast={showToast} onOpenPlace={openPlace} onOpenMap={() => { setExploreProv(null); setTab("explore"); }} />
         : tab === "explore"
         ? <ExploreTab rest={rest} prov={exploreProv} setProv={setExploreProv} onOpenPlace={openPlace} showToast={showToast} />
         : tab === "rank"
