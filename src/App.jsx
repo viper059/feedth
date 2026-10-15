@@ -3,7 +3,7 @@ import FogMapPanel from "./FogMap.jsx";
 import { locateAt, LEVELS, REGION_TH, CONTINENT_TH, COUNTRY_TH } from "./geo.js";
 import {
   Heart, MessageCircle, Zap, Wallet, Send, X, Sparkles,
-  Share2, UserPlus, UserCheck, Crown, Trophy, Loader2, LogOut, MapPin, ArrowLeft, Home, User, Medal, Compass,
+  Share2, Trash2, Flag, UserPlus, UserCheck, Crown, Trophy, Loader2, LogOut, MapPin, ArrowLeft, Home, User, Medal, Compass,
 } from "lucide-react";
 
 // ==========================================================
@@ -97,6 +97,47 @@ const ACHIEVEMENTS = [
   { g: "สตรีคและสังคม", id: "fans1", icon: "👥", label: "มีแฟนคลับ", desc: "มีผู้ติดตาม 1 คน", test: t => (t.followers || 0) >= 1 },
   { g: "สตรีคและสังคม", id: "fans10", icon: "🌟", label: "ดาวเด่น", desc: "มีผู้ติดตาม 10 คน", test: t => (t.followers || 0) >= 10 },
 ];
+
+const OsmCredit = () => (
+  <p className="text-[10px] text-[#9199A8] text-center py-2">ข้อมูลสถานที่บางส่วนจาก <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="underline">© OpenStreetMap contributors</a> (ODbL)</p>
+);
+
+// ร่างข้อกำหนดและนโยบายความเป็นส่วนตัว (PDPA) — เป็นแบบร่าง ควรให้ผู้เชี่ยวชาญกฎหมายตรวจและใส่ช่องทางติดต่อก่อนเปิดใช้จริง
+const LEGAL = {
+  terms: [
+    ["การใช้งาน", "feedTH เป็นพื้นที่แชร์ประสบการณ์ท่องเที่ยวและเช็คอินสถานที่ คุณต้องให้ข้อมูลที่เป็นจริง ไม่ปลอมตำแหน่ง ไม่ปั่นคะแนน และไม่เผยแพร่เนื้อหาที่ผิดกฎหมาย ละเมิดสิทธิผู้อื่น หลอกลวง หรือคุกคาม"],
+    ["เนื้อหาของคุณ", "โพสต์ รีวิว และรูปที่คุณเผยแพร่ยังเป็นของคุณ แต่คุณอนุญาตให้ feedTH แสดงเนื้อหานั้นในบริการ ลบเนื้อหาของคุณได้ทุกเมื่อ"],
+    ["การดูแลเนื้อหา", "เราอาจซ่อนหรือลบเนื้อหาที่ถูกรายงานว่าฝ่าฝืนข้อกำหนด และระงับบัญชีที่ฝ่าฝืนซ้ำ"],
+    ["เครดิตและการโปรโมท", "เครดิตใช้โปรโมทโพสต์หรือสถานที่ในแอปเท่านั้น ไม่สามารถแลกเป็นเงินสด ช่วงทดลองอาจมีการเติมเครดิตทดลองซึ่งไม่มีมูลค่า"],
+    ["ข้อมูลสถานที่", "ข้อมูลสถานที่บางส่วนมาจาก OpenStreetMap contributors (ODbL) และอาจคลาดเคลื่อน โปรดตรวจสอบก่อนเดินทาง"],
+    ["การยกเลิก", "คุณลบบัญชีและข้อมูลของคุณได้เองในหน้าโปรไฟล์"],
+  ],
+  privacy: [
+    ["ข้อมูลที่เก็บ", "อีเมล ชื่อที่แสดง โพสต์ คอมเมนต์ ไลค์ ความสัมพันธ์เพื่อน/ผู้ติดตาม และตำแหน่งตอนคุณกดเช็คอิน (ใช้ตรวจว่าอยู่ใกล้สถานที่จริง) ถ้าคุณยินยอมเพิ่ม จะเก็บเวลาใช้งานและความสนใจเพื่อปรับเนื้อหาและโฆษณา"],
+    ["วัตถุประสงค์", "ให้บริการเช็คอิน ฟีด แผนที่สำรวจ คะแนน และความสัมพันธ์ ป้องกันการโกง และดูแลความปลอดภัย"],
+    ["การเปิดเผย", "โพสต์เช็คอินและรีวิวของคุณมองเห็นได้โดยผู้ใช้อื่น เราไม่ขายข้อมูลส่วนบุคคล ผู้ให้บริการโครงสร้างพื้นฐานที่เราใช้ (เช่น Supabase) ประมวลผลข้อมูลตามคำสั่งของเรา"],
+    ["ระยะเวลาเก็บ", "เก็บตลอดที่บัญชียังใช้งาน เมื่อลบบัญชี ข้อมูลที่ผูกกับบัญชีจะถูกลบ"],
+    ["สิทธิของคุณ", "ขอเข้าถึง แก้ไข ลบข้อมูล ถอนความยินยอม (ตั้งค่าความเป็นส่วนตัวในโปรไฟล์) และร้องเรียนต่อสำนักงานคณะกรรมการคุ้มครองข้อมูลส่วนบุคคลได้ตาม พ.ร.บ.คุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562"],
+    ["ติดต่อ", "[ใส่อีเมล/ช่องทางติดต่อของผู้ดูแลระบบก่อนเปิดใช้จริง]"],
+  ],
+};
+function LegalModal({ onClose, initial = "terms" }) {
+  const [t, setT] = useState(initial);
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 px-4">
+      <div className="bg-white rounded-2xl w-full max-w-sm max-h-[80vh] overflow-y-auto p-4 relative" role="dialog" aria-label="ข้อกำหนดและความเป็นส่วนตัว">
+        <button onClick={onClose} aria-label="ปิด" className="absolute top-3 right-3 text-[#9199A8]"><X size={18} /></button>
+        <div className="flex gap-2 mb-3">
+          {[["terms", "ข้อกำหนดการใช้งาน"], ["privacy", "ความเป็นส่วนตัว"]].map(([k, l]) => <button key={k} onClick={() => setT(k)} className={`text-xs px-3 py-1.5 rounded-full ${t === k ? "bg-[#6C5CE7] text-white" : "bg-[#F3F5FA]"}`}>{l}</button>)}
+        </div>
+        <p className="text-[11px] text-[#B77600] bg-[#FFF4DD] rounded-lg px-2.5 py-1.5 mb-3">ฉบับร่างช่วงทดลองใช้งาน</p>
+        <div className="space-y-3">
+          {LEGAL[t].map(([h, b]) => <div key={h}><p className="text-sm font-medium">{h}</p><p className="text-xs text-[#4B5160] leading-relaxed">{b}</p></div>)}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const CAT_COLOR = { attraction: "#17B890", hotel: "#4A90E2", restaurant: "#EF4565", cafe: "#FFB020", other: "#9199A8" };
 
@@ -203,6 +244,7 @@ function CheckinTab({ rest, onBack, showToast, onOpenPlace, onOpenMap }) {
           </div>
           <button onClick={addPlace} disabled={!newName.trim() || !pos} className="w-full bg-[#6C5CE7] disabled:opacity-40 text-white text-sm font-medium py-2 rounded-lg">เพิ่มสถานที่</button>
         </div>
+        <OsmCredit />
       </main>
 
       {target && (
@@ -339,6 +381,7 @@ function PlaceDetail({ placeId, rest, posts, userId, wallet, onBoosted, onLike, 
             })}
           </section>
         ))}
+        <OsmCredit />
       </main>
     </div>
   );
@@ -493,12 +536,13 @@ function ExploreTab({ rest, prov, setProv, onOpenPlace, showToast }) {
             ))}
           </>
         )}
+        <OsmCredit />
       </main>
     </div>
   );
 }
 
-function TabBar({ tab, setTab }) {
+function TabBar({ tab, setTab, badge = 0 }) {
   const items = [["feed", "ฟีด", Home], ["explore", "สำรวจ", Compass], ["checkin", "เช็คอิน", MapPin], ["rank", "อันดับ", Trophy], ["profile", "โปรไฟล์", User]];
   return (
     <>
@@ -506,7 +550,7 @@ function TabBar({ tab, setTab }) {
       <nav className="fixed bottom-0 inset-x-0 z-30 bg-white border-t border-black/5 flex">
         {items.map(([k, label, Icon]) => (
           <button key={k} onClick={() => setTab(k)} className={`flex-1 flex flex-col items-center gap-0.5 py-2 text-[11px] ${tab === k ? "text-[#6C5CE7] font-semibold" : "text-[#9199A8]"}`}>
-            <Icon size={20} />{label}
+            <span className="relative"><Icon size={20} />{k === "profile" && badge > 0 && <span className="absolute -top-1 -right-2 min-w-[14px] h-[14px] rounded-full bg-[#EF4565] text-white text-[9px] leading-[14px] text-center px-0.5">{badge}</span>}</span>{label}
           </button>
         ))}
       </nav>
@@ -514,7 +558,84 @@ function TabBar({ tab, setTab }) {
   );
 }
 
-function ProfileTab({ rest, session, userId, onLogout, onPrivacy, showToast }) {
+// หน้าเพื่อน/ผู้ติดตาม: รายชื่อ + รับ/ปฏิเสธคำขอ + ความสนิทแบบสองทาง (ดูอัลกอริทึมที่ _closeness ในฐานข้อมูล)
+function PeopleView({ rest, session, userId, initialTab, onBack, onProfile, onChanged, showToast }) {
+  const me = session.user_id;
+  const isMe = userId === me;
+  const tabs = isMe ? [["friends", "เพื่อน"], ["requests", "คำขอ"], ["followers", "ผู้ติดตาม"], ["following", "กำลังติดตาม"]] : [["followers", "ผู้ติดตาม"], ["following", "กำลังติดตาม"]];
+  const [tab, setTab] = useState(tabs.some(t => t[0] === initialTab) ? initialTab : tabs[0][0]);
+  const [rows, setRows] = useState(null);
+  const [sent, setSent] = useState([]);
+  const [sure, setSure] = useState(null);
+  const call = (kind) => rest("/rest/v1/rpc/people_list", { method: "POST", body: { p_kind: kind, p_user: userId } });
+  const load = useCallback(async () => {
+    try {
+      setRows(await call(tab));
+      if (isMe && tab === "requests") setSent(await call("sent"));
+    } catch (e) { showToast("โหลดรายชื่อไม่สำเร็จ: " + e.message); setRows([]); }
+  }, [tab, userId]);
+  useEffect(() => { setRows(null); load(); }, [load]);
+  const done = (msg) => { if (msg) showToast(msg); setSure(null); load(); onChanged && onChanged(); };
+  const act = async (fn, msg) => { try { await fn(); done(msg); } catch (e) { showToast("ทำรายการไม่สำเร็จ: " + e.message); } };
+  const accept = (id) => act(() => rest("/rest/v1/rpc/accept_friend_request", { method: "POST", body: { p_user: id } }), "เป็นเพื่อนกันแล้ว");
+  const reject = (id) => act(() => rest(`/rest/v1/friendships?user_id=eq.${id}&friend_id=eq.${me}`, { method: "DELETE" }), "ปฏิเสธคำขอแล้ว");
+  const cancel = (id) => act(() => rest(`/rest/v1/friendships?user_id=eq.${me}&friend_id=eq.${id}`, { method: "DELETE" }), "ยกเลิกคำขอแล้ว");
+  const unfriend = (id) => act(() => rest(`/rest/v1/friendships?or=(and(user_id.eq.${me},friend_id.eq.${id}),and(user_id.eq.${id},friend_id.eq.${me}))`, { method: "DELETE" }), "เลิกเป็นเพื่อนแล้ว");
+  const follow = (r) => act(async () => {
+    if (r.i_follow) await rest(`/rest/v1/follows?follower_id=eq.${me}&followee_id=eq.${r.id}`, { method: "DELETE" });
+    else await rest("/rest/v1/follows", { method: "POST", body: { follower_id: me, followee_id: r.id } });
+  });
+  const Row = ({ r, children }) => {
+    const t = r.closeness != null ? tierFor(r.closeness) : null;
+    return (
+      <div className="bg-white rounded-2xl p-3 shadow-sm flex items-center gap-3">
+        <button onClick={() => onProfile(r.id)} className="w-10 h-10 rounded-full bg-[#6C5CE7]/10 text-[#6C5CE7] flex items-center justify-center font-semibold shrink-0">{r.name?.[0]?.toUpperCase()}</button>
+        <button onClick={() => onProfile(r.id)} className="flex-1 min-w-0 text-left">
+          <span className="block text-sm font-medium truncate">{r.name}{t && <span className="ml-1.5 text-[10px] rounded-full px-2 py-0.5" style={{ color: t.color, background: t.bg }}>{t.label}</span>}</span>
+          <span className="block text-xs text-[#9199A8] truncate">{r.closeness != null ? `ความสนิท ${r.closeness}` : r.bio || ""}</span>
+        </button>
+        {children}
+      </div>
+    );
+  };
+  const empty = { friends: "ยังไม่มีเพื่อน กดเพิ่มเพื่อนจากโพสต์ในฟีดได้เลย", requests: "ไม่มีคำขอใหม่", followers: "ยังไม่มีผู้ติดตาม", following: "ยังไม่ได้ติดตามใคร" }[tab];
+  return (
+    <div style={{ fontFamily: "'IBM Plex Sans Thai', sans-serif" }} className="min-h-screen bg-[#F3F5FA] text-[#1A1D29] pb-20">
+      <style>{FONT_IMPORT}</style>
+      <header className="sticky top-0 z-20 bg-[#F3F5FA]/90 backdrop-blur border-b border-black/5">
+        <div className="max-w-xl mx-auto flex items-center gap-3 px-4 py-3">
+          <button onClick={onBack} aria-label="กลับ" className="text-[#6B7280]"><ArrowLeft size={18} /></button>
+          <h1 style={{ fontFamily: "'Kanit', sans-serif" }} className="text-xl font-semibold text-[#6C5CE7]">{isMe ? "เพื่อนและผู้ติดตาม" : "ผู้ติดตาม"}</h1>
+        </div>
+        <div className="max-w-xl mx-auto flex gap-2 px-4 pb-2 overflow-x-auto" role="tablist">
+          {tabs.map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={`text-xs px-3 py-1.5 rounded-full whitespace-nowrap ${tab === k ? "bg-[#6C5CE7] text-white" : "bg-white border border-black/10"}`}>{l}</button>)}
+        </div>
+      </header>
+      <main className="max-w-xl mx-auto px-4 pt-3 space-y-2">
+        {rows === null && <p className="text-center text-xs text-[#9199A8] py-6">กำลังโหลด...</p>}
+        {rows && rows.length === 0 && (tab !== "requests" || sent.length === 0) && <p className="text-center text-xs text-[#9199A8] py-6">{empty}</p>}
+        {rows && tab === "friends" && rows.length > 0 && <p className="text-[11px] text-[#9199A8]">เรียงตามความสนิท (คะแนนสองฝั่งที่ลดลงตามเวลา + เช็คอินที่เดียวกัน + ติดตามกัน)</p>}
+        {rows && rows.map(r => (
+          <Row key={r.id} r={r}>
+            {tab === "requests" && (<div className="flex gap-1.5"><button onClick={() => accept(r.id)} className="text-xs font-medium bg-[#6C5CE7] text-white px-3 py-1.5 rounded-full">รับ</button><button onClick={() => reject(r.id)} className="text-xs border border-black/10 text-[#6B7280] px-3 py-1.5 rounded-full">ปฏิเสธ</button></div>)}
+            {tab === "friends" && (sure === r.id
+              ? <button onClick={() => unfriend(r.id)} className="text-xs font-medium text-white bg-[#C43D3D] px-3 py-1.5 rounded-full">ยืนยันเลิก</button>
+              : <button onClick={() => setSure(r.id)} className="text-xs border border-black/10 text-[#6B7280] px-3 py-1.5 rounded-full">เลิกเป็นเพื่อน</button>)}
+            {(tab === "followers" || tab === "following") && r.id !== me && <button onClick={() => follow(r)} className={`text-xs px-3 py-1.5 rounded-full ${r.i_follow ? "border border-black/10 text-[#6B7280]" : "bg-[#6C5CE7] text-white font-medium"}`}>{r.i_follow ? "กำลังติดตาม" : "ติดตาม"}</button>}
+          </Row>
+        ))}
+        {tab === "requests" && sent.length > 0 && (
+          <>
+            <p className="text-[11px] text-[#9199A8] pt-2">คำขอที่ส่งไปแล้ว (รอยืนยัน)</p>
+            {sent.map(r => <Row key={r.id} r={r}><button onClick={() => cancel(r.id)} className="text-xs border border-black/10 text-[#6B7280] px-3 py-1.5 rounded-full">ยกเลิก</button></Row>)}
+          </>
+        )}
+      </main>
+    </div>
+  );
+}
+
+function ProfileTab({ rest, session, userId, onLogout, onPrivacy, onPeople, onLegal, onDelete, pending, showToast }) {
   const isMe = userId === session.user_id;
   const [p, setP] = useState(null);
   const [stats, setStats] = useState({ posts: 0, checkins: 0, friends: 0 });
@@ -524,6 +645,7 @@ function ProfileTab({ rest, session, userId, onLogout, onPrivacy, showToast }) {
   const [edit, setEdit] = useState(false);
   const [name, setName] = useState("");
   const [bio, setBio] = useState("");
+  const [sureDel, setSureDel] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -580,11 +702,15 @@ function ProfileTab({ rest, session, userId, onLogout, onPrivacy, showToast }) {
             </>
           )}
           <div className="grid grid-cols-3 gap-2 mt-4 text-center">
-            {[["โพสต์", stats.posts], ["เช็คอิน", stats.checkins], ["เพื่อน", stats.friends]].map(([l, n]) => (
-              <div key={l} className="bg-[#F3F5FA] rounded-xl py-2"><p className="text-lg font-semibold">{n}</p><p className="text-xs text-[#6B7280]">{l}</p></div>
-            ))}
+            {[["โพสต์", stats.posts], ["เช็คอิน", stats.checkins], ["เพื่อน", stats.friends]].map(([l, n]) => {
+              const link = l === "เพื่อน" && isMe;
+              const inner = <><p className="text-lg font-semibold">{n}</p><p className="text-xs text-[#6B7280]">{l}</p></>;
+              return link
+                ? <button key={l} onClick={() => onPeople(userId, "friends")} className="bg-[#F3F5FA] rounded-xl py-2">{inner}</button>
+                : <div key={l} className="bg-[#F3F5FA] rounded-xl py-2">{inner}</div>;
+            })}
           </div>
-          {travel && <p className="text-xs text-[#6B7280] mt-3">ผู้ติดตาม {travel.followers} · กำลังติดตาม {travel.following}</p>}
+          {travel && <p className="text-xs text-[#6B7280] mt-3"><button onClick={() => onPeople(userId, "followers")} className="underline-offset-2 hover:underline">ผู้ติดตาม {travel.followers}</button> · <button onClick={() => onPeople(userId, "following")} className="underline-offset-2 hover:underline">กำลังติดตาม {travel.following}</button></p>}
           {!isMe && <button onClick={toggleFollow} className={`mt-3 w-full text-sm font-medium py-2 rounded-lg ${following ? "border border-black/10 text-[#6B7280]" : "bg-[#6C5CE7] text-white"}`}>{following ? "กำลังติดตาม" : "ติดตาม"}</button>}
           {isMe && !edit && (
             <div className="flex gap-2 mt-4">
@@ -594,7 +720,12 @@ function ProfileTab({ rest, session, userId, onLogout, onPrivacy, showToast }) {
           )}
         </div>
         {travel && <Passport t={travel} />}
+        {isMe && <button onClick={() => onPeople(userId, pending > 0 ? "requests" : "friends")} className="w-full bg-white rounded-2xl p-3 shadow-sm text-sm text-left text-[#6C5CE7] flex items-center justify-between">เพื่อนและคำขอ{pending > 0 && <span className="text-[11px] bg-[#EF4565] text-white rounded-full px-2 py-0.5">{pending} คำขอใหม่</span>}</button>}
         {isMe && <button onClick={onPrivacy} className="w-full bg-white rounded-2xl p-3 shadow-sm text-sm text-left text-[#6C5CE7]">ตั้งค่าความเป็นส่วนตัวและการใช้ข้อมูล</button>}
+        {isMe && <button onClick={onLegal} className="w-full bg-white rounded-2xl p-3 shadow-sm text-sm text-left text-[#6C5CE7]">ข้อกำหนดการใช้งานและนโยบายความเป็นส่วนตัว</button>}
+        {isMe && (sureDel
+          ? <div className="bg-white rounded-2xl p-3 shadow-sm space-y-2"><p className="text-xs text-[#C43D3D]">ลบแล้วกู้คืนไม่ได้ โพสต์ เช็คอิน คะแนน และเครดิตทั้งหมดจะหายไป</p><div className="flex gap-2"><button onClick={() => setSureDel(false)} className="flex-1 border border-black/10 text-sm py-2 rounded-lg">ยกเลิก</button><button onClick={onDelete} className="flex-1 bg-[#C43D3D] text-white text-sm font-medium py-2 rounded-lg">ยืนยันลบบัญชี</button></div></div>
+          : <button onClick={() => setSureDel(true)} className="w-full bg-white rounded-2xl p-3 shadow-sm text-sm text-left text-[#C43D3D]">ลบบัญชีและข้อมูลทั้งหมด</button>)}
         {posts.map(po => (
           <div key={po.id} className="bg-white rounded-2xl p-4 shadow-sm">
             <p className="text-xs text-[#9199A8] mb-1">{timeAgo(po.created_at)}</p>
@@ -616,6 +747,12 @@ export default function FeedApp() {
   const [authName, setAuthName] = useState("");
   const [authBusy, setAuthBusy] = useState(false);
   const [authError, setAuthError] = useState("");
+  const [agree, setAgree] = useState(false);
+  const [legal, setLegal] = useState(null); // null | "terms" | "privacy"
+  const [recovery, setRecovery] = useState(null); // token จากลิงก์รีเซ็ตรหัสผ่านในอีเมล
+  const [demoMode, setDemoMode] = useState(true);
+  const [reportFor, setReportFor] = useState(null);
+  const [deleteFor, setDeleteFor] = useState(null);
 
   const [posts, setPosts] = useState([]);
   const [wallet, setWallet] = useState(0);
@@ -628,7 +765,8 @@ export default function FeedApp() {
   const [topUpFlash, setTopUpFlash] = useState(false);
   const [leaderboardFor, setLeaderboardFor] = useState(null);
   const [leaderboard, setLeaderboard] = useState([]);
-  const [friendStatus, setFriendStatus] = useState({});
+  const [relations, setRelations] = useState({}); // { userId: friends|sent|received }
+  const [people, setPeople] = useState(null); // { userId, tab }
   const [tab, setTab] = useState("feed");
   const [placeView, setPlaceView] = useState(null);
   const [exploreProv, setExploreProv] = useState(null);
@@ -694,6 +832,15 @@ export default function FeedApp() {
   useEffect(() => {
     (async () => {
       if (!configured) { setBooting(false); return; }
+      // ลิงก์รีเซ็ตรหัสผ่านจากอีเมล: #access_token=...&type=recovery
+      const h = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+      if (h.get("type") === "recovery" && h.get("access_token")) {
+        setRecovery({ access_token: h.get("access_token"), refresh_token: h.get("refresh_token"), expires_at: Number(h.get("expires_at")) || Math.floor(Date.now() / 1000) + 3000 });
+        setAuthMode("reset");
+        window.history.replaceState(null, "", window.location.pathname + window.location.search);
+        setBooting(false);
+        return;
+      }
       try {
         const saved = await window.storage.get(SESSION_KEY, false);
         if (saved) setSession(JSON.parse(saved.value));
@@ -711,17 +858,45 @@ export default function FeedApp() {
   };
 
   // ---------- Auth ----------
+  const authErrMsg = (data) => {
+    const m = data.error_description || data.msg || data.message || "";
+    if (/invalid login/i.test(m)) return "อีเมลหรือรหัสผ่านไม่ถูกต้อง";
+    if (/already registered|already exists/i.test(m)) return "อีเมลนี้สมัครไว้แล้ว ลองเข้าสู่ระบบ";
+    if (/at least|weak|short/i.test(m)) return "รหัสผ่านสั้นหรือง่ายเกินไป (อย่างน้อย 6 ตัวอักษร)";
+    if (/rate limit|too many/i.test(m)) return "ทำรายการถี่เกินไป รอสักครู่แล้วลองใหม่";
+    return m || "เข้าสู่ระบบไม่สำเร็จ";
+  };
   const handleAuth = async () => {
     setAuthBusy(true); setAuthError("");
     try {
+      if (authMode === "forgot") {
+        const res = await fetch(`${SUPABASE_URL}/auth/v1/recover?redirect_to=${encodeURIComponent(window.location.origin + window.location.pathname)}`, {
+          method: "POST", headers: { apikey: SUPABASE_ANON_KEY, "Content-Type": "application/json" }, body: JSON.stringify({ email: authEmail.trim() }),
+        });
+        if (!res.ok) throw new Error(authErrMsg(await res.json().catch(() => ({}))));
+        showToast("ส่งลิงก์ตั้งรหัสผ่านใหม่ไปที่อีเมลแล้ว (ถ้ามีบัญชีนี้) เช็คกล่องจดหมายและสแปม");
+        setAuthMode("login");
+        return;
+      }
+      if (authMode === "reset") {
+        const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+          method: "PUT", headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${recovery.access_token}`, "Content-Type": "application/json" }, body: JSON.stringify({ password: authPassword }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(authErrMsg(data));
+        const rec = recovery; setRecovery(null); setAuthPassword("");
+        await persistSession({ access_token: rec.access_token, refresh_token: rec.refresh_token, expires_at: rec.expires_at, user_id: data.id, email: data.email });
+        showToast("ตั้งรหัสผ่านใหม่แล้ว");
+        return;
+      }
       const path = authMode === "signup" ? "/auth/v1/signup" : "/auth/v1/token?grant_type=password";
       const res = await fetch(`${SUPABASE_URL}${path}`, {
         method: "POST",
         headers: { apikey: SUPABASE_ANON_KEY, "Content-Type": "application/json" },
-        body: JSON.stringify({ email: authEmail, password: authPassword, ...(authMode === "signup" ? { data: { display_name: authName.trim() } } : {}) }),
+        body: JSON.stringify({ email: authEmail.trim(), password: authPassword, ...(authMode === "signup" ? { data: { display_name: authName.trim() } } : {}) }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error_description || data.msg || "เข้าสู่ระบบไม่สำเร็จ");
+      if (!res.ok) throw new Error(authErrMsg(data));
       if (!data.access_token) {
         showToast("สมัครสำเร็จ เช็คอีเมลเพื่อยืนยันตัวตน แล้วค่อยล็อกอิน");
         setAuthMode("login");
@@ -732,6 +907,16 @@ export default function FeedApp() {
       setAuthError(e.message);
     } finally {
       setAuthBusy(false);
+    }
+  };
+
+  const deleteAccount = async () => {
+    try {
+      await rest("/rest/v1/rpc/delete_my_account", { method: "POST", body: {} });
+      persistSession(null); setPosts([]);
+      showToast("ลบบัญชีและข้อมูลแล้ว");
+    } catch (e) {
+      showToast(/function|not find|404/i.test(e.message) ? "ยังไม่เปิดให้ลบบัญชีอัตโนมัติ โปรดติดต่อผู้ดูแลระบบ" : "ลบบัญชีไม่สำเร็จ: " + e.message);
     }
   };
 
@@ -794,6 +979,7 @@ export default function FeedApp() {
     } catch (e) { showToast("บันทึกไม่สำเร็จ: " + e.message); }
   };
 
+  const legalModal = legal && <LegalModal initial={legal} onClose={() => setLegal(null)} />;
   const consentModal = showConsent && (
     <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 px-4">
       <div className="bg-white rounded-2xl w-full max-w-sm p-4 space-y-3">
@@ -856,11 +1042,45 @@ export default function FeedApp() {
 
   const sharePost = (post) => awardFanPoints(post.author.id, post.author.username, post.id, "share", 3);
 
+  const loadRelations = useCallback(async () => {
+    try {
+      const r = await rest("/rest/v1/rpc/my_relations", { method: "POST", body: {} });
+      setRelations(Object.fromEntries(r.map(x => [x.other, x.status])));
+    } catch { /* ไม่เป็นไร ปุ่มจะแสดงเป็น "เพิ่มเพื่อน" */ }
+  }, [rest]);
+  useEffect(() => { if (session) loadRelations(); }, [session, loadRelations]);
+  useEffect(() => {
+    if (!session) return;
+    rest("/rest/v1/rpc/app_config", { method: "POST", body: {} }).then(c => setDemoMode(!!c?.demo_mode)).catch(() => {});
+  }, [session]);
+  const reportPost = async (reason) => {
+    try {
+      await rest("/rest/v1/rpc/report_post", { method: "POST", body: { p_post_id: reportFor, p_reason: reason } });
+      showToast("ส่งรายงานแล้ว ขอบคุณที่ช่วยดูแลชุมชน");
+    } catch (e) { showToast("รายงานไม่สำเร็จ: " + e.message); }
+    setReportFor(null);
+  };
+  const deletePost = async () => {
+    try {
+      await rest(`/rest/v1/posts?id=eq.${deleteFor}`, { method: "DELETE" });
+      showToast("ลบโพสต์แล้ว");
+      loadFeed();
+    } catch (e) { showToast("ลบโพสต์ไม่สำเร็จ: " + e.message); }
+    setDeleteFor(null);
+  };
+  const pending = Object.values(relations).filter(v => v === "received").length;
+
   const toggleFriend = async (author) => {
     try {
-      await rest("/rest/v1/friendships", { method: "POST", body: { user_id: session.user_id, friend_id: author.id, status: "pending" } });
-      setFriendStatus(prev => ({ ...prev, [author.id]: "pending" }));
-      showToast(`ส่งคำขอเป็นเพื่อนถึง ${author.username} แล้ว`);
+      if (relations[author.id] === "received") {
+        await rest("/rest/v1/rpc/accept_friend_request", { method: "POST", body: { p_user: author.id } });
+        setRelations(prev => ({ ...prev, [author.id]: "friends" }));
+        showToast(`เป็นเพื่อนกับ ${author.username} แล้ว`);
+      } else {
+        const st = await rest("/rest/v1/rpc/send_friend_request", { method: "POST", body: { p_user: author.id } });
+        setRelations(prev => ({ ...prev, [author.id]: st }));
+        showToast(st === "friends" ? `เป็นเพื่อนกับ ${author.username} แล้ว` : `ส่งคำขอเป็นเพื่อนถึง ${author.username} แล้ว`);
+      }
     } catch (e) { showToast("ส่งคำขอไม่สำเร็จ: " + e.message); }
   };
 
@@ -921,32 +1141,58 @@ export default function FeedApp() {
     );
   }
 
-  // ---------- หน้าจอ: ล็อกอิน / สมัครสมาชิก ----------
+  // ---------- หน้าจอ: ล็อกอิน / สมัครสมาชิก / ลืมรหัสผ่าน / ตั้งรหัสผ่านใหม่ ----------
   if (!session) {
+    const titles = { login: "เข้าสู่ระบบ", signup: "สมัครสมาชิก", forgot: "ลืมรหัสผ่าน", reset: "ตั้งรหัสผ่านใหม่" };
+    const canSubmit = !authBusy && (authMode === "reset" ? authPassword.length >= 6
+      : authMode === "forgot" ? !!authEmail
+      : authEmail && authPassword && (authMode !== "signup" || (authName.trim().length >= 2 && agree)));
     return (
       <div style={{ fontFamily: "'IBM Plex Sans Thai', sans-serif" }} className="min-h-screen bg-[#F3F5FA] flex items-center justify-center px-6">
         <style>{FONT_IMPORT}</style>
         <div className="bg-white rounded-2xl shadow-sm border border-black/5 p-6 w-full max-w-sm">
-          <h1 style={{ fontFamily: "'Kanit', sans-serif" }} className="text-xl font-semibold text-[#6C5CE7] mb-4">feedTH</h1>
-          <div className="space-y-2 mb-3">
-            {authMode === "signup" && <input placeholder="ชื่อที่แสดง (2–30 ตัวอักษร)" maxLength={30} value={authName} onChange={e => setAuthName(e.target.value)} className="w-full text-sm bg-[#F3F5FA] rounded-lg px-3 py-2 outline-none" />}
-            <input type="email" placeholder="อีเมล" value={authEmail} onChange={e => setAuthEmail(e.target.value)} className="w-full text-sm bg-[#F3F5FA] rounded-lg px-3 py-2 outline-none" />
-            <input type="password" placeholder="รหัสผ่าน" value={authPassword} onChange={e => setAuthPassword(e.target.value)} className="w-full text-sm bg-[#F3F5FA] rounded-lg px-3 py-2 outline-none" />
-          </div>
-          {authError && <p className="text-xs text-[#C43D3D] mb-2">{authError}</p>}
-          <button onClick={handleAuth} disabled={authBusy || !authEmail || !authPassword || (authMode === "signup" && authName.trim().length < 2)} className="w-full bg-[#6C5CE7] disabled:opacity-40 text-white text-sm font-medium py-2 rounded-lg mb-2">
-            {authBusy ? "กำลังทำรายการ..." : authMode === "signup" ? "สมัครสมาชิก" : "เข้าสู่ระบบ"}
-          </button>
-          <button onClick={() => setAuthMode(m => m === "signup" ? "login" : "signup")} className="w-full text-xs text-[#6B7280]">
-            {authMode === "signup" ? "มีบัญชีแล้ว? เข้าสู่ระบบ" : "ยังไม่มีบัญชี? สมัครสมาชิก"}
-          </button>
+          <h1 style={{ fontFamily: "'Kanit', sans-serif" }} className="text-xl font-semibold text-[#6C5CE7] mb-1">feedTH</h1>
+          <p className="text-xs text-[#9199A8] mb-4">{titles[authMode]}</p>
+          <form onSubmit={(e) => { e.preventDefault(); if (canSubmit) handleAuth(); }}>
+            <div className="space-y-2 mb-3">
+              {authMode === "signup" && <input placeholder="ชื่อที่แสดง (2–30 ตัวอักษร)" maxLength={30} value={authName} onChange={e => setAuthName(e.target.value)} className="w-full text-sm bg-[#F3F5FA] rounded-lg px-3 py-2 outline-none" />}
+              {authMode !== "reset" && <input type="email" placeholder="อีเมล" value={authEmail} onChange={e => setAuthEmail(e.target.value)} className="w-full text-sm bg-[#F3F5FA] rounded-lg px-3 py-2 outline-none" />}
+              {authMode !== "forgot" && <input type="password" placeholder={authMode === "reset" ? "รหัสผ่านใหม่ (อย่างน้อย 6 ตัว)" : "รหัสผ่าน"} value={authPassword} onChange={e => setAuthPassword(e.target.value)} className="w-full text-sm bg-[#F3F5FA] rounded-lg px-3 py-2 outline-none" />}
+            </div>
+            {authMode === "signup" && (
+              <label className="flex items-start gap-2 text-xs text-[#6B7280] mb-3">
+                <input type="checkbox" checked={agree} onChange={e => setAgree(e.target.checked)} className="mt-0.5" />
+                <span>ฉันยอมรับ<button type="button" onClick={() => setLegal("terms")} className="text-[#6C5CE7] underline">ข้อกำหนดการใช้งาน</button>และ<button type="button" onClick={() => setLegal("privacy")} className="text-[#6C5CE7] underline">นโยบายความเป็นส่วนตัว</button></span>
+              </label>
+            )}
+            {authError && <p className="text-xs text-[#C43D3D] mb-2">{authError}</p>}
+            <button type="submit" disabled={!canSubmit} className="w-full bg-[#6C5CE7] disabled:opacity-40 text-white text-sm font-medium py-2 rounded-lg mb-2">
+              {authBusy ? "กำลังทำรายการ..." : authMode === "signup" ? "สมัครสมาชิก" : authMode === "forgot" ? "ส่งลิงก์ตั้งรหัสผ่านใหม่" : authMode === "reset" ? "บันทึกรหัสผ่านใหม่" : "เข้าสู่ระบบ"}
+            </button>
+          </form>
+          {authMode !== "reset" && (
+            <button onClick={() => { setAuthError(""); setAuthMode(m => m === "signup" || m === "forgot" ? "login" : "signup"); }} className="w-full text-xs text-[#6B7280] mb-1">
+              {authMode === "signup" || authMode === "forgot" ? "มีบัญชีแล้ว? เข้าสู่ระบบ" : "ยังไม่มีบัญชี? สมัครสมาชิก"}
+            </button>
+          )}
+          {authMode === "login" && <button onClick={() => { setAuthError(""); setAuthMode("forgot"); }} className="w-full text-xs text-[#6C5CE7]">ลืมรหัสผ่าน?</button>}
         </div>
+        {legal && <LegalModal initial={legal} onClose={() => setLegal(null)} />}
+        {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#1A1D29] text-white text-sm px-4 py-2 rounded-full shadow-lg z-40 max-w-[90%] text-center">{toast}</div>}
       </div>
     );
   }
 
   const openPlace = (id) => setPlaceView(id);
-  const goTab = (t) => { if (t === "profile") setProfileId(null); setPlaceView(null); setTab(t); };
+  const goTab = (t) => { if (t === "profile") setProfileId(null); setPlaceView(null); setPeople(null); setTab(t); };
+  if (people) return (
+    <>
+      <PeopleView key={people.userId + people.tab} rest={rest} session={session} userId={people.userId} initialTab={people.tab} onBack={() => setPeople(null)}
+        onProfile={(id) => { setPeople(null); setProfileId(id); setTab("profile"); }} onChanged={loadRelations} showToast={showToast} />
+      <TabBar tab={tab} setTab={goTab} badge={pending} />
+      {toast && <div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-[#1A1D29] text-white text-sm px-4 py-2 rounded-full shadow-lg z-40 max-w-[90%] text-center">{toast}</div>}
+    </>
+  );
   if (placeView) return (
     <>
       <PlaceDetail placeId={placeView} rest={rest} posts={posts} userId={session.user_id} wallet={wallet} onBoosted={loadFeed} onLike={toggleLike} onBack={() => setPlaceView(null)}
@@ -963,9 +1209,10 @@ export default function FeedApp() {
         ? <ExploreTab rest={rest} prov={exploreProv} setProv={setExploreProv} onOpenPlace={openPlace} showToast={showToast} />
         : tab === "rank"
         ? <RankTab rest={rest} userId={session.user_id} onProfile={(id) => { setProfileId(id); setTab("profile"); }} showToast={showToast} />
-        : <ProfileTab key={profileId || session.user_id} rest={rest} session={session} userId={profileId || session.user_id} onLogout={logout} onPrivacy={() => setShowConsent(true)} showToast={showToast} />}
-      <TabBar tab={tab} setTab={goTab} />
+        : <ProfileTab key={profileId || session.user_id} rest={rest} session={session} userId={profileId || session.user_id} onLogout={logout} onPrivacy={() => setShowConsent(true)} onPeople={(uid, t) => setPeople({ userId: uid, tab: t })} pending={pending} onLegal={() => setLegal("terms")} onDelete={deleteAccount} showToast={showToast} />}
+      <TabBar tab={tab} setTab={goTab} badge={pending} />
       {consentModal}
+      {legalModal}
       {toast && <div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-[#1A1D29] text-white text-sm px-4 py-2 rounded-full shadow-lg z-40 max-w-[90%] text-center">{toast}</div>}
     </>
   );
@@ -979,7 +1226,7 @@ export default function FeedApp() {
         <div className="max-w-xl mx-auto flex items-center justify-between px-4 py-3">
           <h1 style={{ fontFamily: "'Kanit', sans-serif" }} className="text-xl font-semibold tracking-tight text-[#6C5CE7]">feedTH</h1>
           <div className="flex items-center gap-2">
-            <button onClick={topUp} className={`flex items-center gap-1.5 rounded-full pl-2 pr-3 py-1.5 border transition-all ${topUpFlash ? "bg-[#FFB020] border-[#FFB020] scale-105" : "bg-white border-[#FFB020]/40"}`}>
+            <button onClick={demoMode ? topUp : undefined} className={`flex items-center gap-1.5 rounded-full pl-2 pr-3 py-1.5 border transition-all ${topUpFlash ? "bg-[#FFB020] border-[#FFB020] scale-105" : "bg-white border-[#FFB020]/40"}`}>
               <Wallet size={15} className={topUpFlash ? "text-white" : "text-[#FFB020]"} />
               <span className={`text-sm font-medium ${topUpFlash ? "text-white" : "text-[#1A1D29]"}`}>{wallet} เครดิต</span>
             </button>
@@ -1002,7 +1249,7 @@ export default function FeedApp() {
         {posts.map((post) => {
           const isOther = post.author.id !== session.user_id;
           const likedByMe = post.likes.some(l => l.user_id === session.user_id);
-          const fStatus = friendStatus[post.author.id];
+          const fStatus = relations[post.author.id];
 
           return (
             <article key={post.id} className={`bg-white rounded-2xl p-4 shadow-sm relative overflow-hidden ${post.is_boosted ? "border-l-[3px] border-[#FFB020]" : "border border-black/5"}`}>
@@ -1019,9 +1266,9 @@ export default function FeedApp() {
                   <p className="text-xs text-[#9199A8]">{timeAgo(post.created_at)}</p>
                 </div>
                 {isOther && (
-                  <button onClick={() => toggleFriend(post.author)} disabled={!!fStatus} className={`text-xs font-medium flex items-center gap-1 px-2.5 py-1 rounded-full border ${fStatus ? "border-black/10 text-[#9199A8]" : "border-[#6C5CE7]/30 text-[#6C5CE7]"}`}>
-                    {fStatus ? <UserCheck size={12} /> : <UserPlus size={12} />}
-                    {fStatus === "pending" ? "รอยืนยัน" : "เพิ่มเพื่อน"}
+                  <button onClick={() => toggleFriend(post.author)} disabled={fStatus === "sent" || fStatus === "friends"} className={`text-xs font-medium flex items-center gap-1 px-2.5 py-1 rounded-full border ${fStatus === "sent" || fStatus === "friends" ? "border-black/10 text-[#9199A8]" : "border-[#6C5CE7]/30 text-[#6C5CE7]"}`}>
+                    {fStatus === "sent" || fStatus === "friends" ? <UserCheck size={12} /> : <UserPlus size={12} />}
+                    {fStatus === "sent" ? "รอยืนยัน" : fStatus === "friends" ? "เพื่อน" : fStatus === "received" ? "ยอมรับคำขอ" : "เพิ่มเพื่อน"}
                   </button>
                 )}
               </div>
@@ -1056,6 +1303,9 @@ export default function FeedApp() {
                     <Zap size={16} /> บูสต์โพสต์
                   </button>
                 )}
+                {isOther
+                  ? <button onClick={() => setReportFor(post.id)} aria-label="รายงานโพสต์" className="ml-auto text-[#9199A8] hover:text-[#C43D3D]"><Flag size={15} /></button>
+                  : <button onClick={() => setDeleteFor(post.id)} aria-label="ลบโพสต์" className={`${post.is_boosted ? "ml-auto" : ""} text-[#9199A8] hover:text-[#C43D3D]`}><Trash2 size={15} /></button>}
               </div>
 
               {openComments[post.id] && (
@@ -1095,6 +1345,28 @@ export default function FeedApp() {
         </div>
       )}
 
+      {reportFor !== null && (
+        <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-4 relative space-y-2">
+            <button onClick={() => setReportFor(null)} aria-label="ปิด" className="absolute top-3 right-3 text-[#9199A8]"><X size={18} /></button>
+            <h3 style={{ fontFamily: "'Kanit', sans-serif" }} className="font-semibold">รายงานโพสต์นี้เพราะ...</h3>
+            {[["spam", "สแปม/โฆษณาหลอกลวง"], ["inappropriate", "เนื้อหาไม่เหมาะสม/คุกคาม"], ["false_info", "ข้อมูลเท็จ"], ["other", "อื่นๆ"]].map(([k, l]) => (
+              <button key={k} onClick={() => reportPost(k)} className="w-full text-left text-sm border border-black/10 rounded-xl px-3 py-2.5">{l}</button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {deleteFor !== null && (
+        <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-4 space-y-3">
+            <h3 style={{ fontFamily: "'Kanit', sans-serif" }} className="font-semibold">ลบโพสต์นี้?</h3>
+            <p className="text-xs text-[#6B7280]">คอมเมนต์และไลค์ของโพสต์นี้จะถูกลบด้วย</p>
+            <div className="flex gap-2"><button onClick={() => setDeleteFor(null)} className="flex-1 border border-black/10 text-sm py-2 rounded-lg">ยกเลิก</button><button onClick={deletePost} className="flex-1 bg-[#C43D3D] text-white text-sm font-medium py-2 rounded-lg">ลบ</button></div>
+          </div>
+        </div>
+      )}
+
       {leaderboardFor && (
         <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 px-4">
           <div className="bg-white rounded-2xl w-full max-w-sm p-4 relative">
@@ -1123,6 +1395,7 @@ export default function FeedApp() {
 
       <TabBar tab="feed" setTab={goTab} />
       {consentModal}
+      {legalModal}
       {toast && <div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-[#1A1D29] text-white text-sm px-4 py-2 rounded-full shadow-lg z-40 max-w-[90%] text-center">{toast}</div>}
     </div>
   );
