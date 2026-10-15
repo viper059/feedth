@@ -9,8 +9,14 @@ import {
 // ==========================================================
 // 1) ใส่ค่าจาก Supabase Project Settings > API ตรงนี้
 // ==========================================================
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "YOUR_SUPABASE_URL"; // เช่น https://xxxxx.supabase.co
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "YOUR_SUPABASE_ANON_KEY";
+// ค่าสาธารณะของโปรเจกต์ (URL + anon key ออกแบบให้เปิดเผยในเว็บได้ ความปลอดภัยอยู่ที่ RLS/ฟังก์ชันฝั่งฐานข้อมูล)
+// ใช้ค่าจาก GitHub Secrets ถ้าถูกต้อง ถ้าว่าง/ผิดรูปแบบ (เช่นมีช่องว่าง ไม่ใช่ https) จะใช้ค่าสำรองนี้แทน
+const DEFAULT_SUPABASE_URL = "https://qozkybfaayjsmzrwxtyb.supabase.co";
+const DEFAULT_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFvemt5YmZhYXlqc216cnd4dHliIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE5NzkxMTEsImV4cCI6MjEwNzU1NTExMX0.eMbY-_MF4akPyl0gjTGgfurlgbDmxBkq6-8iVfOlgSU";
+const envUrl = String(import.meta.env.VITE_SUPABASE_URL || "").trim().replace(/\/+$/, "");
+const envKey = String(import.meta.env.VITE_SUPABASE_ANON_KEY || "").trim();
+const SUPABASE_URL = /^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(envUrl) ? envUrl : DEFAULT_SUPABASE_URL;
+const SUPABASE_ANON_KEY = /^eyJ[\w-]+\.[\w-]+\.[\w-]+$/.test(envKey) ? envKey : DEFAULT_SUPABASE_ANON_KEY;
 
 const FONT_IMPORT = `@import url('https://fonts.googleapis.com/css2?family=Kanit:wght@500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&display=swap');`;
 const SESSION_KEY = "feedth-session";
@@ -39,7 +45,7 @@ function timeAgo(iso) {
   return `${Math.floor(h / 24)} วันที่แล้ว`;
 }
 
-const configured = SUPABASE_URL !== "YOUR_SUPABASE_URL" && SUPABASE_ANON_KEY !== "YOUR_SUPABASE_ANON_KEY";
+const configured = true;
 
 const TOPIC_KEYWORDS = {
   van_custom: ["รถตู้", "แต่งรถ", "ช่วงล่าง", "พ่นสี"],
