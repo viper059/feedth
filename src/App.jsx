@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import FogMapPanel from "./FogMap.jsx";
+import { BuyCredits, AdminPanel } from "./Shop.jsx";
 import { locateAt, LEVELS, REGION_TH, CONTINENT_TH, COUNTRY_TH } from "./geo.js";
 import {
   Heart, MessageCircle, Zap, Wallet, Send, X, Sparkles,
-  Share2, Trash2, Flag, Bell, ImagePlus, UserPlus, UserCheck, Crown, Trophy, Loader2, LogOut, MapPin, ArrowLeft, Home, User, Medal, Compass,
+  Share2, Trash2, Flag, Bell, ImagePlus, UserPlus, UserCheck, Crown, Trophy, Loader2, LogOut, MapPin, ArrowLeft, Home, User, Medal, Compass, Shield,
 } from "lucide-react";
 
 // ==========================================================
@@ -844,6 +845,8 @@ export default function FeedApp() {
   const [relations, setRelations] = useState({}); // { userId: friends|sent|received }
   const [people, setPeople] = useState(null); // { userId, tab }
   const [notif, setNotif] = useState(false);
+  const [shop, setShop] = useState(null); // "buy" | "admin"
+  const [payCfg, setPayCfg] = useState({ mode: "off", packages: [], is_admin: false });
   const [unread, setUnread] = useState(0);
   const [tab, setTab] = useState("feed");
   const [placeView, setPlaceView] = useState(null);
@@ -855,7 +858,8 @@ export default function FeedApp() {
   const [cP, setCP] = useState(false);
   const sid = useRef(crypto.randomUUID());
 
-  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2500); };
+  const toastTimer = useRef(null);
+  const showToast = (msg) => { setToast(msg); clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(null), 2500); };
 
   // ---------- REST helper: คุยกับ Supabase (Auth + PostgREST) ตรงๆ ผ่าน fetch ----------
   const sessionRef = useRef(null);
@@ -1160,6 +1164,7 @@ export default function FeedApp() {
   useEffect(() => {
     if (!session) return;
     rest("/rest/v1/rpc/app_config", { method: "POST", body: {} }).then(c => setDemoMode(!!c?.demo_mode)).catch(() => {});
+    rest("/rest/v1/rpc/payment_config", { method: "POST", body: {} }).then(c => c && setPayCfg(c)).catch(() => {});
   }, [session]);
   const reportPost = async (reason) => {
     try {
@@ -1313,6 +1318,14 @@ export default function FeedApp() {
     if (n.type === "friend_accept") { setPeople({ userId: session.user_id, tab: "friends" }); return; }
     setProfileId(n.actor_id); setTab("profile");
   };
+  if (shop) return (
+    <>
+      {shop === "admin" ? <AdminPanel rest={rest} onBack={() => setShop(null)} showToast={showToast} onChanged={() => rest("/rest/v1/rpc/payment_config", { method: "POST", body: {} }).then(c => c && setPayCfg(c)).catch(() => {})} />
+        : <BuyCredits rest={rest} cfg={payCfg} onBack={() => setShop(null)} showToast={showToast} onChanged={() => {}} />}
+      <TabBar tab={tab} setTab={(t) => { setShop(null); goTab(t); }} badge={pending} />
+      {toast && <div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-[#1A1D29] text-white text-sm px-4 py-2 rounded-full shadow-lg z-40 max-w-[90%] text-center">{toast}</div>}
+    </>
+  );
   if (notif) return (
     <>
       <NotificationsView rest={rest} onBack={() => setNotif(false)} onOpen={openNotif} onRead={() => { setUnread(0); loadRelations(); }} />
@@ -1360,10 +1373,11 @@ export default function FeedApp() {
         <div className="max-w-xl mx-auto flex items-center justify-between px-4 py-3">
           <h1 style={{ fontFamily: "'Kanit', sans-serif" }} className="text-xl font-semibold tracking-tight text-[#6C5CE7]">feedTH</h1>
           <div className="flex items-center gap-2">
-            <button onClick={demoMode ? topUp : undefined} className={`flex items-center gap-1.5 rounded-full pl-2 pr-3 py-1.5 border transition-all ${topUpFlash ? "bg-[#FFB020] border-[#FFB020] scale-105" : "bg-white border-[#FFB020]/40"}`}>
+            <button onClick={demoMode ? topUp : () => { rest("/rest/v1/rpc/payment_config", { method: "POST", body: {} }).then(c => c && setPayCfg(c)).catch(() => {}); if (payCfg.mode === "manual") setShop("buy"); else showToast("ยังไม่เปิดให้เติมเครดิต"); }} className={`flex items-center gap-1.5 rounded-full pl-2 pr-3 py-1.5 border transition-all ${topUpFlash ? "bg-[#FFB020] border-[#FFB020] scale-105" : "bg-white border-[#FFB020]/40"}`}>
               <Wallet size={15} className={topUpFlash ? "text-white" : "text-[#FFB020]"} />
               <span className={`text-sm font-medium ${topUpFlash ? "text-white" : "text-[#1A1D29]"}`}>{wallet} เครดิต</span>
             </button>
+            {payCfg.is_admin && <button onClick={() => setShop("admin")} aria-label="จัดการร้าน" className="text-[#6C5CE7]"><Shield size={17} /></button>}
             <button onClick={() => setNotif(true)} aria-label="การแจ้งเตือน" className="relative text-[#6C5CE7]"><Bell size={17} />{unread > 0 && <span className="absolute -top-1.5 -right-2 min-w-[15px] h-[15px] rounded-full bg-[#EF4565] text-white text-[9px] leading-[15px] text-center px-1">{unread > 9 ? "9+" : unread}</span>}</button>
             <button onClick={() => setTab("checkin")} aria-label="เช็คอิน" className="text-[#6C5CE7]"><MapPin size={17} /></button>
             <button onClick={logout} aria-label="ออกจากระบบ" className="text-[#9199A8] hover:text-[#1A1D29]"><LogOut size={16} /></button>
