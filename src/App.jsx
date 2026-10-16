@@ -69,20 +69,29 @@ const ACHIEVEMENTS = [
   { g: "เช็คอิน", id: "places10", icon: "📍", label: "นักสะสมที่เที่ยว", desc: "เช็คอิน 10 สถานที่ไม่ซ้ำกัน", test: t => t.places >= 10 },
   { g: "เช็คอิน", id: "places50", icon: "🧭", label: "นักสำรวจตัวยง", desc: "เช็คอิน 50 สถานที่ไม่ซ้ำกัน", test: t => t.places >= 50 },
   { g: "แผนที่", id: "con1", icon: "🌏", label: "ผู้พิชิตทวีป", desc: "ปลดล็อกทวีปแรก", test: t => U(t, "con") >= 1 },
-  { g: "แผนที่", id: "con3", icon: "🌍", label: "ข้ามทวีป", desc: "ปลดล็อก 3 ทวีป", test: t => U(t, "con") >= 3 },
+  { g: "แผนที่", id: "con3", icon: "🌍", label: "ข้ามทวีป", desc: "ปลดล็อก 3 ทวีป", test: t => U(t, "con") >= 3, soon: true },
   { g: "แผนที่", id: "cty1", icon: "🚩", label: "ผู้พิชิตประเทศ", desc: "ปลดล็อกประเทศแรก", test: t => U(t, "cty") >= 1 },
-  { g: "แผนที่", id: "cty5", icon: "🛂", label: "พาสปอร์ตเต็มเล่ม", desc: "ปลดล็อก 5 ประเทศ", test: t => U(t, "cty") >= 5 },
+  { g: "แผนที่", id: "cty5", icon: "🛂", label: "พาสปอร์ตเต็มเล่ม", desc: "ปลดล็อก 5 ประเทศ", test: t => U(t, "cty") >= 5, soon: true },
   { g: "แผนที่", id: "reg3", icon: "🧳", label: "สามภาค", desc: "ปลดล็อก 3 ภูมิภาค", test: t => U(t, "reg") >= 3 },
   { g: "แผนที่", id: "reg6", icon: "🗾", label: "ผู้พิชิตภูมิภาค", desc: "ปลดล็อกครบ 6 ภูมิภาค", test: t => U(t, "reg") >= 6 },
+  { g: "แผนที่", id: "reg1", icon: "🧭", label: "ก้าวสู่ภูมิภาค", desc: "ปลดล็อกภูมิภาคแรก", test: t => U(t, "reg") >= 1 },
   { g: "แผนที่", id: "prov3", icon: "🗺️", label: "ล่าจังหวัด", desc: "เช็คอินครบ 3 จังหวัด", test: t => (t.provinces || []).length >= 3 },
+  { g: "แผนที่", id: "pro1", icon: "📌", label: "จังหวัดแรก", desc: "ปลดล็อกจังหวัดแรก", test: t => U(t, "pro") >= 1 },
   { g: "แผนที่", id: "pro10", icon: "🏔️", label: "นักสะสมจังหวัด", desc: "ปลดล็อก 10 จังหวัด", test: t => U(t, "pro") >= 10 },
   { g: "แผนที่", id: "pro30", icon: "🛣️", label: "ครึ่งทางแผนที่", desc: "ปลดล็อก 30 จังหวัด", test: t => U(t, "pro") >= 30 },
+  { g: "แผนที่", id: "pro50", icon: "🗻", label: "เกินครึ่งประเทศ", desc: "ปลดล็อก 50 จังหวัด", test: t => U(t, "pro") >= 50 },
   { g: "แผนที่", id: "pro77", icon: "👑", label: "ราชาแผนที่", desc: "ปลดล็อกครบ 77 จังหวัด", test: t => U(t, "pro") >= 77 },
+  { g: "แผนที่", id: "dis1", icon: "🏡", label: "อำเภอแรก", desc: "ปลดล็อกอำเภอแรก", test: t => U(t, "dis") >= 1 },
+  { g: "แผนที่", id: "dis30", icon: "🌆", label: "สามสิบอำเภอ", desc: "ปลดล็อก 30 อำเภอ", test: t => U(t, "dis") >= 30 },
   { g: "แผนที่", id: "dis10", icon: "🏘️", label: "นักตะลุยอำเภอ", desc: "ปลดล็อก 10 อำเภอ", test: t => U(t, "dis") >= 10 },
   { g: "แผนที่", id: "dis100", icon: "🏙️", label: "ร้อยอำเภอ", desc: "ปลดล็อก 100 อำเภอ", test: t => U(t, "dis") >= 100 },
+  { g: "แผนที่", id: "dis300", icon: "🌇", label: "สามร้อยอำเภอ", desc: "ปลดล็อก 300 อำเภอ", test: t => U(t, "dis") >= 300 },
+  { g: "แผนที่", id: "sub1", icon: "🏠", label: "ตำบลแรก", desc: "ปลดล็อกตำบลแรก", test: t => U(t, "sub") >= 1 },
+  { g: "แผนที่", id: "sub50", icon: "🗝️", label: "ห้าสิบตำบล", desc: "ปลดล็อก 50 ตำบล", test: t => U(t, "sub") >= 50 },
   { g: "แผนที่", id: "sub10", icon: "🔎", label: "นักเก็บตำบล", desc: "ปลดล็อก 10 ตำบล", test: t => U(t, "sub") >= 10 },
   { g: "แผนที่", id: "sub100", icon: "🧩", label: "ตำบลทะลุร้อย", desc: "ปลดล็อก 100 ตำบล", test: t => U(t, "sub") >= 100 },
   { g: "แผนที่", id: "sub500", icon: "🏅", label: "ตำนานตำบล", desc: "ปลดล็อก 500 ตำบล", test: t => U(t, "sub") >= 500 },
+  { g: "แผนที่", id: "sub1000", icon: "🌟", label: "พันตำบล", desc: "ปลดล็อก 1,000 ตำบล", test: t => U(t, "sub") >= 1000 },
   { g: "สายกิน-สายเที่ยว", id: "cafe3", icon: "☕", label: "สายคาเฟ่", desc: "เช็คอินคาเฟ่ 3 ครั้ง", test: t => CAT(t, "cafe") >= 3 },
   { g: "สายกิน-สายเที่ยว", id: "cafe15", icon: "🧋", label: "ขาประจำคาเฟ่", desc: "เช็คอินคาเฟ่ 15 ครั้ง", test: t => CAT(t, "cafe") >= 15 },
   { g: "สายกิน-สายเที่ยว", id: "food3", icon: "🍜", label: "นักชิม", desc: "เช็คอินร้านอาหาร 3 ครั้ง", test: t => CAT(t, "restaurant") >= 3 },
@@ -437,7 +446,7 @@ function Passport({ t }) {
                   <div key={a.id} title={a.desc} className="aspect-square rounded-full flex flex-col items-center justify-center text-center p-1 text-[10px] leading-tight"
                     style={a.on ? { border: "2px solid #B8862B", color: "#B8862B", background: "#FFF9EC", transform: "rotate(-5deg)" } : { border: "2px dashed #D5D9E2", color: "#B8BDC9" }}>
                     <span className="text-lg leading-none">{a.on ? a.icon : "🔒"}</span>{a.label}
-                    {!a.on && <span className="text-[8px] mt-0.5">{a.desc}</span>}
+                    {!a.on && <span className="text-[8px] mt-0.5">{a.soon ? "เร็วๆ นี้" : a.desc}</span>}
                   </div>
                 ))}
               </div>
