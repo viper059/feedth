@@ -201,12 +201,13 @@ function CheckinTab({ rest, onBack, showToast, onOpenPlace, onOpenMap }) {
       // หาจังหวัด/อำเภอ/ตำบลของสถานที่ (เซิร์ฟเวอร์ตรวจซ้ำกับตาราง admin_areas)
       const loc = (await locateAt(target.lat, target.lng).catch(() => null)) || {};
       const r = await rest("/rest/v1/rpc/check_in_v4", { method: "POST", body: { p_place_id: target.id, p_lat: pos.lat, p_lng: pos.lng, p_rating: rating, p_caption: caption, p_cty: loc.cty || null, p_pro: loc.pro || null, p_dis: loc.dis || null, p_sub: loc.sub || null } });
-      setResult({ place: target.name, points: r.points, unlocks: r.unlocks || [] });
+      if (r.repeat) showToast("เช็คอินซ้ำสำเร็จ (ไม่ได้แต้มเพิ่ม)");
+      setResult({ place: target.name, points: r.points, unlocks: r.unlocks || [], repeat: !!r.repeat });
       rest("/rest/v1/rpc/record_interest", { method: "POST", body: { p_topic: target.category, p_weight: 3 } }).catch(() => {});
       setTarget(null); setCaption(""); load(pos);
     } catch (e) {
       const m = e.message;
-      showToast(m.includes("too far") ? "ไกลเกินไป ต้องอยู่ในรัศมี 150 ม." : m.includes("already") ? "วันนี้เช็คอินที่นี่ไปแล้ว" : m.includes("suspicious") ? "ตรวจพบการเดินทางเร็วผิดปกติ" : "เช็คอินไม่สำเร็จ: " + m);
+      showToast(m.includes("too far") ? "ไกลเกินไป ต้องอยู่ในรัศมี 150 ม." : m.includes("after 4 hours") ? "เช็คอินที่นี่ซ้ำได้อีกหลังผ่านไป 4 ชั่วโมง" : m.includes("limit reached") ? "เช็คอินซ้ำครบ 10 ครั้งต่อวันแล้ว" : m.includes("already") ? "วันนี้เช็คอินที่นี่ไปแล้ว" : m.includes("suspicious") ? "ตรวจพบการเดินทางเร็วผิดปกติ" : "เช็คอินไม่สำเร็จ: " + m);
     }
   };
 
