@@ -7,6 +7,9 @@ import { Flame, Lock, Check, Loader2 } from "lucide-react";
 import { loadBase, loadDis, loadSub, LEVELS, RANKS, REGION_TH, CONTINENT_TH, COUNTRY_TH } from "./geo.js";
 
 const GOLD = "#E3B25A";
+// สีประจำแต่ละระดับ (ใช้ทั้งแท็บ เส้น พื้นที่ที่ปลดล็อก หมุด และตัวเลขสรุป)
+export const LEVEL_COLOR = { con: "#5BC0EB", cty: "#A78BFA", reg: "#34D3B4", pro: "#E3B25A", dis: "#FF8A5B", sub: "#FF5D9E" };
+const MAXZ = 20000;
 const idOf = (k, f) => {
   const p = f.properties;
   return k === "con" ? p.CONTINENT : k === "cty" ? p.a : k === "reg" ? p.reg_royin : p.c;
@@ -18,6 +21,25 @@ const nameOf = (k, f) => {
   if (k === "reg") return REGION_TH[p.reg_royin] || p.reg_royin;
   return p.th;
 };
+
+// ซ่อนป้ายชื่อที่ซ้อนทับกันตามระดับซูมปัจจุบัน (ป้ายของพื้นที่ใหญ่กว่าได้สิทธิ์ก่อน) ซูมเข้าไปแล้วจะค่อยๆ โผล่
+let rafId = 0;
+function declutter(o) {
+  if (rafId) return;
+  rafId = requestAnimationFrame(() => {
+    rafId = 0;
+    const placed = [];
+    for (const l of o.lab) {
+      const x = o.T.x + o.T.k * l.cx, y = o.T.y + o.T.k * l.cy;
+      const w = l.w, h = 15;
+      const box = [x - w / 2, y - h / 2, x + w / 2, y + h / 2];
+      const visible = x > -w && y > -h && x < o.W + w && y < o.H + h
+        && !placed.some(b => box[0] < b[2] && box[2] > b[0] && box[1] < b[3] && box[3] > b[1]);
+      l.el.style.display = visible ? "" : "none";
+      if (visible) placed.push(box);
+    }
+  });
+}
 
 // แผนที่หมอก: เห็นแต่เส้นแบ่งเขต ชื่อพื้นที่จะเปิดเมื่อเช็คอินในพื้นที่นั้น
 function FogCanvas({ unlocked, onInfo }) {
@@ -57,11 +79,13 @@ function FogCanvas({ unlocked, onInfo }) {
   useEffect(() => {
     const svg = select(svgEl.current);
     const g = svg.append("g");
-    const o = { svg, g, shapes: g.append("g"), labels: g.append("g"), K: 1, proj: geoNaturalEarth1(), W: 0, H: 0 };
+    const o = { svg, g, shapes: g.append("g"), pins: g.append("g"), labels: g.append("g"), K: 1, T: zoomIdentity, lab: [], proj: geoNaturalEarth1(), W: 0, H: 0 };
     o.path = geoPath(o.proj);
-    o.zoom = d3zoom().scaleExtent([1, 6000]).on("zoom", e => {
-      o.K = e.transform.k; g.attr("transform", e.transform);
+    o.zoom = d3zoom().scaleExtent([1, MAXZ]).on("zoom", e => {
+      o.K = e.transform.k; o.T = e.transform; g.attr("transform", e.transform);
       o.labels.selectAll("text").style("font-size", 11 / o.K + "px").style("stroke-width", 3 / o.K + "px");
+      o.pins.selectAll("circle").attr("r", 4.5 / o.K).style("stroke-width", 1.5 / o.K + "px");
+      declutter(o);
     });
     svg.call(o.zoom).on("dblclick.zoom", null);
     m.current = o;
@@ -91,7 +115,8 @@ function FogCanvas({ unlocked, onInfo }) {
     const o = m.current;
     if (!ready || !base || !o.W) return;
     const k = active;
-    o.shapes.selectAll("*").remove(); o.labels.selectAll("*").remove();
+    o.shapes.selectAll("*").remove(); o.labels.selectAll("*").remove(); o.pins.selectAll("*").remove();
+    const C = LEVEL_COLOR[k];
     if (k !== "con" && k !== "cty") {
       o.shapes.selectAll("path.ctx").data(base.cty.features).join("path").attr("d", o.path)
         .attr("fill", "#121b31").attr("stroke", "#26355a").attr("stroke-width", 0.5).attr("vector-effect", "non-scaling-stroke");
@@ -99,19 +124,27 @@ function FogCanvas({ unlocked, onInfo }) {
     const data = feats(k);
     const on = (f) => unlocked[k].has(idOf(k, f));
     o.shapes.selectAll("path.cell").data(data).join("path").attr("class", "cell").attr("d", o.path)
-      .attr("fill", f => (on(f) ? "rgba(227,178,90,.30)" : "#16203a"))
-      .attr("stroke", f => (on(f) ? GOLD : "#34466f")).attr("stroke-width", f => (on(f) ? 1 : 0.6))
+      .attr("fill", f => (on(f) ? C + "4D" : "#16203a"))
+      .attr("stroke", f => (on(f) ? C : "#34466f")).attr("stroke-width", f => (on(f) ? 1 : 0.6))
       .attr("vector-effect", "non-scaling-stroke").style("cursor", "pointer")
       .on("click", (e, f) => { e.stopPropagation(); infoRef.current({ k, id: idOf(k, f), name: nameOf(k, f), on: on(f), props: f.properties }); });
     if (k === "dis" || k === "sub") {
       const up = k === "dis" ? base.pro.features : (dis ? dis.features.filter(f => f.properties.pc === subProv) : []);
-      o.shapes.selectAll("path.up").data(up).join("path").attr("d", o.path).attr("fill", "none").attr("stroke", "#4b6096")
-        .attr("stroke-width", 1.1).attr("vector-effect", "non-scaling-stroke").attr("pointer-events", "none");
+      o.shapes.selectAll("path.up").data(up).join("path").attr("d", o.path).attr("fill", "none").attr("stroke", k === "dis" ? LEVEL_COLOR.pro : LEVEL_COLOR.dis)
+        .attr("stroke-opacity", 0.7).attr("stroke-width", 1.1).attr("vector-effect", "non-scaling-stroke").attr("pointer-events", "none");
     }
-    o.labels.selectAll("text").data(data.filter(on)).join("text").attr("transform", f => `translate(${o.path.centroid(f)})`)
-      .text(f => nameOf(k, f)).attr("fill", "#f6e4bb").attr("stroke", "#0b1220").attr("paint-order", "stroke").attr("stroke-linejoin", "round")
+    const lit = data.filter(on).map(f => {
+      const [cx, cy] = o.path.centroid(f); const a = o.path.area(f); const name = nameOf(k, f);
+      return { f, cx, cy, a, name };
+    }).filter(d => isFinite(d.cx) && isFinite(d.cy)).sort((x, y) => y.a - x.a);
+    o.pins.selectAll("circle").data(lit).join("circle").attr("cx", d => d.cx).attr("cy", d => d.cy)
+      .attr("r", 4.5 / o.K).attr("fill", C).attr("stroke", "#0b1220").style("stroke-width", 1.5 / o.K + "px").attr("pointer-events", "none");
+    const tx = o.labels.selectAll("text").data(lit).join("text").attr("transform", d => `translate(${d.cx},${d.cy})`)
+      .attr("dy", "-0.75em").text(d => d.name).attr("fill", "#f6f1e3").attr("stroke", "#0b1220").attr("paint-order", "stroke").attr("stroke-linejoin", "round")
       .attr("text-anchor", "middle").attr("pointer-events", "none").style("font-weight", 600)
       .style("font-size", 11 / o.K + "px").style("stroke-width", 3 / o.K + "px");
+    o.lab = lit.map((d, i) => ({ el: tx.nodes()[i], cx: d.cx, cy: d.cy - 0, w: Math.max(24, d.name.length * 6.8) }));
+    declutter(o);
   }, [ready, sizeTick, base, dis, sub, active, unlocked, subProv, feats]);
 
   // เลื่อน/ซูมไปยังพื้นที่ที่เกี่ยวข้อง
@@ -119,7 +152,7 @@ function FogCanvas({ unlocked, onInfo }) {
     const o = m.current;
     if (!o.W || !list.length) return;
     const [[x0, y0], [x1, y1]] = o.path.bounds({ type: "FeatureCollection", features: list });
-    const k = Math.min(6000, Math.max(1, (1 - pad) / Math.max((x1 - x0) / o.W, (y1 - y0) / o.H)));
+    const k = Math.min(MAXZ, Math.max(1, (1 - pad) / Math.max((x1 - x0) / o.W, (y1 - y0) / o.H)));
     o.svg.transition().duration(600).call(o.zoom.transform, zoomIdentity.translate(o.W / 2, o.H / 2).scale(k).translate(-(x0 + x1) / 2, -(y0 + y1) / 2));
   }, []);
   const view = useCallback(() => {
@@ -136,7 +169,7 @@ function FogCanvas({ unlocked, onInfo }) {
       <div className="flex gap-1.5 overflow-x-auto pb-2" role="tablist">
         {LEVELS.map(l => (
           <button key={l.k} role="tab" aria-selected={active === l.k} onClick={() => { setActive(l.k); onInfo(null); }}
-            className={`text-xs font-semibold px-3 py-1.5 rounded-full whitespace-nowrap border ${active === l.k ? "bg-[#E3B25A] text-[#1b1304] border-[#E3B25A]" : "bg-[#111a2e] text-[#8b97b3] border-[#263456]"}`}>{l.name}</button>
+            className={`text-xs font-semibold px-3 py-1.5 rounded-full whitespace-nowrap border ${active === l.k ? "text-[#0b1220]" : "bg-[#111a2e] border-[#263456]"}`} style={active === l.k ? { background: LEVEL_COLOR[l.k], borderColor: LEVEL_COLOR[l.k] } : { color: LEVEL_COLOR[l.k] }}>{l.name}</button>
         ))}
       </div>
       {active === "sub" && openProvs.length > 0 && (
@@ -152,6 +185,10 @@ function FogCanvas({ unlocked, onInfo }) {
         {active === "sub" && base && openProvs.length === 0 && (
           <p className="absolute inset-0 flex items-center justify-center text-xs text-[#8b97b3] px-8 text-center pointer-events-none">เช็คอินในจังหวัดใดจังหวัดหนึ่งก่อน แล้วตำบลของจังหวัดนั้นจะมาให้ปลดล็อก</p>
         )}
+        <div className="absolute right-2 top-2 flex flex-col gap-1.5">
+          <button aria-label="ซูมเข้า" onClick={() => m.current.svg.transition().duration(250).call(m.current.zoom.scaleBy, 2.5)} className="w-9 h-9 text-lg leading-none bg-[#111a2e] text-[#e8ecf5] border border-[#263456] rounded-lg">+</button>
+          <button aria-label="ซูมออก" onClick={() => m.current.svg.transition().duration(250).call(m.current.zoom.scaleBy, 0.4)} className="w-9 h-9 text-lg leading-none bg-[#111a2e] text-[#e8ecf5] border border-[#263456] rounded-lg">−</button>
+        </div>
         <button onClick={view} className="absolute right-2 bottom-2 text-[11px] bg-[#111a2e] text-[#e8ecf5] border border-[#263456] rounded-lg px-2.5 py-1.5">เต็มจอ</button>
         <p className="absolute left-2 bottom-1.5 max-w-[calc(100%-5.5rem)] leading-tight text-[9px] text-[#55627f] pointer-events-none">ขอบเขต: OpenGISData-Thailand (CC BY 4.0) · Natural Earth</p>
       </div>
@@ -224,7 +261,7 @@ export default function FogMapPanel({ rest, showToast }) {
           </div>
         </div>
         <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11.5px] text-[#8b97b3] mt-2.5 tabular-nums">
-          {LEVELS.slice().reverse().map(l => <span key={l.k} className="whitespace-nowrap">{l.name} <b className="text-[#e8ecf5]">{unlocked[l.k].size}</b>{tot[l.k] ? `/${tot[l.k]}` : ""}</span>)}
+          {LEVELS.slice().reverse().map(l => <span key={l.k} className="whitespace-nowrap"><i className="inline-block w-2 h-2 rounded-full mr-1 align-baseline" style={{ background: LEVEL_COLOR[l.k] }} />{l.name} <b className="text-[#e8ecf5]">{unlocked[l.k].size}</b>{tot[l.k] ? `/${tot[l.k]}` : ""}</span>)}
         </div>
         {!data.streak.today && <p className="text-[11px] mt-2" style={{ color: "#FF8A3D" }}>{data.streak.current > 0 ? "วันนี้ยังไม่ได้เช็คอิน — เช็คอินวันนี้เพื่อรักษาสตรีค" : "เช็คอินวันนี้เพื่อเริ่มสตรีค"}</p>}
       </div>
