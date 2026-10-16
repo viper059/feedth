@@ -4,3 +4,6 @@
 --   rpc: my_notifications(p_limit), unread_count(), mark_notifications_read()
 -- storage bucket post-images (public, ≤5MB, jpeg/png/webp): insert/delete ได้เฉพาะโฟลเดอร์ {user_id}/
 -- posts.media_urls: constraint posts_media_urls_valid — ≤4 รูป และต้องเป็น URL ใน bucket post-images ของโปรเจกต์เท่านั้น
+
+-- โครงชำระเงิน (migration: payments_foundation): credit_packages (active=false จนกว่าเจ้าของตั้งราคา), orders,
+-- fulfill_order(provider_ref) — idempotent, เรียกได้เฉพาะ service_role. ดูขั้นตอนใน supabase/PAYMENTS.md
