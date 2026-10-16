@@ -15,7 +15,7 @@ const getJSON = (name) => {
 
 export const loadBase = async () => {
   const b = await getJSON("base.json");
-  if (!b._ready) { b.pro.features.forEach(f => { f.__bb = geoBounds(f); }); b._ready = true; }
+  if (!b._ready) { b.pro.features.forEach(f => { f.__bb = geoBounds(f); }); b.cty.features.forEach(f => { f.__bb = geoBounds(f); }); b._ready = true; }
   return b;
 };
 export const loadDis = () => getJSON("dis.json");
@@ -27,9 +27,13 @@ const inBB = (bb, lng, lat) => lng >= bb[0][0] && lng <= bb[1][0] && lat >= bb[0
 export async function locateAt(lat, lng) {
   const pt = [lng, lat];
   const base = await loadBase();
+  const out = {};
+  // ประเทศ (ไม่ใช่ไทยก็ได้) — ใช้ point-in-polygon; ถ้าอยู่ในพรมแดนจังหวัดไทยให้ถือเป็นไทย
+  const cty = base.cty.features.find(f => f.__bb && inBB(f.__bb, lng, lat) && geoContains(f, pt));
+  if (cty) out.cty = cty.properties.a;
   const pro = base.pro.features.find(f => inBB(f.__bb, lng, lat) && geoContains(f, pt));
-  if (!pro) return null;
-  const out = { pro: pro.properties.c, reg: pro.properties.r };
+  if (!pro) return out.cty ? out : null;
+  out.cty = "THA"; out.pro = pro.properties.c; out.reg = pro.properties.r;
   const dis = (await loadDis()).features.find(f => f.properties.pc === out.pro && geoContains(f, pt));
   if (dis) {
     out.dis = dis.properties.c;

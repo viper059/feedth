@@ -69,9 +69,9 @@ const ACHIEVEMENTS = [
   { g: "เช็คอิน", id: "places10", icon: "📍", label: "นักสะสมที่เที่ยว", desc: "เช็คอิน 10 สถานที่ไม่ซ้ำกัน", test: t => t.places >= 10 },
   { g: "เช็คอิน", id: "places50", icon: "🧭", label: "นักสำรวจตัวยง", desc: "เช็คอิน 50 สถานที่ไม่ซ้ำกัน", test: t => t.places >= 50 },
   { g: "แผนที่", id: "con1", icon: "🌏", label: "ผู้พิชิตทวีป", desc: "ปลดล็อกทวีปแรก", test: t => U(t, "con") >= 1 },
-  { g: "แผนที่", id: "con3", icon: "🌍", label: "ข้ามทวีป", desc: "ปลดล็อก 3 ทวีป", test: t => U(t, "con") >= 3, soon: true },
+  { g: "แผนที่", id: "con3", icon: "🌍", label: "ข้ามทวีป", desc: "ปลดล็อก 3 ทวีป", test: t => U(t, "con") >= 3 },
   { g: "แผนที่", id: "cty1", icon: "🚩", label: "ผู้พิชิตประเทศ", desc: "ปลดล็อกประเทศแรก", test: t => U(t, "cty") >= 1 },
-  { g: "แผนที่", id: "cty5", icon: "🛂", label: "พาสปอร์ตเต็มเล่ม", desc: "ปลดล็อก 5 ประเทศ", test: t => U(t, "cty") >= 5, soon: true },
+  { g: "แผนที่", id: "cty5", icon: "🛂", label: "พาสปอร์ตเต็มเล่ม", desc: "ปลดล็อก 5 ประเทศ", test: t => U(t, "cty") >= 5 },
   { g: "แผนที่", id: "reg3", icon: "🧳", label: "สามภาค", desc: "ปลดล็อก 3 ภูมิภาค", test: t => U(t, "reg") >= 3 },
   { g: "แผนที่", id: "reg6", icon: "🗾", label: "ผู้พิชิตภูมิภาค", desc: "ปลดล็อกครบ 6 ภูมิภาค", test: t => U(t, "reg") >= 6 },
   { g: "แผนที่", id: "reg1", icon: "🧭", label: "ก้าวสู่ภูมิภาค", desc: "ปลดล็อกภูมิภาคแรก", test: t => U(t, "reg") >= 1 },
@@ -183,7 +183,7 @@ function CheckinTab({ rest, onBack, showToast, onOpenPlace, onOpenMap }) {
     try {
       // หาจังหวัด/อำเภอ/ตำบลของสถานที่ (เซิร์ฟเวอร์ตรวจซ้ำกับตาราง admin_areas)
       const loc = (await locateAt(target.lat, target.lng).catch(() => null)) || {};
-      const r = await rest("/rest/v1/rpc/check_in_v2", { method: "POST", body: { p_place_id: target.id, p_lat: pos.lat, p_lng: pos.lng, p_rating: rating, p_caption: caption, p_pro: loc.pro || null, p_dis: loc.dis || null, p_sub: loc.sub || null } });
+      const r = await rest("/rest/v1/rpc/check_in_v3", { method: "POST", body: { p_place_id: target.id, p_lat: pos.lat, p_lng: pos.lng, p_rating: rating, p_caption: caption, p_cty: loc.cty || null, p_pro: loc.pro || null, p_dis: loc.dis || null, p_sub: loc.sub || null } });
       setResult({ place: target.name, points: r.points, unlocks: r.unlocks || [] });
       rest("/rest/v1/rpc/record_interest", { method: "POST", body: { p_topic: target.category, p_weight: 3 } }).catch(() => {});
       setTarget(null); setCaption(""); load(pos);
