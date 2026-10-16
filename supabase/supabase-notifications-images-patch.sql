@@ -1,0 +1,6 @@
+-- feedTH: แจ้งเตือน + รูปในโพสต์ — apply แล้วบน DB จริง (migrations: notifications, post_images_storage) บันทึกไว้เป็นประวัติ
+-- notifications(user_id=ผู้รับ, actor_id, type like|comment|follow|friend_request|friend_accept, post_id, read_at)
+--   trigger: likes/comments (แจ้งเจ้าของโพสต์, ไม่แจ้งตัวเอง) / follows / friendships (คำขอ + ยอมรับ)
+--   rpc: my_notifications(p_limit), unread_count(), mark_notifications_read()
+-- storage bucket post-images (public, ≤5MB, jpeg/png/webp): insert/delete ได้เฉพาะโฟลเดอร์ {user_id}/
+-- posts.media_urls: constraint posts_media_urls_valid — ≤4 รูป และต้องเป็น URL ใน bucket post-images ของโปรเจกต์เท่านั้น

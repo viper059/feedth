@@ -3,7 +3,7 @@ import FogMapPanel from "./FogMap.jsx";
 import { locateAt, LEVELS, REGION_TH, CONTINENT_TH, COUNTRY_TH } from "./geo.js";
 import {
   Heart, MessageCircle, Zap, Wallet, Send, X, Sparkles,
-  Share2, Trash2, Flag, UserPlus, UserCheck, Crown, Trophy, Loader2, LogOut, MapPin, ArrowLeft, Home, User, Medal, Compass,
+  Share2, Trash2, Flag, Bell, ImagePlus, UserPlus, UserCheck, Crown, Trophy, Loader2, LogOut, MapPin, ArrowLeft, Home, User, Medal, Compass,
 } from "lucide-react";
 
 // ==========================================================
@@ -35,6 +35,20 @@ const BOOST_OPTIONS = [
   { credits: 25, label: "24 ชม.", desc: "ติดฟีดยอดนิยม" },
   { credits: 50, label: "3 วัน", desc: "เด่นสุด + ป้ายพิเศษ" },
 ];
+
+// ย่อรูปก่อนอัปโหลด (ด้านยาวสุด 1280px, JPEG) ให้เบาและกันรูปใหญ่เกินโควตา
+async function compressImage(file) {
+  if (!/^image\/(jpeg|png|webp)$/.test(file.type)) throw new Error("ใช้ได้เฉพาะรูป JPG, PNG หรือ WebP");
+  const bmp = await createImageBitmap(file);
+  const k = Math.min(1, 1280 / Math.max(bmp.width, bmp.height));
+  const c = document.createElement("canvas");
+  c.width = Math.max(1, Math.round(bmp.width * k)); c.height = Math.max(1, Math.round(bmp.height * k));
+  c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+  const blob = await new Promise(res => c.toBlob(res, "image/jpeg", 0.82));
+  if (!blob) throw new Error("ย่อรูปไม่สำเร็จ");
+  return blob;
+}
+const IMG_PUBLIC = (path) => `${SUPABASE_URL}/storage/v1/object/public/post-images/${path}`;
 
 function timeAgo(iso) {
   const mins = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60000));
@@ -571,6 +585,51 @@ function TabBar({ tab, setTab, badge = 0 }) {
 }
 
 // หน้าเพื่อน/ผู้ติดตาม: รายชื่อ + รับ/ปฏิเสธคำขอ + ความสนิทแบบสองทาง (ดูอัลกอริทึมที่ _closeness ในฐานข้อมูล)
+const NOTIF_TEXT = {
+  like: "ถูกใจโพสต์ของคุณ", comment: "แสดงความคิดเห็นในโพสต์ของคุณ", follow: "เริ่มติดตามคุณ",
+  friend_request: "ส่งคำขอเป็นเพื่อนถึงคุณ", friend_accept: "ยอมรับคำขอเป็นเพื่อนของคุณแล้ว",
+};
+function NotificationsView({ rest, onBack, onOpen, onRead }) {
+  const [rows, setRows] = useState(null);
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      try {
+        const r = await rest("/rest/v1/rpc/my_notifications", { method: "POST", body: { p_limit: 50 } });
+        if (live) setRows(Array.isArray(r) ? r : []);
+        await rest("/rest/v1/rpc/mark_notifications_read", { method: "POST", body: {} });
+        onRead && onRead();
+      } catch { if (live) setRows([]); }
+    })();
+    return () => { live = false; };
+  }, []);
+  return (
+    <div style={{ fontFamily: "'IBM Plex Sans Thai', sans-serif" }} className="min-h-screen bg-[#F3F5FA] text-[#1A1D29] pb-20">
+      <style>{FONT_IMPORT}</style>
+      <header className="sticky top-0 z-20 bg-[#F3F5FA]/90 backdrop-blur border-b border-black/5">
+        <div className="max-w-xl mx-auto flex items-center gap-3 px-4 py-3">
+          <button onClick={onBack} aria-label="กลับ" className="text-[#6B7280]"><ArrowLeft size={18} /></button>
+          <h1 style={{ fontFamily: "'Kanit', sans-serif" }} className="text-xl font-semibold text-[#6C5CE7]">การแจ้งเตือน</h1>
+        </div>
+      </header>
+      <main className="max-w-xl mx-auto px-4 pt-3 space-y-2">
+        {rows === null && <p className="text-center text-sm text-[#9199A8] py-10">กำลังโหลด...</p>}
+        {rows && rows.length === 0 && <p className="text-center text-sm text-[#9199A8] py-10">ยังไม่มีการแจ้งเตือน</p>}
+        {rows && rows.map(n => (
+          <button key={n.id} onClick={() => onOpen(n)} className={`w-full text-left rounded-2xl p-3 shadow-sm flex items-start gap-3 ${n.read ? "bg-white" : "bg-[#F0EDFF]"}`}>
+            <span className="w-9 h-9 shrink-0 rounded-full bg-[#6C5CE7]/10 text-[#6C5CE7] flex items-center justify-center font-semibold">{n.actor?.[0]?.toUpperCase()}</span>
+            <span className="min-w-0 flex-1">
+              <span className="text-sm block"><b>{n.actor}</b> {NOTIF_TEXT[n.type] || ""}</span>
+              {n.snippet && <span className="text-xs text-[#6B7280] block truncate">“{n.snippet}”</span>}
+              <span className="text-[11px] text-[#9199A8]">{timeAgo(n.created_at)}</span>
+            </span>
+          </button>
+        ))}
+      </main>
+    </div>
+  );
+}
+
 function PeopleView({ rest, session, userId, initialTab, onBack, onProfile, onChanged, showToast }) {
   const me = session.user_id;
   const isMe = userId === me;
@@ -667,7 +726,7 @@ function ProfileTab({ rest, session, userId, onLogout, onPrivacy, onPeople, onLe
         const [pr, st, ps] = await Promise.all([
           rest(`/rest/v1/profiles?id=eq.${userId}&select=display_name,bio`),
           rest("/rest/v1/rpc/profile_stats", { method: "POST", body: { p_user: userId } }),
-          rest(`/rest/v1/posts?user_id=eq.${userId}&select=id,content,created_at&order=created_at.desc&limit=20`),
+          rest(`/rest/v1/posts?user_id=eq.${userId}&select=id,content,media_urls,created_at&order=created_at.desc&limit=20`),
         ]);
         setP(pr[0]); setName(pr[0]?.display_name || ""); setBio(pr[0]?.bio || ""); setStats(st); setPosts(ps);
       } catch (e) { showToast("โหลดโปรไฟล์ไม่สำเร็จ: " + e.message); }
@@ -741,7 +800,8 @@ function ProfileTab({ rest, session, userId, onLogout, onPrivacy, onPeople, onLe
         {posts.map(po => (
           <div key={po.id} className="bg-white rounded-2xl p-4 shadow-sm">
             <p className="text-xs text-[#9199A8] mb-1">{timeAgo(po.created_at)}</p>
-            <p className="text-sm whitespace-pre-wrap">{po.content}</p>
+            {po.content && <p className="text-sm whitespace-pre-wrap">{po.content}</p>}
+            {(po.media_urls || []).map(u => <img key={u} src={u} alt="รูปในโพสต์" loading="lazy" className="mt-2 rounded-xl w-full max-h-80 object-cover" />)}
           </div>
         ))}
         {posts.length === 0 && <p className="text-center text-xs text-[#9199A8] py-4">ยังไม่มีโพสต์</p>}
@@ -770,6 +830,9 @@ export default function FeedApp() {
   const [wallet, setWallet] = useState(0);
   const [loadingFeed, setLoadingFeed] = useState(false);
   const [draft, setDraft] = useState("");
+  const [img, setImg] = useState(null); // { blob, url }
+  const [posting, setPosting] = useState(false);
+  const fileRef = useRef(null);
   const [openComments, setOpenComments] = useState({});
   const [commentDraft, setCommentDraft] = useState({});
   const [boostTarget, setBoostTarget] = useState(null);
@@ -779,6 +842,8 @@ export default function FeedApp() {
   const [leaderboard, setLeaderboard] = useState([]);
   const [relations, setRelations] = useState({}); // { userId: friends|sent|received }
   const [people, setPeople] = useState(null); // { userId, tab }
+  const [notif, setNotif] = useState(false);
+  const [unread, setUnread] = useState(0);
   const [tab, setTab] = useState("feed");
   const [placeView, setPlaceView] = useState(null);
   const [exploreProv, setExploreProv] = useState(null);
@@ -939,7 +1004,7 @@ export default function FeedApp() {
     setLoadingFeed(true);
     try {
       const rows = await rest(
-        "/rest/v1/posts?select=id,content,is_boosted,boost_expire_at,created_at,place_id,rating,place:places(id,name,category),author:profiles!posts_user_id_fkey(id,username:display_name),comments(id,content,created_at,author:profiles!comments_user_id_fkey(username:display_name)),likes(user_id)&order=created_at.desc"
+        "/rest/v1/posts?select=id,content,media_urls,is_boosted,boost_expire_at,created_at,place_id,rating,place:places(id,name,category),author:profiles!posts_user_id_fkey(id,username:display_name),comments(id,content,created_at,author:profiles!comments_user_id_fkey(username:display_name)),likes(user_id)&order=created_at.desc"
       );
       setPosts(rows.map(p => ({ ...p, is_boosted: boostActive(p) })).sort((a, b) => Number(b.is_boosted) - Number(a.is_boosted)));
       const w = await rest(`/rest/v1/wallets?user_id=eq.${session.user_id}&select=credit_balance`);
@@ -1016,14 +1081,44 @@ export default function FeedApp() {
     }
   };
 
-  const handlePost = async () => {
-    if (!draft.trim()) return;
+  const pickImage = async (e) => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (!f) return;
     try {
-      await rest("/rest/v1/posts", { method: "POST", body: { user_id: session.user_id, content: draft.trim() } });
+      const blob = await compressImage(f);
+      if (img) URL.revokeObjectURL(img.url);
+      setImg({ blob, url: URL.createObjectURL(blob) });
+    } catch (err) { showToast(err.message || "เลือกรูปไม่สำเร็จ"); }
+  };
+  const clearImage = () => { if (img) URL.revokeObjectURL(img.url); setImg(null); };
+
+  const handlePost = async () => {
+    if ((!draft.trim() && !img) || posting) return;
+    setPosting(true);
+    let path = null;
+    try {
+      let media_urls = null;
+      if (img) {
+        const token = await getToken();
+        path = `${session.user_id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+        const up = await fetch(`${SUPABASE_URL}/storage/v1/object/post-images/${path}`, {
+          method: "POST",
+          headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${token}`, "Content-Type": "image/jpeg", "x-upsert": "false" },
+          body: img.blob,
+        });
+        if (!up.ok) { path = null; const eb = await up.json().catch(() => ({})); throw new Error(eb.message || `อัปโหลดรูปไม่สำเร็จ (${up.status})`); }
+        media_urls = [IMG_PUBLIC(path)];
+      }
+      await rest("/rest/v1/posts", { method: "POST", body: { user_id: session.user_id, content: draft.trim(), ...(media_urls ? { media_urls } : {}) } });
       track(draft, 2);
-      setDraft("");
+      setDraft(""); clearImage();
       loadFeed();
-    } catch (e) { showToast("โพสต์ไม่สำเร็จ: " + e.message); }
+    } catch (e) {
+      if (path) fetch(`${SUPABASE_URL}/storage/v1/object/post-images/${path}`, { method: "DELETE", headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${await getToken()}` } }).catch(() => {});
+      showToast("โพสต์ไม่สำเร็จ: " + e.message);
+    }
+    setPosting(false);
   };
 
   const toggleLike = async (post) => {
@@ -1074,12 +1169,26 @@ export default function FeedApp() {
   };
   const deletePost = async () => {
     try {
+      const delPost = posts.find(x => x.id === deleteFor);
       await rest(`/rest/v1/posts?id=eq.${deleteFor}`, { method: "DELETE" });
+      (delPost?.media_urls || []).forEach(async (u) => {
+        const path = u.split("/post-images/")[1];
+        if (path) fetch(`${SUPABASE_URL}/storage/v1/object/post-images/${path}`, { method: "DELETE", headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${await getToken()}` } }).catch(() => {});
+      });
       showToast("ลบโพสต์แล้ว");
       loadFeed();
     } catch (e) { showToast("ลบโพสต์ไม่สำเร็จ: " + e.message); }
     setDeleteFor(null);
   };
+  const loadUnread = useCallback(async () => {
+    try { const n = await rest("/rest/v1/rpc/unread_count", { method: "POST", body: {} }); setUnread(Number(n) || 0); } catch {}
+  }, [rest]);
+  useEffect(() => {
+    if (!session) return;
+    loadUnread();
+    const t = setInterval(loadUnread, 60000);
+    return () => clearInterval(t);
+  }, [session, loadUnread]);
   const pending = Object.values(relations).filter(v => v === "received").length;
 
   const toggleFriend = async (author) => {
@@ -1196,7 +1305,19 @@ export default function FeedApp() {
   }
 
   const openPlace = (id) => setPlaceView(id);
-  const goTab = (t) => { if (t === "profile") setProfileId(null); setPlaceView(null); setPeople(null); setTab(t); };
+  const goTab = (t) => { if (t === "profile") setProfileId(null); setPlaceView(null); setPeople(null); setNotif(false); setTab(t); };
+  const openNotif = (n) => {
+    setNotif(false);
+    if (n.type === "friend_request") { setPeople({ userId: session.user_id, tab: "requests" }); return; }
+    if (n.type === "friend_accept") { setPeople({ userId: session.user_id, tab: "friends" }); return; }
+    setProfileId(n.actor_id); setTab("profile");
+  };
+  if (notif) return (
+    <>
+      <NotificationsView rest={rest} onBack={() => setNotif(false)} onOpen={openNotif} onRead={() => { setUnread(0); loadRelations(); }} />
+      <TabBar tab={tab} setTab={goTab} badge={pending} />
+    </>
+  );
   if (people) return (
     <>
       <PeopleView key={people.userId + people.tab} rest={rest} session={session} userId={people.userId} initialTab={people.tab} onBack={() => setPeople(null)}
@@ -1242,6 +1363,7 @@ export default function FeedApp() {
               <Wallet size={15} className={topUpFlash ? "text-white" : "text-[#FFB020]"} />
               <span className={`text-sm font-medium ${topUpFlash ? "text-white" : "text-[#1A1D29]"}`}>{wallet} เครดิต</span>
             </button>
+            <button onClick={() => setNotif(true)} aria-label="การแจ้งเตือน" className="relative text-[#6C5CE7]"><Bell size={17} />{unread > 0 && <span className="absolute -top-1.5 -right-2 min-w-[15px] h-[15px] rounded-full bg-[#EF4565] text-white text-[9px] leading-[15px] text-center px-1">{unread > 9 ? "9+" : unread}</span>}</button>
             <button onClick={() => setTab("checkin")} aria-label="เช็คอิน" className="text-[#6C5CE7]"><MapPin size={17} /></button>
             <button onClick={logout} aria-label="ออกจากระบบ" className="text-[#9199A8] hover:text-[#1A1D29]"><LogOut size={16} /></button>
           </div>
@@ -1251,8 +1373,16 @@ export default function FeedApp() {
       <main className="max-w-xl mx-auto px-4 pt-4 space-y-3">
         <div className="bg-white rounded-2xl border border-black/5 p-3 shadow-sm">
           <textarea value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="กำลังคิดอะไรอยู่..." rows={2} className="w-full resize-none outline-none text-sm placeholder:text-[#9199A8]" />
-          <div className="flex justify-end mt-1">
-            <button onClick={handlePost} disabled={!draft.trim()} className="bg-[#6C5CE7] disabled:opacity-30 text-white text-sm font-medium px-4 py-1.5 rounded-full">โพสต์</button>
+          {img && (
+            <div className="relative mt-2">
+              <img src={img.url} alt="ตัวอย่างรูป" className="rounded-xl w-full max-h-64 object-cover" />
+              <button onClick={clearImage} aria-label="เอารูปออก" className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 text-white flex items-center justify-center"><X size={14} /></button>
+            </div>
+          )}
+          <div className="flex items-center justify-between mt-1">
+            <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={pickImage} data-testid="img-input" />
+            <button onClick={() => fileRef.current && fileRef.current.click()} aria-label="เพิ่มรูป" className="text-[#6C5CE7] p-1"><ImagePlus size={20} /></button>
+            <button onClick={handlePost} disabled={(!draft.trim() && !img) || posting} className="bg-[#6C5CE7] disabled:opacity-30 text-white text-sm font-medium px-4 py-1.5 rounded-full">{posting ? "กำลังโพสต์..." : "โพสต์"}</button>
           </div>
         </div>
 
@@ -1285,7 +1415,8 @@ export default function FeedApp() {
                 )}
               </div>
 
-              <p className="text-sm leading-relaxed mb-2 whitespace-pre-wrap">{post.content}</p>
+              {post.content && <p className="text-sm leading-relaxed mb-2 whitespace-pre-wrap">{post.content}</p>}
+              {(post.media_urls || []).map(u => <img key={u} src={u} alt="รูปในโพสต์" loading="lazy" className="mb-2 rounded-xl w-full max-h-96 object-cover" />)}
 
               {post.place && (
                 <button onClick={() => openPlace(post.place.id)} className="flex items-center gap-1.5 mb-2 text-xs px-2.5 py-1 rounded-full w-fit" style={{ background: CAT_COLOR[post.place.category] + "1A", color: "#1A1D29" }}>
