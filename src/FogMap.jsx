@@ -153,7 +153,7 @@ function FogCanvas({ unlocked, onInfo }) {
           <p className="absolute inset-0 flex items-center justify-center text-xs text-[#8b97b3] px-8 text-center pointer-events-none">เช็คอินในจังหวัดใดจังหวัดหนึ่งก่อน แล้วตำบลของจังหวัดนั้นจะมาให้ปลดล็อก</p>
         )}
         <button onClick={view} className="absolute right-2 bottom-2 text-[11px] bg-[#111a2e] text-[#e8ecf5] border border-[#263456] rounded-lg px-2.5 py-1.5">เต็มจอ</button>
-        <p className="absolute left-2 bottom-1.5 text-[9px] text-[#55627f] pointer-events-none">ขอบเขต: OpenGISData-Thailand (CC BY 4.0) · Natural Earth</p>
+        <p className="absolute left-2 bottom-1.5 max-w-[calc(100%-5.5rem)] leading-tight text-[9px] text-[#55627f] pointer-events-none">ขอบเขต: OpenGISData-Thailand (CC BY 4.0) · Natural Earth</p>
       </div>
     </div>
   );
@@ -223,7 +223,7 @@ export default function FogMapPanel({ rest, showToast }) {
             <div className="text-[11px] font-semibold tabular-nums" data-testid="streak">{data.streak.current} วัน</div>
           </div>
         </div>
-        <div className="flex gap-3 overflow-x-auto text-[11.5px] text-[#8b97b3] mt-2.5 tabular-nums">
+        <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11.5px] text-[#8b97b3] mt-2.5 tabular-nums">
           {LEVELS.slice().reverse().map(l => <span key={l.k} className="whitespace-nowrap">{l.name} <b className="text-[#e8ecf5]">{unlocked[l.k].size}</b>{tot[l.k] ? `/${tot[l.k]}` : ""}</span>)}
         </div>
         {!data.streak.today && <p className="text-[11px] mt-2" style={{ color: "#FF8A3D" }}>{data.streak.current > 0 ? "วันนี้ยังไม่ได้เช็คอิน — เช็คอินวันนี้เพื่อรักษาสตรีค" : "เช็คอินวันนี้เพื่อเริ่มสตรีค"}</p>}

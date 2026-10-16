@@ -246,8 +246,8 @@ function CheckinTab({ rest, onBack, showToast, onOpenPlace, onOpenMap }) {
         <div className="bg-white rounded-2xl p-3 shadow-sm space-y-2">
           <p className="text-sm font-medium">เพิ่มสถานที่ตรงตำแหน่งที่คุณอยู่</p>
           <div className="flex gap-2">
-            <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="ชื่อสถานที่" className="flex-1 text-sm bg-[#F3F5FA] rounded-lg px-3 py-2 outline-none" />
-            <select value={newCat} onChange={e => setNewCat(e.target.value)} className="text-sm bg-[#F3F5FA] rounded-lg px-2">
+            <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="ชื่อสถานที่" className="flex-1 min-w-0 text-sm bg-[#F3F5FA] rounded-lg px-3 py-2 outline-none" />
+            <select value={newCat} onChange={e => setNewCat(e.target.value)} className="w-24 shrink-0 text-sm bg-[#F3F5FA] rounded-lg px-2">
               {Object.entries(CATEGORY_TH).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
           </div>
