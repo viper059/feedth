@@ -8,7 +8,7 @@ import { loadBase, loadDis, loadSub, LEVELS, RANKS, REGION_TH, CONTINENT_TH, COU
 
 const GOLD = "#E3B25A";
 // สีประจำแต่ละระดับ (ใช้ทั้งแท็บ เส้น พื้นที่ที่ปลดล็อก หมุด และตัวเลขสรุป)
-export const LEVEL_COLOR = { con: "#5BC0EB", cty: "#A78BFA", reg: "#34D3B4", pro: "#E3B25A", dis: "#FF8A5B", sub: "#FF5D9E" };
+export const LEVEL_COLOR = { con: "#5BC0EB", cty: "#A78BFA", reg: "#34D3B4", pro: "#E3B25A", dis: "#FF8A5B", sub: "#FF5D9E", vil: "#B4F05A" };
 const MAXZ = 20000;
 const idOf = (k, f) => {
   const p = f.properties;
@@ -42,7 +42,7 @@ function declutter(o) {
 }
 
 // แผนที่หมอก: เห็นแต่เส้นแบ่งเขต ชื่อพื้นที่จะเปิดเมื่อเช็คอินในพื้นที่นั้น
-function FogCanvas({ unlocked, onInfo }) {
+function FogCanvas({ unlocked, onInfo, rest }) {
   const wrap = useRef(null);
   const svgEl = useRef(null);
   const m = useRef({});
@@ -51,6 +51,7 @@ function FogCanvas({ unlocked, onInfo }) {
   const [base, setBase] = useState(null);
   const [dis, setDis] = useState(null);
   const [sub, setSub] = useState(null);
+  const [vils, setVils] = useState([]);
   const [active, setActive] = useState("pro");
   const [subProv, setSubProv] = useState(null);
   const [err, setErr] = useState("");
@@ -75,6 +76,14 @@ function FogCanvas({ unlocked, onInfo }) {
     return () => { live = false; };
   }, [subProv]);
 
+  useEffect(() => {
+    setVils([]);
+    if (!subProv || !rest) return;
+    let live = true;
+    rest(`/rest/v1/villages?province=eq.${subProv}&select=id,name,lat,lng&limit=3000`).then(r => { if (live && Array.isArray(r)) setVils(r); }).catch(() => {});
+    return () => { live = false; };
+  }, [subProv, rest]);
+
   // สร้าง svg + zoom ครั้งเดียว
   useEffect(() => {
     const svg = select(svgEl.current);
@@ -84,7 +93,7 @@ function FogCanvas({ unlocked, onInfo }) {
     o.zoom = d3zoom().scaleExtent([1, MAXZ]).on("zoom", e => {
       o.K = e.transform.k; o.T = e.transform; g.attr("transform", e.transform);
       o.labels.selectAll("text").style("font-size", 11 / o.K + "px").style("stroke-width", 3 / o.K + "px");
-      o.pins.selectAll("circle").attr("r", 4.5 / o.K).style("stroke-width", 1.5 / o.K + "px");
+      o.pins.selectAll("circle").attr("r", d => (d.r0 || 4.5) / o.K).style("stroke-width", 1.5 / o.K + "px");
       declutter(o);
     });
     svg.call(o.zoom).on("dblclick.zoom", null);
@@ -117,6 +126,27 @@ function FogCanvas({ unlocked, onInfo }) {
     const k = active;
     o.shapes.selectAll("*").remove(); o.labels.selectAll("*").remove(); o.pins.selectAll("*").remove();
     const C = LEVEL_COLOR[k];
+    if (k === "vil") {
+      // หมู่บ้านเป็นจุดพิกัด: วาดเขตอำเภอของจังหวัดเป็นฉากหลัง แล้วปักหมุดหมู่บ้าน (สว่าง = ปลดล็อกแล้ว)
+      const ds = dis ? dis.features.filter(f => f.properties.pc === subProv) : [];
+      o.shapes.selectAll("path.ctx").data(ds).join("path").attr("d", o.path).attr("fill", "#121b31").attr("stroke", "#34466f")
+        .attr("stroke-width", 0.6).attr("vector-effect", "non-scaling-stroke").attr("pointer-events", "none");
+      const pts = vils.map(v => ({ v, xy: o.proj([v.lng, v.lat]), on: unlocked.vil.has(String(v.id)) })).filter(d => d.xy && isFinite(d.xy[0]));
+      pts.sort((a, b) => a.on - b.on);
+      o.pins.selectAll("circle").data(pts.map(d => ({ ...d, r0: d.on ? 4.5 : 2.6 }))).join("circle")
+        .attr("cx", d => d.xy[0]).attr("cy", d => d.xy[1]).attr("r", d => d.r0 / o.K)
+        .attr("fill", d => (d.on ? C : "#3d4d77")).attr("stroke", "#0b1220").style("stroke-width", 1.2 / o.K + "px")
+        .style("cursor", "pointer")
+        .on("click", (e, d) => { e.stopPropagation(); infoRef.current({ k: "vil", id: String(d.v.id), name: d.v.name, on: d.on, props: {} }); });
+      const lit = pts.filter(d => d.on);
+      const tx = o.labels.selectAll("text").data(lit).join("text").attr("transform", d => `translate(${d.xy[0]},${d.xy[1]})`)
+        .attr("dy", "-0.75em").text(d => d.v.name).attr("fill", "#f6f1e3").attr("stroke", "#0b1220").attr("paint-order", "stroke").attr("stroke-linejoin", "round")
+        .attr("text-anchor", "middle").attr("pointer-events", "none").style("font-weight", 600)
+        .style("font-size", 11 / o.K + "px").style("stroke-width", 3 / o.K + "px");
+      o.lab = lit.map((d, i) => ({ el: tx.nodes()[i], cx: d.xy[0], cy: d.xy[1], w: Math.max(24, d.v.name.length * 6.8) }));
+      declutter(o);
+      return;
+    }
     if (k !== "con" && k !== "cty") {
       o.shapes.selectAll("path.ctx").data(base.cty.features).join("path").attr("d", o.path)
         .attr("fill", "#121b31").attr("stroke", "#26355a").attr("stroke-width", 0.5).attr("vector-effect", "non-scaling-stroke");
@@ -145,7 +175,7 @@ function FogCanvas({ unlocked, onInfo }) {
       .style("font-size", 11 / o.K + "px").style("stroke-width", 3 / o.K + "px");
     o.lab = lit.map((d, i) => ({ el: tx.nodes()[i], cx: d.cx, cy: d.cy - 0, w: Math.max(24, d.name.length * 6.8) }));
     declutter(o);
-  }, [ready, sizeTick, base, dis, sub, active, unlocked, subProv, feats]);
+  }, [ready, sizeTick, base, dis, sub, vils, active, unlocked, subProv, feats]);
 
   // เลื่อน/ซูมไปยังพื้นที่ที่เกี่ยวข้อง
   const fitTo = useCallback((list, pad) => {
@@ -159,7 +189,7 @@ function FogCanvas({ unlocked, onInfo }) {
     const o = m.current;
     if (!base || !o.W) return;
     if (active === "con" || active === "cty") o.svg.transition().duration(600).call(o.zoom.transform, zoomIdentity);
-    else if (active === "sub") fitTo(base.pro.features.filter(f => f.properties.c === subProv), 0.1);
+    else if (active === "sub" || active === "vil") fitTo(base.pro.features.filter(f => f.properties.c === subProv), 0.1);
     else fitTo(base.pro.features, 0.08);
   }, [base, active, subProv, fitTo]);
   useEffect(() => { if (ready && base) { const t = setTimeout(view, 60); return () => clearTimeout(t); } }, [ready, base, active, subProv, sizeTick > 0, view]);
@@ -172,7 +202,7 @@ function FogCanvas({ unlocked, onInfo }) {
             className={`text-xs font-semibold px-3 py-1.5 rounded-full whitespace-nowrap border ${active === l.k ? "text-[#0b1220]" : "bg-[#111a2e] border-[#263456]"}`} style={active === l.k ? { background: LEVEL_COLOR[l.k], borderColor: LEVEL_COLOR[l.k] } : { color: LEVEL_COLOR[l.k] }}>{l.name}</button>
         ))}
       </div>
-      {active === "sub" && openProvs.length > 0 && (
+      {(active === "sub" || active === "vil") && openProvs.length > 0 && (
         <select value={subProv || ""} onChange={e => { setSubProv(e.target.value); onInfo(null); }} aria-label="เลือกจังหวัดที่จะดูตำบล"
           className="w-full mb-2 text-xs bg-[#111a2e] text-[#e8ecf5] border border-[#263456] rounded-lg px-3 py-2">
           {openProvs.map(f => <option key={f.properties.c} value={f.properties.c}>{f.properties.th}</option>)}
@@ -182,7 +212,7 @@ function FogCanvas({ unlocked, onInfo }) {
         <svg ref={svgEl} className="absolute inset-0 w-full h-full" role="img" aria-label="แผนที่เส้นแบ่งเขตที่ปลดล็อกได้ด้วยการเช็คอิน" />
         {!base && !err && <div className="absolute inset-0 flex items-center justify-center text-[#8b97b3]"><Loader2 className="animate-spin" size={22} /></div>}
         {err && <p className="absolute inset-0 flex items-center justify-center text-xs text-[#8b97b3] px-6 text-center">{err}</p>}
-        {active === "sub" && base && openProvs.length === 0 && (
+        {(active === "sub" || active === "vil") && base && openProvs.length === 0 && (
           <p className="absolute inset-0 flex items-center justify-center text-xs text-[#8b97b3] px-8 text-center pointer-events-none">เช็คอินในจังหวัดใดจังหวัดหนึ่งก่อน แล้วตำบลของจังหวัดนั้นจะมาให้ปลดล็อก</p>
         )}
         <div className="absolute right-2 top-2 flex flex-col gap-1.5">
@@ -216,7 +246,8 @@ export default function FogMapPanel({ rest, showToast }) {
   useEffect(() => { refresh(); loadBase().then(setBaseData).catch(() => {}); loadDis().then(setDisData).catch(() => {}); }, []);
 
   const unlocked = useMemo(() => {
-    const s = { con: new Set(), cty: new Set(), reg: new Set(), pro: new Set(), dis: new Set(), sub: new Set() };
+    const s = { con: new Set(), cty: new Set(), reg: new Set(), pro: new Set(), dis: new Set(), sub: new Set(), vil: new Set() };
+    (data?.villages || []).forEach(id => s.vil.add(String(id)));
     (data?.unlocks || []).forEach(u => s[u.level] && s[u.level].add(u.code));
     return s;
   }, [data]);
@@ -266,7 +297,7 @@ export default function FogMapPanel({ rest, showToast }) {
         {!data.streak.today && <p className="text-[11px] mt-2" style={{ color: "#FF8A3D" }}>{data.streak.current > 0 ? "วันนี้ยังไม่ได้เช็คอิน — เช็คอินวันนี้เพื่อรักษาสตรีค" : "เช็คอินวันนี้เพื่อเริ่มสตรีค"}</p>}
       </div>
 
-      <FogCanvas unlocked={unlocked} onInfo={setInfo} />
+      <FogCanvas unlocked={unlocked} onInfo={setInfo} rest={rest} />
 
       {info && (
         <div className="rounded-2xl p-3.5 text-[#e8ecf5] relative" style={{ background: "#111a2e", border: "1px solid #263456" }} role="status">

@@ -1,0 +1,6 @@
+-- feedTH villages patch: ระดับหมู่บ้าน (จุดพิกัดจาก OSM place=village/hamlet) — ใช้แล้วบน DB จริง บันทึกไว้เป็นประวัติ
+-- ตาราง villages(id=OSM node, name, lat, lng, province) + village_unlocks(user_id, village_id)
+-- check_in_v4 = check_in_v3 + หมู่บ้านใกล้สุดภายใน 1.5 กม. (+5 แต้ม) / my_explore มีฟิลด์ villages / travel_stats.u.vil
+-- นำเข้าข้อมูลเพิ่มทีละจังหวัด: ดึง Overpass (node["place"~"^(village|hamlet)$"] ในพื้นที่จังหวัด) แล้ว insert พร้อมใส่รหัสจังหวัดใน province
+-- ข้อมูลหมู่บ้านต้องให้เครดิต © OpenStreetMap contributors (ODbL)
+-- โครงสร้างตารางและฟังก์ชันตามที่ apply แล้ว (migrations: villages_and_check_in_v4, travel_stats_with_villages)

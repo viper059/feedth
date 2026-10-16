@@ -92,6 +92,9 @@ const ACHIEVEMENTS = [
   { g: "แผนที่", id: "sub100", icon: "🧩", label: "ตำบลทะลุร้อย", desc: "ปลดล็อก 100 ตำบล", test: t => U(t, "sub") >= 100 },
   { g: "แผนที่", id: "sub500", icon: "🏅", label: "ตำนานตำบล", desc: "ปลดล็อก 500 ตำบล", test: t => U(t, "sub") >= 500 },
   { g: "แผนที่", id: "sub1000", icon: "🌟", label: "พันตำบล", desc: "ปลดล็อก 1,000 ตำบล", test: t => U(t, "sub") >= 1000 },
+  { g: "แผนที่", id: "vil1", icon: "🛖", label: "หมู่บ้านแรก", desc: "ปลดล็อกหมู่บ้านแรก", test: t => U(t, "vil") >= 1 },
+  { g: "แผนที่", id: "vil10", icon: "🌾", label: "นักตระเวนหมู่บ้าน", desc: "ปลดล็อก 10 หมู่บ้าน", test: t => U(t, "vil") >= 10 },
+  { g: "แผนที่", id: "vil50", icon: "🛕", label: "รู้จักทุกซอกหมู่บ้าน", desc: "ปลดล็อก 50 หมู่บ้าน", test: t => U(t, "vil") >= 50 },
   { g: "สายกิน-สายเที่ยว", id: "cafe3", icon: "☕", label: "สายคาเฟ่", desc: "เช็คอินคาเฟ่ 3 ครั้ง", test: t => CAT(t, "cafe") >= 3 },
   { g: "สายกิน-สายเที่ยว", id: "cafe15", icon: "🧋", label: "ขาประจำคาเฟ่", desc: "เช็คอินคาเฟ่ 15 ครั้ง", test: t => CAT(t, "cafe") >= 15 },
   { g: "สายกิน-สายเที่ยว", id: "food3", icon: "🍜", label: "นักชิม", desc: "เช็คอินร้านอาหาร 3 ครั้ง", test: t => CAT(t, "restaurant") >= 3 },
@@ -183,7 +186,7 @@ function CheckinTab({ rest, onBack, showToast, onOpenPlace, onOpenMap }) {
     try {
       // หาจังหวัด/อำเภอ/ตำบลของสถานที่ (เซิร์ฟเวอร์ตรวจซ้ำกับตาราง admin_areas)
       const loc = (await locateAt(target.lat, target.lng).catch(() => null)) || {};
-      const r = await rest("/rest/v1/rpc/check_in_v3", { method: "POST", body: { p_place_id: target.id, p_lat: pos.lat, p_lng: pos.lng, p_rating: rating, p_caption: caption, p_cty: loc.cty || null, p_pro: loc.pro || null, p_dis: loc.dis || null, p_sub: loc.sub || null } });
+      const r = await rest("/rest/v1/rpc/check_in_v4", { method: "POST", body: { p_place_id: target.id, p_lat: pos.lat, p_lng: pos.lng, p_rating: rating, p_caption: caption, p_cty: loc.cty || null, p_pro: loc.pro || null, p_dis: loc.dis || null, p_sub: loc.sub || null } });
       setResult({ place: target.name, points: r.points, unlocks: r.unlocks || [] });
       rest("/rest/v1/rpc/record_interest", { method: "POST", body: { p_topic: target.category, p_weight: 3 } }).catch(() => {});
       setTarget(null); setCaption(""); load(pos);
