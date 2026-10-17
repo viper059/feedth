@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import FogMapPanel from "./FogMap.jsx";
-import { BuyCredits, AdminPanel } from "./Shop.jsx";
+import { BuyCredits, AdminPanel, FeedbackStrip, feedbackApi } from "./Shop.jsx";
 import { locateAt, LEVELS, REGION_TH, CONTINENT_TH, COUNTRY_TH } from "./geo.js";
 import {
   Heart, MessageCircle, Zap, Wallet, Send, X, Sparkles,
@@ -574,6 +574,7 @@ function TabBar({ tab, setTab, badge = 0 }) {
   const items = [["feed", "ฟีด", Home], ["explore", "สำรวจ", Compass], ["checkin", "เช็คอิน", MapPin], ["rank", "อันดับ", Trophy], ["profile", "โปรไฟล์", User]];
   return (
     <>
+      <FeedbackStrip tab={tab} />
       <div className="h-16" />
       <nav className="fixed bottom-0 inset-x-0 z-30 bg-white border-t border-black/5 flex">
         {items.map(([k, label, Icon]) => (
@@ -909,6 +910,7 @@ export default function FeedApp() {
     if (res.status === 204) return null;
     return res.json();
   }, [session]);
+  feedbackApi.send = (body, page) => rest("/rest/v1/rpc/send_feedback", { method: "POST", body: { p_body: body, p_page: page, p_ua: navigator.userAgent } });
 
   // ---------- โหลด session ที่เคยบันทึกไว้ตอนเปิดแอปใหม่ ----------
   useEffect(() => {

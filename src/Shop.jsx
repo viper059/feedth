@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { ArrowLeft, Loader2, Copy } from "lucide-react";
+import { ArrowLeft, Loader2, Copy, MessageSquareWarning } from "lucide-react";
 import { promptPayPayload, qrDataUrl } from "./promptpay.js";
 
 const ST = { pending: ["รอตรวจสอบ", "bg-[#FFF4D6] text-[#B77600]"], paid: ["ชำระแล้ว", "bg-[#DDF6EA] text-[#0E8F5A]"], failed: ["ปฏิเสธ", "bg-[#FDE3E8] text-[#C0243F]"], refunded: ["คืนเงินแล้ว", "bg-[#E8EAF0] text-[#6B7280]"] };
@@ -100,7 +100,7 @@ export function AdminPanel({ rest, onBack, showToast, onChanged }) {
     <Shell title="จัดการร้าน" onBack={onBack}>
       {stats && <div className="grid grid-cols-3 gap-2 mb-3 text-center">
         {[["รอตรวจสอบ", stats.pending], ["ยอด 30 วัน", baht(stats.revenue_30d)], ["ยอดรวม", baht(stats.revenue)]].map(([l, v]) => <div key={l} className="bg-white border border-[#E8EAF0] rounded-xl py-2"><p className="text-[10px] text-[#9199A8]">{l}</p><p className="text-sm font-semibold text-[#1A1D29]">{v}</p></div>)}</div>}
-      <div className="flex gap-1 mb-3 text-xs">{[["orders", "ออเดอร์"], ["packages", "แพ็กเกจ"], ["settings", "ตั้งค่า"]].map(([k, l]) => <button key={k} onClick={() => setTab(k)} className={`px-3 py-1.5 rounded-full ${tab === k ? "bg-[#6C5CE7] text-white" : "bg-white text-[#6B7280] border border-[#E8EAF0]"}`}>{l}</button>)}</div>
+      <div className="flex gap-1 mb-3 text-xs">{[["orders", "ออเดอร์"], ["packages", "แพ็กเกจ"], ["settings", "ตั้งค่า"], ["feedback", "ฟีดแบ็ก"]].map(([k, l]) => <button key={k} onClick={() => setTab(k)} className={`px-3 py-1.5 rounded-full ${tab === k ? "bg-[#6C5CE7] text-white" : "bg-white text-[#6B7280] border border-[#E8EAF0]"}`}>{l}</button>)}</div>
 
       {tab === "orders" && <>
         <div className="flex gap-1 mb-2 overflow-x-auto text-[11px]">{[["pending", "รอตรวจสอบ"], ["paid", "ชำระแล้ว"], ["failed", "ปฏิเสธ"], ["refunded", "คืนเงิน"], ["all", "ทั้งหมด"]].map(([k, l]) => <button key={k} onClick={() => { setOrders(null); setFilter(k); }} className={`px-2.5 py-1 rounded-full shrink-0 ${filter === k ? "bg-[#1A1D29] text-white" : "bg-white text-[#6B7280] border border-[#E8EAF0]"}`}>{l}</button>)}</div>
@@ -118,6 +118,8 @@ export function AdminPanel({ rest, onBack, showToast, onChanged }) {
       </>}
 
       {tab === "packages" && (pk === null ? <p className="text-xs text-[#9199A8]">กำลังโหลด...</p> : <PackageEditor pk={pk} onSave={savePk} />)}
+
+      {tab === "feedback" && <FeedbackList call={call} showToast={showToast} />}
 
       {tab === "settings" && cfg && <SettingsForm cfg={cfg} onSave={setSetting} />}
     </Shell>
@@ -169,4 +171,55 @@ function SettingsForm({ cfg, onSave }) {
       <button onClick={() => { onSave("promptpay_id", f.promptpay_id); onSave("promptpay_name", f.promptpay_name); onSave("payment_note", f.payment_note); }} className="w-full bg-[#6C5CE7] text-white rounded-full py-2">บันทึกการตั้งค่า</button>
     </div>
   );
+}
+
+// ---------- ป้าย "เวอร์ชันทดสอบ" + ปุ่มแจ้งปัญหา (App ตั้ง feedbackApi.send ทุกครั้งที่ render) ----------
+export const feedbackApi = { send: null };
+export function FeedbackStrip({ tab }) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  const [state, setState] = useState("idle"); // idle | sending | done | error
+  const submit = async () => {
+    if (!text.trim() || !feedbackApi.send) return;
+    setState("sending");
+    try { await feedbackApi.send(text.trim(), tab || ""); setState("done"); setText(""); setTimeout(() => { setOpen(false); setState("idle"); }, 1200); }
+    catch { setState("error"); }
+  };
+  return (
+    <>
+      <button onClick={() => setOpen(true)} aria-label="แจ้งปัญหา" className="fixed right-2 bottom-16 z-30 flex items-center gap-1 bg-[#1A1D29]/85 text-white text-[10px] px-2.5 py-1 rounded-full shadow">
+        <MessageSquareWarning size={11} /> เวอร์ชันทดสอบ · แจ้งปัญหา
+      </button>
+      {open && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center" onClick={() => setOpen(false)}>
+          <div className="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl p-4 space-y-2" onClick={e => e.stopPropagation()}>
+            <p className="font-medium text-[#1A1D29] text-sm">แจ้งปัญหาหรือเสนอความเห็น</p>
+            <p className="text-[11px] text-[#9199A8]">แอปนี้อยู่ในช่วงทดสอบ บอกได้เลยว่าเจออะไร กดอะไรแล้วเกิดอะไรขึ้น</p>
+            <textarea value={text} onChange={e => setText(e.target.value)} maxLength={1000} rows={4} placeholder="พิมพ์ที่นี่..." className="w-full border border-[#E8EAF0] rounded-xl p-2 text-sm resize-none" />
+            {state === "error" && <p className="text-xs text-[#EF4565]">ส่งไม่สำเร็จ ลองใหม่อีกครั้ง</p>}
+            {state === "done" && <p className="text-xs text-[#0E8F5A]">ส่งแล้ว ขอบคุณครับ</p>}
+            <div className="flex gap-2">
+              <button onClick={() => setOpen(false)} className="flex-1 border border-black/10 text-sm py-2 rounded-full">ปิด</button>
+              <button disabled={!text.trim() || state === "sending"} onClick={submit} className="flex-1 bg-[#6C5CE7] text-white text-sm py-2 rounded-full disabled:opacity-40">{state === "sending" ? "กำลังส่ง..." : "ส่ง"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function FeedbackList({ call, showToast }) {
+  const [rows, setRows] = useState(null);
+  const load = useCallback(() => call("admin_feedback").then(r => setRows(Array.isArray(r) ? r : [])).catch(() => setRows([])), []); // eslint-disable-line
+  useEffect(() => { load(); }, [load]);
+  const toggle = async (f) => { try { await call("admin_resolve_feedback", { p_id: f.id, p_resolved: !f.resolved }); load(); } catch (e) { showToast("ไม่สำเร็จ: " + e.message); } };
+  if (rows === null) return <p className="text-xs text-[#9199A8]">กำลังโหลด...</p>;
+  if (rows.length === 0) return <p className="text-xs text-[#9199A8] py-4 text-center">ยังไม่มีฟีดแบ็ก</p>;
+  return <div className="space-y-2">{rows.map(f => (
+    <div key={f.id} className={`bg-white border border-[#E8EAF0] rounded-xl p-3 text-xs space-y-1 ${f.resolved ? "opacity-50" : ""}`}>
+      <p className="text-[#1A1D29] whitespace-pre-wrap break-words">{f.body}</p>
+      <p className="text-[#9199A8] break-all">{f.username || "ผู้ใช้"} · หน้า {f.page || "-"} · {when(f.created_at)}</p>
+      <button onClick={() => toggle(f)} className="text-[#6C5CE7] underline">{f.resolved ? "เปิดใหม่" : "แก้แล้ว"}</button>
+    </div>))}</div>;
 }
