@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { ArrowLeft, Loader2, Copy } from "lucide-react";
+import { promptPayPayload, qrDataUrl } from "./promptpay.js";
 
 const ST = { pending: ["รอตรวจสอบ", "bg-[#FFF4D6] text-[#B77600]"], paid: ["ชำระแล้ว", "bg-[#DDF6EA] text-[#0E8F5A]"], failed: ["ปฏิเสธ", "bg-[#FDE3E8] text-[#C0243F]"], refunded: ["คืนเงินแล้ว", "bg-[#E8EAF0] text-[#6B7280]"] };
 const Badge = ({ s }) => { const [l, c] = ST[s] || [s, "bg-[#E8EAF0]"]; return <span className={`text-[10px] px-2 py-0.5 rounded-full shrink-0 ${c}`}>{l}</span>; };
@@ -17,6 +18,7 @@ export function BuyCredits({ rest, cfg, onBack, showToast, onChanged }) {
   const [orders, setOrders] = useState(null);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
+  const qr = (() => { try { const pl = order && promptPayPayload(cfg.promptpay_id, order.amount); return pl ? qrDataUrl(pl) : null; } catch { return null; } })();
   const load = useCallback(() => rest("/rest/v1/rpc/my_orders", { method: "POST", body: {} }).then(r => setOrders(Array.isArray(r) ? r : [])).catch(() => setOrders([])), [rest]);
   useEffect(() => { load(); }, [load]);
   const buy = async (id) => {
@@ -44,6 +46,7 @@ export function BuyCredits({ rest, cfg, onBack, showToast, onChanged }) {
       ) : (
         <div className="bg-white border border-[#E8EAF0] rounded-2xl p-4 space-y-3 text-sm">
           <p className="font-medium text-[#1A1D29]">โอนเงิน {baht(order.amount)} เพื่อรับ {order.credits} เครดิต</p>
+          {qr && <div className="flex flex-col items-center gap-1"><img src={qr} alt="QR พร้อมเพย์" className="w-48 h-48 rounded-xl border border-[#E8EAF0]" /><p className="text-[11px] text-[#9199A8]">สแกนด้วยแอปธนาคาร ยอด {baht(order.amount)} ถูกกรอกให้แล้ว</p></div>}
           <div className="bg-[#F7F8FC] rounded-xl p-3 space-y-1">
             <p className="text-[#6B7280] text-xs">พร้อมเพย์</p>
             <p className="flex items-center gap-2 font-semibold text-[#1A1D29]">{cfg.promptpay_id || "(เจ้าของยังไม่ได้ตั้งเลขพร้อมเพย์)"}{cfg.promptpay_id && <button onClick={() => copy(cfg.promptpay_id)} aria-label="คัดลอก"><Copy size={14} /></button>}</p>
