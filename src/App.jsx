@@ -925,6 +925,25 @@ export default function FeedApp() {
         setBooting(false);
         return;
       }
+      // กลับจากล็อกอินด้วย Google/Facebook: #access_token=...  หรือ error ใน hash/query
+      const q = new URLSearchParams(window.location.search);
+      const oerr = h.get("error_description") || q.get("error_description");
+      if (oerr) {
+        setAuthError(/provider is not enabled|unsupported provider/i.test(oerr) ? "ยังไม่เปิดให้ล็อกอินด้วยบริการนี้" : "ล็อกอินไม่สำเร็จ: " + oerr);
+        window.history.replaceState(null, "", window.location.pathname);
+      } else if (h.get("access_token") && h.get("type") !== "recovery") {
+        try {
+          const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${h.get("access_token")}` } });
+          const u = await res.json();
+          if (!res.ok || !u.id) throw new Error("bad token");
+          const next = { access_token: h.get("access_token"), refresh_token: h.get("refresh_token"), expires_at: Number(h.get("expires_at")) || Math.floor(Date.now() / 1000) + 3000, user_id: u.id, email: u.email || "" };
+          window.history.replaceState(null, "", window.location.pathname);
+          await window.storage.set(SESSION_KEY, JSON.stringify(next), false);
+          setSession(next);
+          setBooting(false);
+          return;
+        } catch { setAuthError("ล็อกอินไม่สำเร็จ ลองใหม่อีกครั้ง"); window.history.replaceState(null, "", window.location.pathname); }
+      }
       try {
         const saved = await window.storage.get(SESSION_KEY, false);
         if (saved) setSession(JSON.parse(saved.value));
@@ -992,6 +1011,11 @@ export default function FeedApp() {
     } finally {
       setAuthBusy(false);
     }
+  };
+
+  const oauthLogin = (provider) => {
+    const redirect = encodeURIComponent(window.location.origin + window.location.pathname);
+    window.location.href = `${SUPABASE_URL}/auth/v1/authorize?provider=${provider}&redirect_to=${redirect}`;
   };
 
   const deleteAccount = async () => {
@@ -1154,7 +1178,31 @@ export default function FeedApp() {
     } catch (e) { showToast("คอมเมนต์ไม่สำเร็จ: " + e.message); }
   };
 
-  const sharePost = (post) => awardFanPoints(post.author.id, post.author.username, post.id, "share", 3);
+  const [shareFor, setShareFor] = useState(null);
+  const shareUrl = window.location.origin + window.location.pathname;
+  const sharePost = async (post) => {
+    const text = (post.content || "").slice(0, 140);
+    if (navigator.share) {
+      try { await navigator.share({ title: "feedTH", text, url: shareUrl }); awardFanPoints(post.author.id, post.author.username, post.id, "share", 3); }
+      catch { /* ผู้ใช้ปิดหน้าต่างแชร์ */ }
+      return;
+    }
+    setShareFor(post);
+  };
+  const shareTo = (kind) => {
+    const post = shareFor; if (!post) return;
+    const text = encodeURIComponent((post.content || "").slice(0, 140));
+    const u = encodeURIComponent(shareUrl);
+    const urls = {
+      facebook: `https://www.facebook.com/sharer/sharer.php?u=${u}&quote=${text}`,
+      line: `https://social-plugins.line.me/lineit/share?url=${u}&text=${text}`,
+      x: `https://twitter.com/intent/tweet?url=${u}&text=${text}`,
+    };
+    if (kind === "copy") { try { navigator.clipboard.writeText(`${(post.content || "").slice(0, 140)} ${shareUrl}`); showToast("คัดลอกลิงก์แล้ว"); } catch { showToast("คัดลอกไม่สำเร็จ"); } }
+    else window.open(urls[kind], "_blank", "noopener");
+    awardFanPoints(post.author.id, post.author.username, post.id, "share", 3);
+    setShareFor(null);
+  };
 
   const loadRelations = useCallback(async () => {
     try {
@@ -1299,6 +1347,16 @@ export default function FeedApp() {
               {authBusy ? "กำลังทำรายการ..." : authMode === "signup" ? "สมัครสมาชิก" : authMode === "forgot" ? "ส่งลิงก์ตั้งรหัสผ่านใหม่" : authMode === "reset" ? "บันทึกรหัสผ่านใหม่" : "เข้าสู่ระบบ"}
             </button>
           </form>
+          {(authMode === "login" || authMode === "signup") && (
+            <div className="mb-3">
+              <div className="flex items-center gap-2 text-[11px] text-[#9199A8] mb-2"><span className="flex-1 h-px bg-black/10" />หรือ<span className="flex-1 h-px bg-black/10" /></div>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => oauthLogin("google")} className="flex-1 border border-black/10 rounded-lg py-2 text-sm font-medium text-[#1A1D29]">Google</button>
+                <button type="button" onClick={() => oauthLogin("facebook")} className="flex-1 bg-[#1877F2] text-white rounded-lg py-2 text-sm font-medium">Facebook</button>
+              </div>
+              <p className="text-[10px] text-[#9199A8] mt-2 text-center">การดำเนินการต่อถือว่าคุณยอมรับ<button type="button" onClick={() => setLegal("terms")} className="underline">ข้อกำหนดการใช้งาน</button>และ<button type="button" onClick={() => setLegal("privacy")} className="underline">นโยบายความเป็นส่วนตัว</button></p>
+            </div>
+          )}
           {authMode !== "reset" && (
             <button onClick={() => { setAuthError(""); setAuthMode(m => m === "signup" || m === "forgot" ? "login" : "signup"); }} className="w-full text-xs text-[#6B7280] mb-1">
               {authMode === "signup" || authMode === "forgot" ? "มีบัญชีแล้ว? เข้าสู่ระบบ" : "ยังไม่มีบัญชี? สมัครสมาชิก"}
@@ -1517,6 +1575,17 @@ export default function FeedApp() {
         </div>
       )}
 
+      {shareFor && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center" onClick={() => setShareFor(null)}>
+          <div className="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl p-4" onClick={e => e.stopPropagation()}>
+            <p className="font-medium text-sm mb-3">แชร์โพสต์ไปที่</p>
+            <div className="grid grid-cols-4 gap-2 text-xs text-center">
+              {[["facebook", "Facebook", "bg-[#1877F2] text-white"], ["line", "LINE", "bg-[#06C755] text-white"], ["x", "X", "bg-black text-white"], ["copy", "คัดลอกลิงก์", "bg-[#F3F5FA] text-[#1A1D29]"]].map(([k, l, c]) => <button key={k} onClick={() => shareTo(k)} className={`${c} rounded-xl py-3`}>{l}</button>)}
+            </div>
+            <button onClick={() => setShareFor(null)} className="w-full text-xs text-[#9199A8] mt-3">ยกเลิก</button>
+          </div>
+        </div>
+      )}
       {deleteFor !== null && (
         <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 px-4">
           <div className="bg-white rounded-2xl w-full max-w-sm p-4 space-y-3">
