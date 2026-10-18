@@ -1,0 +1,11 @@
+-- นำเข้าสถานที่/หมู่บ้านทั่วไทยจาก OpenStreetMap โดยให้ Supabase ทำเองเบื้องหลัง (ใช้งานแล้ว: migration osm_auto_import + osm_import_capacity_backoff)
+--  * import_jobs      : งานดึงข้อมูลเป็นช่อง 0.25° (แบ่งเป็น 4 อัตโนมัติถ้าช่องหนักเกิน) ชนิด places / villages
+--  * import_tick()    : เรียกจาก pg_cron ทุกนาที — เก็บผล Overpass แล้วใส่ตาราง places / villages, ส่งคำขอใหม่ครั้งละไม่เกิน 2
+--  * เซิร์ฟเวอร์ Overpass เต็ม (502/429) จะรอ 3 นาทีแล้วสลับไปอีกเซิร์ฟเวอร์ ลองซ้ำได้ถึง 60 ครั้ง
+-- ควบคุม:
+--   หยุด :  update app_settings set value = 'off' where key = 'osm_import';
+--   เริ่ม :  update app_settings set value = 'on'  where key = 'osm_import';
+--   ดูความคืบหน้า :  select * from import_status();
+--   งานที่ล้มเหลวถาวร :  select id, kind, s, w, last_error from import_jobs where status = 'failed';
+--   ลองงานที่ล้มเหลวใหม่ :  update import_jobs set status = 'pending', attempts = 0 where status = 'failed';
+-- ข้อมูลมาจาก OpenStreetMap contributors (ODbL) — แอปแสดงเครดิตแล้ว
