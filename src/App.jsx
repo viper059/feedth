@@ -1179,6 +1179,12 @@ export default function FeedApp() {
   };
 
   const [shareFor, setShareFor] = useState(null);
+  const [oauthOn, setOauthOn] = useState({ google: false, facebook: false });
+  useEffect(() => {
+    if (!configured) return;
+    fetch(`${SUPABASE_URL}/auth/v1/settings`, { headers: { apikey: SUPABASE_ANON_KEY } })
+      .then(r => r.json()).then(d => setOauthOn({ google: !!d?.external?.google, facebook: !!d?.external?.facebook })).catch(() => {});
+  }, []);
   const shareUrl = window.location.origin + window.location.pathname;
   const sharePost = async (post) => {
     const text = (post.content || "").slice(0, 140);
@@ -1347,12 +1353,12 @@ export default function FeedApp() {
               {authBusy ? "กำลังทำรายการ..." : authMode === "signup" ? "สมัครสมาชิก" : authMode === "forgot" ? "ส่งลิงก์ตั้งรหัสผ่านใหม่" : authMode === "reset" ? "บันทึกรหัสผ่านใหม่" : "เข้าสู่ระบบ"}
             </button>
           </form>
-          {(authMode === "login" || authMode === "signup") && (
+          {(authMode === "login" || authMode === "signup") && (oauthOn.google || oauthOn.facebook) && (
             <div className="mb-3">
               <div className="flex items-center gap-2 text-[11px] text-[#9199A8] mb-2"><span className="flex-1 h-px bg-black/10" />หรือ<span className="flex-1 h-px bg-black/10" /></div>
               <div className="flex gap-2">
-                <button type="button" onClick={() => oauthLogin("google")} className="flex-1 border border-black/10 rounded-lg py-2 text-sm font-medium text-[#1A1D29]">Google</button>
-                <button type="button" onClick={() => oauthLogin("facebook")} className="flex-1 bg-[#1877F2] text-white rounded-lg py-2 text-sm font-medium">Facebook</button>
+                {oauthOn.google && <button type="button" onClick={() => oauthLogin("google")} className="flex-1 border border-black/10 rounded-lg py-2 text-sm font-medium text-[#1A1D29]">Google</button>}
+                {oauthOn.facebook && <button type="button" onClick={() => oauthLogin("facebook")} className="flex-1 bg-[#1877F2] text-white rounded-lg py-2 text-sm font-medium">Facebook</button>}
               </div>
               <p className="text-[10px] text-[#9199A8] mt-2 text-center">การดำเนินการต่อถือว่าคุณยอมรับ<button type="button" onClick={() => setLegal("terms")} className="underline">ข้อกำหนดการใช้งาน</button>และ<button type="button" onClick={() => setLegal("privacy")} className="underline">นโยบายความเป็นส่วนตัว</button></p>
             </div>
