@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import FogMapPanel from "./FogMap.jsx";
+import ConquestTab from "./Conquest.jsx";
 import { BuyCredits, AdminPanel, FeedbackStrip, feedbackApi } from "./Shop.jsx";
 import { locateAt, LEVELS, REGION_TH, CONTINENT_TH, COUNTRY_TH } from "./geo.js";
 import {
@@ -571,14 +572,14 @@ function ExploreTab({ rest, prov, setProv, onOpenPlace, showToast }) {
 }
 
 function TabBar({ tab, setTab, badge = 0 }) {
-  const items = [["feed", "ฟีด", Home], ["explore", "สำรวจ", Compass], ["checkin", "เช็คอิน", MapPin], ["rank", "อันดับ", Trophy], ["profile", "โปรไฟล์", User]];
+  const items = [["feed", "ฟีด", Home], ["conquest", "พิชิต", Compass], ["checkin", "เช็คอิน", MapPin], ["rank", "อันดับ", Trophy], ["profile", "โปรไฟล์", User]];
   return (
     <>
       <FeedbackStrip tab={tab} />
       <div className="h-16" />
       <nav className="fixed bottom-0 inset-x-0 z-30 bg-white border-t border-black/5 flex">
         {items.map(([k, label, Icon]) => (
-          <button key={k} onClick={() => setTab(k)} className={`flex-1 flex flex-col items-center gap-0.5 py-2 text-[11px] ${tab === k ? "text-[#6C5CE7] font-semibold" : "text-[#9199A8]"}`}>
+          <button key={k} onClick={() => setTab(k)} className={`flex-1 flex flex-col items-center gap-0.5 py-2 text-[11px] ${(tab === k || (k === "conquest" && tab === "explore")) ? "text-[#6C5CE7] font-semibold" : "text-[#9199A8]"}`}>
             <span className="relative"><Icon size={20} />{k === "profile" && badge > 0 && <span className="absolute -top-1 -right-2 min-w-[14px] h-[14px] rounded-full bg-[#EF4565] text-white text-[9px] leading-[14px] text-center px-0.5">{badge}</span>}</span>{label}
           </button>
         ))}
@@ -1427,10 +1428,12 @@ export default function FeedApp() {
       {toast && <div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-[#1A1D29] text-white text-sm px-4 py-2 rounded-full shadow-lg z-40 max-w-[90%] text-center">{toast}</div>}
     </>
   );
-  if (tab === "checkin" || tab === "profile" || tab === "rank" || tab === "explore") return (
+  if (tab === "checkin" || tab === "profile" || tab === "rank" || tab === "explore" || tab === "conquest") return (
     <>
       {tab === "checkin"
         ? <CheckinTab rest={rest} onBack={() => setTab("feed")} showToast={showToast} onOpenPlace={openPlace} onOpenMap={() => { setExploreProv(null); setTab("explore"); }} />
+        : tab === "conquest"
+        ? <ConquestTab rest={rest} onCheckin={() => setTab("checkin")} onMap={() => { setExploreProv(null); setTab("explore"); }} showToast={showToast} />
         : tab === "explore"
         ? <ExploreTab rest={rest} prov={exploreProv} setProv={setExploreProv} onOpenPlace={openPlace} showToast={showToast} />
         : tab === "rank"

@@ -1,0 +1,2 @@
+-- แท็บพิชิต: checkins เก็บ sub/dis/pro + check_in_v4 บันทึกให้ + conquest_progress()
+-- (ใช้งานอยู่ในฐานข้อมูลจริงแล้ว ผ่าน migration conquest_progress_columns / conquest_progress_fn)
