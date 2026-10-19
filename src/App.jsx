@@ -4,7 +4,7 @@ import { BuyCredits, AdminPanel, FeedbackStrip, feedbackApi } from "./Shop.jsx";
 import { locateAt, LEVELS, REGION_TH, CONTINENT_TH, COUNTRY_TH } from "./geo.js";
 import {
   Heart, MessageCircle, Zap, Wallet, Send, X, Sparkles,
-  Share2, Trash2, Flag, Bell, ImagePlus, UserPlus, UserCheck, Crown, Trophy, Loader2, LogOut, MapPin, ArrowLeft, Home, User, Medal, Compass, Shield,
+  Share2, Trash2, Flag, Bell, ImagePlus, UserPlus, UserCheck, Crown, Trophy, Loader2, LogOut, MapPin, ArrowLeft, Home, User, Medal, Compass, Shield, Eye, EyeOff,
 } from "lucide-react";
 
 // ==========================================================
@@ -819,6 +819,7 @@ export default function FeedApp() {
   const [authMode, setAuthMode] = useState("login");
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
+  const [showPw, setShowPw] = useState(false);
   const [authName, setAuthName] = useState("");
   const [authBusy, setAuthBusy] = useState(false);
   const [authError, setAuthError] = useState("");
@@ -1340,7 +1341,14 @@ export default function FeedApp() {
             <div className="space-y-2 mb-3">
               {authMode === "signup" && <input placeholder="ชื่อที่แสดง (2–30 ตัวอักษร)" maxLength={30} value={authName} onChange={e => setAuthName(e.target.value)} className="w-full text-sm bg-[#F3F5FA] rounded-lg px-3 py-2 outline-none" />}
               {authMode !== "reset" && <input type="email" placeholder="อีเมล" value={authEmail} onChange={e => setAuthEmail(e.target.value)} className="w-full text-sm bg-[#F3F5FA] rounded-lg px-3 py-2 outline-none" />}
-              {authMode !== "forgot" && <input type="password" placeholder={authMode === "reset" ? "รหัสผ่านใหม่ (อย่างน้อย 6 ตัว)" : "รหัสผ่าน"} value={authPassword} onChange={e => setAuthPassword(e.target.value)} className="w-full text-sm bg-[#F3F5FA] rounded-lg px-3 py-2 outline-none" />}
+              {authMode !== "forgot" && (
+                <div className="relative">
+                  <input type={showPw ? "text" : "password"} placeholder={authMode === "reset" ? "รหัสผ่านใหม่ (อย่างน้อย 6 ตัว)" : "รหัสผ่าน"} value={authPassword} onChange={e => setAuthPassword(e.target.value)} autoComplete={authMode === "login" ? "current-password" : "new-password"} className="w-full text-sm bg-[#F3F5FA] rounded-lg pl-3 pr-10 py-2 outline-none" />
+                  <button type="button" onClick={() => setShowPw(v => !v)} aria-label={showPw ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"} className="absolute right-1 top-1/2 -translate-y-1/2 p-2 text-[#6B7280]">
+                    {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              )}
             </div>
             {authMode === "signup" && (
               <label className="flex items-start gap-2 text-xs text-[#6B7280] mb-3">
@@ -1349,6 +1357,11 @@ export default function FeedApp() {
               </label>
             )}
             {authError && <p className="text-xs text-[#C43D3D] mb-2">{authError}</p>}
+            {!canSubmit && !authBusy && authMode === "signup" && (
+              <p className="text-[11px] text-[#6B7280] mb-2">
+                ปุ่มจะกดได้เมื่อ: {[authName.trim().length < 2 && "ใส่ชื่อที่แสดง", !authEmail && "ใส่อีเมล", !authPassword && "ใส่รหัสผ่าน", !agree && "ติ๊กยอมรับข้อกำหนด"].filter(Boolean).join(" · ")}
+              </p>
+            )}
             <button type="submit" disabled={!canSubmit} className="w-full bg-[#6C5CE7] disabled:opacity-40 text-white text-sm font-medium py-2 rounded-lg mb-2">
               {authBusy ? "กำลังทำรายการ..." : authMode === "signup" ? "สมัครสมาชิก" : authMode === "forgot" ? "ส่งลิงก์ตั้งรหัสผ่านใหม่" : authMode === "reset" ? "บันทึกรหัสผ่านใหม่" : "เข้าสู่ระบบ"}
             </button>
@@ -1364,11 +1377,11 @@ export default function FeedApp() {
             </div>
           )}
           {authMode !== "reset" && (
-            <button onClick={() => { setAuthError(""); setAuthMode(m => m === "signup" || m === "forgot" ? "login" : "signup"); }} className="w-full text-xs text-[#6B7280] mb-1">
+            <button onClick={() => { setAuthError(""); setAuthMode(m => m === "signup" || m === "forgot" ? "login" : "signup"); }} className="w-full text-sm font-medium text-[#6C5CE7] underline underline-offset-2 py-2 mb-1">
               {authMode === "signup" || authMode === "forgot" ? "มีบัญชีแล้ว? เข้าสู่ระบบ" : "ยังไม่มีบัญชี? สมัครสมาชิก"}
             </button>
           )}
-          {authMode === "login" && <button onClick={() => { setAuthError(""); setAuthMode("forgot"); }} className="w-full text-xs text-[#6C5CE7]">ลืมรหัสผ่าน?</button>}
+          {authMode === "login" && <button onClick={() => { setAuthError(""); setAuthMode("forgot"); }} className="w-full text-sm text-[#6C5CE7] underline underline-offset-2 py-1">ลืมรหัสผ่าน?</button>}
         </div>
         {legal && <LegalModal initial={legal} onClose={() => setLegal(null)} />}
         {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#1A1D29] text-white text-sm px-4 py-2 rounded-full shadow-lg z-40 max-w-[90%] text-center">{toast}</div>}
