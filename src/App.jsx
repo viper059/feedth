@@ -1292,8 +1292,23 @@ export default function FeedApp() {
   const sharePost = async (post) => {
     const text = (post.content || "").slice(0, 140);
     if (navigator.share) {
-      try { await navigator.share({ title: "ปักหมุด · Pinworld", text, url: shareUrl }); awardFanPoints(post.author.id, post.author.username, post.id, "share", 3); }
-      catch { /* ผู้ใช้ปิดหน้าต่างแชร์ */ }
+      // โพสต์มีรูป: แนบไฟล์รูปไปกับการแชร์ เพื่อให้ปลายทาง (Facebook/LINE) ได้รูปของโพสต์จริง ไม่ใช่รูปปกเว็บ
+      let files = null;
+      const img = (post.media_urls || [])[0];
+      if (img && navigator.canShare) {
+        try {
+          const blob = await (await fetch(img)).blob();
+          const type = blob.type || "image/jpeg";
+          const f = new File([blob], "pinworld." + (type.split("/")[1] || "jpg").replace("jpeg", "jpg"), { type });
+          if (navigator.canShare({ files: [f] })) files = [f];
+        } catch { /* ดึงรูปไม่ได้ ใช้แชร์ลิงก์ธรรมดา */ }
+      }
+      try {
+        await navigator.share(files
+          ? { files, title: "ปักหมุด · Pinworld", text: `${text}\n${shareUrl}`.trim() }
+          : { title: "ปักหมุด · Pinworld", text, url: shareUrl });
+        awardFanPoints(post.author.id, post.author.username, post.id, "share", 3);
+      } catch { /* ผู้ใช้ปิดหน้าต่างแชร์ */ }
       return;
     }
     setShareFor(post);
