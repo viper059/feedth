@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { MapPin, Flame, Zap, Lock, Check, Compass, ChevronRight, X } from "lucide-react";
+import { MapPin, Flame, Zap, Lock, Check, Compass, Users, X } from "lucide-react";
+import FamilyView from "./Family.jsx";
 
 const CHAPTERS = [
   { t: "หมุดแรก", d: "ปักหมุดแรกของคุณลงบนโลก", unit: "หมุด" },
@@ -18,10 +19,12 @@ export default function ConquestTab({ rest, onCheckin, onMap, showToast }) {
   const [data, setData] = useState(null);
   const [me, setMe] = useState(null);
   const [sheet, setSheet] = useState(false);
+  const [family, setFamily] = useState(false);
   useEffect(() => {
     rest("/rest/v1/rpc/conquest_progress", { method: "POST", body: {} }).then(setData).catch(e => { showToast("โหลดความคืบหน้าไม่สำเร็จ: " + e.message); setData({ pins: 0, chapters: [] }); });
     rest("/rest/v1/rpc/my_explore", { method: "POST", body: {} }).then(setMe).catch(() => setMe({}));
   }, []);
+  if (family) return <FamilyView rest={rest} onBack={() => setFamily(false)} showToast={showToast} />;
   const ch = data?.chapters || [];
   const done = c => c && c.cur >= c.tgt;
   const curIdx = ch.findIndex(c => !done(c));
@@ -62,6 +65,10 @@ export default function ConquestTab({ rest, onCheckin, onMap, showToast }) {
             </div>
           </section>
         )}
+        <button onClick={() => setFamily(true)} className="mt-4 w-full rounded-2xl p-4 flex items-center gap-3 text-left" style={{ background: "#151C33" }}>
+          <span className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "#1D2744" }}><Users size={20} color={G} /></span>
+          <span className="flex-1"><span className="block font-semibold text-[15px]">ครอบครัว</span><span className="block text-xs" style={{ color: "#A3ABC4" }}>พ่อ แม่ ลูก ปักหมุดและทำเควสร่วมกัน</span></span>
+        </button>
         {!data && <p className="text-center text-xs py-8" style={{ color: "#A3ABC4" }}>กำลังโหลด...</p>}
       </main>
 

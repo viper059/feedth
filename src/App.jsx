@@ -169,7 +169,7 @@ function LegalModal({ onClose, initial = "terms" }) {
 
 const CAT_COLOR = { attraction: "#17B890", hotel: "#4A90E2", restaurant: "#EF4565", cafe: "#FFB020", other: "#9199A8" };
 
-function CheckinTab({ rest, onBack, showToast, onOpenPlace, onOpenMap }) {
+function CheckinTab({ rest, getToken, userId, onBack, showToast, onOpenPlace, onOpenMap }) {
   const [pos, setPos] = useState(null);
   const [places, setPlaces] = useState([]);
   const [cat, setCat] = useState("all");
@@ -177,6 +177,8 @@ function CheckinTab({ rest, onBack, showToast, onOpenPlace, onOpenMap }) {
   const [target, setTarget] = useState(null); // สถานที่ที่กำลังเช็คอิน
   const [rating, setRating] = useState(5);
   const [caption, setCaption] = useState("");
+  const [photo, setPhoto] = useState(null); // {blob,url} รูปแนบตอนเช็คอิน
+  const photoRef = useRef(null);
   const [newName, setNewName] = useState("");
   const [newCat, setNewCat] = useState("cafe");
   const [result, setResult] = useState(null); // ผลเช็คอิน: คะแนน + พื้นที่ที่ปลดล็อก
@@ -198,6 +200,35 @@ function CheckinTab({ rest, onBack, showToast, onOpenPlace, onOpenMap }) {
   };
   useEffect(() => { locate(); }, []);
 
+  const pickPhoto = async (e) => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (!f) return;
+    try { const blob = await compressImage(f); if (photo) URL.revokeObjectURL(photo.url); setPhoto({ blob, url: URL.createObjectURL(blob) }); }
+    catch (err) { showToast(err.message || "เลือกรูปไม่สำเร็จ"); }
+  };
+  const clearPhoto = () => { if (photo) URL.revokeObjectURL(photo.url); setPhoto(null); };
+  // อัปโหลดรูปแล้วผูกกับโพสต์เช็คอินที่เพิ่งสร้าง (ถ้าพลาด เช็คอินยังสำเร็จ แค่ไม่มีรูป)
+  const attachPhoto = async (checkinId) => {
+    if (!photo) return;
+    let path = null;
+    try {
+      const token = await getToken();
+      path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+      const up = await fetch(`${SUPABASE_URL}/storage/v1/object/post-images/${path}`, {
+        method: "POST",
+        headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${token}`, "Content-Type": "image/jpeg", "x-upsert": "false" },
+        body: photo.blob,
+      });
+      if (!up.ok) { path = null; throw new Error(`อัปโหลดรูปไม่สำเร็จ (${up.status})`); }
+      const ok = await rest("/rest/v1/rpc/attach_checkin_photo", { method: "POST", body: { p_checkin_id: checkinId, p_url: IMG_PUBLIC(path) } });
+      if (!ok) throw new Error("ไม่พบโพสต์เช็คอินให้แนบรูป");
+    } catch (e) {
+      if (path) fetch(`${SUPABASE_URL}/storage/v1/object/post-images/${path}`, { method: "DELETE", headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${await getToken()}` } }).catch(() => {});
+      showToast("เช็คอินแล้ว แต่แนบรูปไม่สำเร็จ: " + e.message);
+    }
+  };
+
   const submitCheckin = async () => {
     try {
       // หาจังหวัด/อำเภอ/ตำบลของสถานที่ (เซิร์ฟเวอร์ตรวจซ้ำกับตาราง admin_areas)
@@ -206,7 +237,9 @@ function CheckinTab({ rest, onBack, showToast, onOpenPlace, onOpenMap }) {
       if (r.repeat) showToast("เช็คอินซ้ำสำเร็จ (ไม่ได้แต้มเพิ่ม)");
       setResult({ place: target.name, points: r.points, unlocks: r.unlocks || [], repeat: !!r.repeat });
       rest("/rest/v1/rpc/record_interest", { method: "POST", body: { p_topic: target.category, p_weight: 3 } }).catch(() => {});
-      setTarget(null); setCaption(""); load(pos);
+      if (photo && !r.repeat) await attachPhoto(r.checkin_id);
+      else if (photo && r.repeat) showToast("เช็คอินซ้ำ ไม่สร้างโพสต์ใหม่ จึงไม่แนบรูป");
+      setTarget(null); setCaption(""); clearPhoto(); load(pos);
     } catch (e) {
       const m = e.message;
       showToast(m.includes("too far") ? "ไกลเกินไป ต้องอยู่ในรัศมี 150 ม." : m.includes("after 4 hours") ? "เช็คอินที่นี่ซ้ำได้อีกหลังผ่านไป 4 ชั่วโมง" : m.includes("limit reached") ? "เช็คอินซ้ำครบ 10 ครั้งต่อวันแล้ว" : m.includes("already") ? "วันนี้เช็คอินที่นี่ไปแล้ว" : m.includes("suspicious") ? "ตรวจพบการเดินทางเร็วผิดปกติ" : "เช็คอินไม่สำเร็จ: " + m);
@@ -279,12 +312,16 @@ function CheckinTab({ rest, onBack, showToast, onOpenPlace, onOpenMap }) {
       {target && (
         <div className="fixed inset-0 bg-black/40 flex items-end justify-center z-50 px-4">
           <div className="bg-white rounded-t-2xl w-full max-w-sm p-4 relative space-y-3">
-            <button onClick={() => setTarget(null)} aria-label="ปิด" className="absolute top-3 right-3 text-[#9199A8]"><X size={18} /></button>
+            <button onClick={() => { setTarget(null); clearPhoto(); }} aria-label="ปิด" className="absolute top-3 right-3 text-[#9199A8]"><X size={18} /></button>
             <h3 style={{ fontFamily: "'Kanit', sans-serif" }} className="font-semibold">{target.name}</h3>
             <div className="flex gap-1">
               {[1, 2, 3, 4, 5].map(n => <button key={n} onClick={() => setRating(n)} aria-label={`${n} ดาว`} className="text-2xl leading-none" style={{ color: n <= rating ? "#FFB020" : "#D5D9E2" }}>★</button>)}
             </div>
             <textarea value={caption} onChange={e => setCaption(e.target.value)} rows={2} placeholder="เล่าบรรยากาศสั้นๆ..." className="w-full text-sm bg-[#F3F5FA] rounded-lg px-3 py-2 outline-none resize-none" />
+            <input ref={photoRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={pickPhoto} data-testid="checkin-img" />
+            {photo
+              ? <div className="relative"><img src={photo.url} alt="รูปที่จะแนบ" className="w-full max-h-48 object-cover rounded-xl" /><button onClick={clearPhoto} aria-label="เอารูปออก" className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center"><X size={16} /></button></div>
+              : <button onClick={() => photoRef.current && photoRef.current.click()} className="w-full border border-dashed border-[#6C5CE7]/50 text-[#6C5CE7] text-sm font-medium py-2.5 rounded-xl flex items-center justify-center gap-1.5"><ImagePlus size={17} /> แนบรูป (ไม่บังคับ)</button>}
             <button onClick={submitCheckin} className="w-full bg-[#6C5CE7] text-white text-sm font-semibold py-2.5 rounded-full">เช็คอินที่นี่</button>
           </div>
         </div>
@@ -1432,7 +1469,7 @@ export default function FeedApp() {
   if (tab === "checkin" || tab === "profile" || tab === "rank" || tab === "explore" || tab === "conquest") return (
     <>
       {tab === "checkin"
-        ? <CheckinTab rest={rest} onBack={() => setTab("feed")} showToast={showToast} onOpenPlace={openPlace} onOpenMap={() => { setExploreProv(null); setTab("explore"); }} />
+        ? <CheckinTab rest={rest} getToken={getToken} userId={session.user_id} onBack={() => setTab("feed")} showToast={showToast} onOpenPlace={openPlace} onOpenMap={() => { setExploreProv(null); setTab("explore"); }} />
         : tab === "conquest"
         ? <ConquestTab rest={rest} onCheckin={() => setTab("checkin")} onMap={() => { setExploreProv(null); setTab("explore"); }} showToast={showToast} />
         : tab === "explore"
