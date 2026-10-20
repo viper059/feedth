@@ -1288,14 +1288,18 @@ export default function FeedApp() {
     fetch(`${SUPABASE_URL}/auth/v1/settings`, { headers: { apikey: SUPABASE_ANON_KEY } })
       .then(r => r.json()).then(d => setOauthOn({ google: !!d?.external?.google, facebook: !!d?.external?.facebook })).catch(() => {});
   }, []);
-  const shareUrl = window.location.origin + window.location.pathname;
+  const appUrl = window.location.origin + window.location.pathname;
+  // ถ้าตั้ง VITE_SHARE_BASE (URL ของ Cloudflare Worker) ลิงก์แชร์จะเป็นรายโพสต์ เพื่อให้การ์ดพรีวิวขึ้นรูปของโพสต์นั้น
+  const shareBase = String(import.meta.env.VITE_SHARE_BASE || "").trim().replace(/\/+$/, "");
+  const shareUrlFor = (post) => (shareBase && post?.id ? `${shareBase}/p/${post.id}` : appUrl);
+  const shareUrl = appUrl;
   const sharePost = async (post) => {
     const text = (post.content || "").slice(0, 140);
     if (navigator.share) {
       // โพสต์มีรูป: แนบไฟล์รูปไปกับการแชร์ เพื่อให้ปลายทาง (Facebook/LINE) ได้รูปของโพสต์จริง ไม่ใช่รูปปกเว็บ
       let files = null;
       const img = (post.media_urls || [])[0];
-      if (img && navigator.canShare) {
+      if (img && navigator.canShare && !shareBase) {
         try {
           const blob = await (await fetch(img)).blob();
           const type = blob.type || "image/jpeg";
@@ -1306,7 +1310,7 @@ export default function FeedApp() {
       try {
         await navigator.share(files
           ? { files, title: "ปักหมุด · Pinworld", text: `${text}\n${shareUrl}`.trim() }
-          : { title: "ปักหมุด · Pinworld", text, url: shareUrl });
+          : { title: "ปักหมุด · Pinworld", text, url: shareUrlFor(post) });
         awardFanPoints(post.author.id, post.author.username, post.id, "share", 3);
       } catch { /* ผู้ใช้ปิดหน้าต่างแชร์ */ }
       return;
@@ -1316,13 +1320,13 @@ export default function FeedApp() {
   const shareTo = (kind) => {
     const post = shareFor; if (!post) return;
     const text = encodeURIComponent((post.content || "").slice(0, 140));
-    const u = encodeURIComponent(shareUrl);
+    const u = encodeURIComponent(shareUrlFor(post));
     const urls = {
       facebook: `https://www.facebook.com/sharer/sharer.php?u=${u}&quote=${text}`,
       line: `https://social-plugins.line.me/lineit/share?url=${u}&text=${text}`,
       x: `https://twitter.com/intent/tweet?url=${u}&text=${text}`,
     };
-    if (kind === "copy") { try { navigator.clipboard.writeText(`${(post.content || "").slice(0, 140)} ${shareUrl}`); showToast("คัดลอกลิงก์แล้ว"); } catch { showToast("คัดลอกไม่สำเร็จ"); } }
+    if (kind === "copy") { try { navigator.clipboard.writeText(`${(post.content || "").slice(0, 140)} ${shareUrlFor(post)}`); showToast("คัดลอกลิงก์แล้ว"); } catch { showToast("คัดลอกไม่สำเร็จ"); } }
     else window.open(urls[kind], "_blank", "noopener");
     awardFanPoints(post.author.id, post.author.username, post.id, "share", 3);
     setShareFor(null);
