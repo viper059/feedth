@@ -1,6 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X, Share, MoreVertical, Copy, Check, BookOpen, Download, MapPin } from "lucide-react";
-import { STORY, STORY_TITLE, STORY_SUB } from "./story.js";
 
 const isIOSDev = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 const isAndroidDev = () => /android/i.test(navigator.userAgent);
@@ -97,31 +96,59 @@ export function InstallGuide({ onClose }) {
   );
 }
 
-// ตัวอ่านนิยาย "ผู้กล้าผู้ปักหมุด"
+// ตัวอ่านนิยาย "ผู้กล้าผู้ปักหมุด" 60 ตอน (โหลดเนื้อเรื่องแยกชิ้นเมื่อเปิดอ่าน)
+const LAST_KEY = "feedth:story-last";
+const getLast = () => { try { const n = parseInt(localStorage.getItem(LAST_KEY), 10); return Number.isFinite(n) ? n : null; } catch { return null; } };
+const setLast = (n) => { try { localStorage.setItem(LAST_KEY, String(n)); } catch { /* ไม่เป็นไร */ } };
+
 export function StoryReader({ onClose }) {
+  const [mod, setMod] = useState(null);
+  const [err, setErr] = useState(false);
   const [idx, setIdx] = useState(null);
   const G = "#FFC24B";
+  useEffect(() => { import("./story.js").then(setMod).catch(() => setErr(true)); }, []);
+  const title = mod?.STORY_TITLE || "ผู้กล้าผู้ปักหมุด";
+  if (err) return <Overlay label={title} onClose={onClose} dark><p className="text-sm" style={{ color: "#A3ABC4" }}>โหลดนิยายไม่สำเร็จ ลองใหม่อีกครั้งเมื่อออนไลน์</p></Overlay>;
+  if (!mod) return <Overlay label={title} onClose={onClose} dark><p className="text-sm" style={{ color: "#A3ABC4" }}>กำลังโหลดนิยาย...</p></Overlay>;
+  const { STORY, PARTS, STORY_SUB } = mod;
+  const open = (n) => { setIdx(n); setLast(n); window.scrollTo?.(0, 0); };
   if (idx === null) {
+    const last = getLast();
+    let base = 0;
     return (
-      <Overlay label={STORY_TITLE} onClose={onClose} dark>
+      <Overlay label={title} onClose={onClose} dark>
         <p className="text-sm" style={{ color: "#A3ABC4" }}>{STORY_SUB}</p>
-        <ol className="mt-5 space-y-3" data-testid="story-toc">
-          {STORY.map((c, i) => (
-            <li key={i}>
-              <button onClick={() => { setIdx(i); window.scrollTo?.(0, 0); }} className="w-full text-left rounded-2xl p-4 flex items-center gap-3" style={{ background: "#151C33" }}>
-                <span className="w-9 h-9 shrink-0 rounded-full flex items-center justify-center text-sm font-semibold" style={{ border: `1.5px solid ${G}`, color: G }}>{i === 0 ? "★" : i === STORY.length - 1 ? "∞" : i}</span>
-                <span className="font-semibold text-[15px]">{c.t}</span>
-              </button>
-            </li>
-          ))}
-        </ol>
+        {last !== null && last >= 0 && last < STORY.length && (
+          <button onClick={() => open(last)} data-testid="story-resume" className="mt-4 w-full rounded-2xl p-3.5 text-left font-semibold text-sm" style={{ background: G, color: "#1A1305" }}>อ่านต่อ · {STORY[last].t}</button>
+        )}
+        <div data-testid="story-toc">
+          {PARTS.map((p, pi) => {
+            const start = base; base += p.eps.length;
+            return (
+              <section key={pi} className="mt-6">
+                <h3 style={{ fontFamily: "'Kanit', sans-serif", color: G }} className="text-lg font-semibold">{p.t}</h3>
+                <p className="text-xs mb-2" style={{ color: "#A3ABC4" }}>{p.d}</p>
+                <ol className="space-y-2">
+                  {p.eps.map((c, i) => (
+                    <li key={start + i}>
+                      <button onClick={() => open(start + i)} className="w-full text-left rounded-xl px-4 py-3 flex items-center gap-3" style={{ background: "#151C33" }}>
+                        <span className="w-8 h-8 shrink-0 rounded-full flex items-center justify-center text-xs font-semibold" style={{ border: `1.5px solid ${G}`, color: G }}>{start + i + 1}</span>
+                        <span className="font-medium text-[14px]">{c.t.replace(/^ตอนที่ \d+ · /, "")}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ol>
+              </section>
+            );
+          })}
+        </div>
       </Overlay>
     );
   }
   const c = STORY[idx];
-  const go = (n) => { setIdx(n); setTimeout(() => document.querySelector("[data-story-top]")?.scrollIntoView?.(), 0); };
+  const go = (n) => { open(n); setTimeout(() => document.querySelector("[data-story-top]")?.scrollIntoView?.(), 0); };
   return (
-    <Overlay label={STORY_TITLE} onClose={onClose} dark>
+    <Overlay label={title} onClose={onClose} dark>
       <div data-story-top />
       <button onClick={() => setIdx(null)} className="text-[13px] underline flex items-center gap-1 mb-3" style={{ color: "#B7ABFF" }}><BookOpen size={14} />สารบัญ</button>
       <article data-testid="story-chapter">
@@ -131,9 +158,9 @@ export function StoryReader({ onClose }) {
         </div>
       </article>
       <div className="mt-8 flex gap-3">
-        <button disabled={idx === 0} onClick={() => go(idx - 1)} className="flex-1 py-3 rounded-2xl text-sm font-medium disabled:opacity-30" style={{ background: "#151C33" }}>บทก่อนหน้า</button>
+        <button disabled={idx === 0} onClick={() => go(idx - 1)} className="flex-1 py-3 rounded-2xl text-sm font-medium disabled:opacity-30" style={{ background: "#151C33" }}>ตอนก่อนหน้า</button>
         {idx < STORY.length - 1
-          ? <button onClick={() => go(idx + 1)} className="flex-1 py-3 rounded-2xl text-sm font-semibold" style={{ background: G, color: "#1A1305" }}>บทต่อไป</button>
+          ? <button onClick={() => go(idx + 1)} className="flex-1 py-3 rounded-2xl text-sm font-semibold" style={{ background: G, color: "#1A1305" }}>ตอนต่อไป</button>
           : <button onClick={onClose} className="flex-1 py-3 rounded-2xl text-sm font-semibold" style={{ background: G, color: "#1A1305" }}>ไปปักหมุดแรกของคุณ</button>}
       </div>
       <p className="text-center text-xs mt-4" style={{ color: "#8791AE" }}>{idx + 1} / {STORY.length}</p>
