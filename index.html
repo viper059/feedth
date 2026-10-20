@@ -12,6 +12,11 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="feedTH" />
     <!-- Tailwind แบบ CDN: เริ่มเร็ว ภายหลังค่อยเปลี่ยนเป็น Tailwind build ปกติ -->
+    <style>
+      /* iOS จะซูมหน้าจอเองเมื่อแตะช่องพิมพ์ที่ตัวอักษรเล็กกว่า 16px — บังคับ 16px เพื่อไม่ให้ซูม (ยังให้ผู้ใช้ถ่างนิ้วซูมเองได้) */
+      input, textarea, select { font-size: 16px !important; }
+      html { -webkit-text-size-adjust: 100%; }
+    </style>
     <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   </head>
   <body>
