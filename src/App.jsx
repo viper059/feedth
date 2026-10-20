@@ -237,8 +237,7 @@ function CheckinTab({ rest, getToken, userId, onBack, showToast, onOpenPlace, on
       if (r.repeat) showToast("เช็คอินซ้ำสำเร็จ (ไม่ได้แต้มเพิ่ม)");
       setResult({ place: target.name, points: r.points, unlocks: r.unlocks || [], repeat: !!r.repeat });
       rest("/rest/v1/rpc/record_interest", { method: "POST", body: { p_topic: target.category, p_weight: 3 } }).catch(() => {});
-      if (photo && !r.repeat) await attachPhoto(r.checkin_id);
-      else if (photo && r.repeat) showToast("เช็คอินซ้ำ ไม่สร้างโพสต์ใหม่ จึงไม่แนบรูป");
+      if (photo) await attachPhoto(r.checkin_id);
       setTarget(null); setCaption(""); clearPhoto(); load(pos);
     } catch (e) {
       const m = e.message;
@@ -875,6 +874,10 @@ export default function FeedApp() {
   const [img, setImg] = useState(null); // { blob, url }
   const [posting, setPosting] = useState(false);
   const fileRef = useRef(null);
+  const [ciPlace, setCiPlace] = useState(null); // สถานที่ที่เลือกเช็คอินพร้อมโพสต์ {id,name,lat,lng,category}
+  const [ciPos, setCiPos] = useState(null);
+  const [ciList, setCiList] = useState(null); // null=ปิดตัวเลือก, []=ไม่พบ
+  const [ciBusy, setCiBusy] = useState(false);
   const [openComments, setOpenComments] = useState({});
   const [commentDraft, setCommentDraft] = useState({});
   const [boostTarget, setBoostTarget] = useState(null);
@@ -1164,7 +1167,58 @@ export default function FeedApp() {
   };
   const clearImage = () => { if (img) URL.revokeObjectURL(img.url); setImg(null); };
 
+  const openCiPicker = () => {
+    if (ciList !== null) { setCiList(null); return; }
+    if (!navigator.geolocation) { showToast("อุปกรณ์นี้ไม่รองรับตำแหน่ง"); return; }
+    setCiBusy(true);
+    navigator.geolocation.getCurrentPosition(
+      async (g) => {
+        const p = { lat: g.coords.latitude, lng: g.coords.longitude };
+        try {
+          const rows = await rest("/rest/v1/rpc/nearby_places_v2", { method: "POST", body: { p_lat: p.lat, p_lng: p.lng, p_radius_m: CHECKIN_RADIUS_M } });
+          setCiPos(p); setCiList((rows || []).filter(x => x.distance_m <= CHECKIN_RADIUS_M).slice(0, 8));
+        } catch (e) { showToast("โหลดสถานที่ใกล้ตัวไม่สำเร็จ: " + e.message); }
+        setCiBusy(false);
+      },
+      () => { showToast("เปิดสิทธิ์ตำแหน่งก่อนนะ"); setCiBusy(false); },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  // โพสต์พร้อมเช็คอิน: เช็คอินตามตำแหน่งปัจจุบัน (ตรวจที่เซิร์ฟเวอร์) แล้วแนบรูป/ข้อความลงโพสต์เช็คอินนั้น — รูปจะเป็นรูปเก่าก็ได้
+  const handlePostWithCheckin = async () => {
+    setPosting(true);
+    let path = null;
+    try {
+      const loc = (await locateAt(ciPlace.lat, ciPlace.lng).catch(() => null)) || {};
+      const r = await rest("/rest/v1/rpc/check_in_v4", { method: "POST", body: { p_place_id: ciPlace.id, p_lat: ciPos.lat, p_lng: ciPos.lng, p_rating: 5, p_caption: draft.trim(), p_cty: loc.cty || null, p_pro: loc.pro || null, p_dis: loc.dis || null, p_sub: loc.sub || null } });
+      rest("/rest/v1/rpc/record_interest", { method: "POST", body: { p_topic: ciPlace.category, p_weight: 3 } }).catch(() => {});
+      let photoErr = null;
+      if (img) {
+        try {
+          const token = await getToken();
+          path = `${session.user_id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+          const up = await fetch(`${SUPABASE_URL}/storage/v1/object/post-images/${path}`, { method: "POST", headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${token}`, "Content-Type": "image/jpeg", "x-upsert": "false" }, body: img.blob });
+          if (!up.ok) { path = null; throw new Error(`อัปโหลดรูปไม่สำเร็จ (${up.status})`); }
+          const ok = await rest("/rest/v1/rpc/attach_checkin_photo", { method: "POST", body: { p_checkin_id: r.checkin_id, p_url: IMG_PUBLIC(path) } });
+          if (!ok) throw new Error("ไม่พบโพสต์เช็คอินให้แนบรูป");
+        } catch (e) {
+          photoErr = e.message;
+          if (path) fetch(`${SUPABASE_URL}/storage/v1/object/post-images/${path}`, { method: "DELETE", headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${await getToken()}` } }).catch(() => {});
+        }
+      }
+      showToast(photoErr ? `เช็คอินแล้ว แต่แนบรูปไม่สำเร็จ: ${photoErr}` : r.repeat ? "เช็คอินซ้ำสำเร็จ (ไม่ได้แต้มเพิ่ม)" : `เช็คอินที่ ${ciPlace.name} สำเร็จ +${r.points}`);
+      setDraft(""); clearImage(); setCiPlace(null); setCiList(null);
+      loadFeed();
+    } catch (e) {
+      const m = e.message || "";
+      showToast(m.includes("too far") ? "ไกลเกินไป ต้องอยู่ในรัศมี 150 ม." : m.includes("after 4 hours") ? "เช็คอินที่นี่ซ้ำได้อีกครั้งหลังผ่านไป 4 ชั่วโมง" : m.includes("suspicious") ? "เช็คอินเร็วเกินไปจากครั้งก่อน" : "เช็คอินไม่สำเร็จ: " + m);
+    }
+    setPosting(false);
+  };
+
   const handlePost = async () => {
+    if (ciPlace && !posting) return handlePostWithCheckin();
     if ((!draft.trim() && !img) || posting) return;
     setPosting(true);
     let path = null;
@@ -1514,10 +1568,24 @@ export default function FeedApp() {
               <button onClick={clearImage} aria-label="เอารูปออก" className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 text-white flex items-center justify-center"><X size={14} /></button>
             </div>
           )}
+          {ciPlace && (
+            <div className="mt-2 flex items-center gap-2 text-xs bg-[#E8F8F1] text-[#178A5D] rounded-full pl-3 pr-1 py-1 w-fit max-w-full">
+              <MapPin size={13} /><span className="truncate">เช็คอินที่ {ciPlace.name}</span>
+              <button onClick={() => setCiPlace(null)} aria-label="ไม่เช็คอินแล้ว" className="w-6 h-6 rounded-full flex items-center justify-center"><X size={13} /></button>
+            </div>
+          )}
+          {ciList !== null && !ciPlace && (
+            <div className="mt-2 rounded-xl bg-[#F3F5FA] p-2 space-y-1" data-testid="ci-picker">
+              <p className="text-[11px] text-[#6B7280]">สถานที่ในรัศมี {CHECKIN_RADIUS_M} ม. จากคุณตอนนี้ (รูปจะเป็นรูปเก่าก็ได้ ระบบตรวจแค่ตำแหน่งของคุณ)</p>
+              {ciList.length === 0 && <p className="text-xs text-[#9199A8] py-1">ไม่พบสถานที่ใกล้ตัว</p>}
+              {ciList.map(pl => <button key={pl.id} onClick={() => { setCiPlace(pl); setCiList(null); }} className="w-full text-left text-sm bg-white rounded-lg px-3 py-2 flex justify-between gap-2"><span className="truncate">{pl.name}</span><span className="text-xs text-[#9199A8] shrink-0">{Math.round(pl.distance_m)} ม.</span></button>)}
+            </div>
+          )}
           <div className="flex items-center justify-between mt-1">
             <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={pickImage} data-testid="img-input" />
+            <button onClick={openCiPicker} aria-label="เช็คอินพร้อมโพสต์" className={`p-1 ${ciPlace ? "text-[#178A5D]" : "text-[#6C5CE7]"}`}>{ciBusy ? <Loader2 size={20} className="animate-spin" /> : <MapPin size={20} />}</button>
             <button onClick={() => fileRef.current && fileRef.current.click()} aria-label="เพิ่มรูป" className="text-[#6C5CE7] p-1"><ImagePlus size={20} /></button>
-            <button onClick={handlePost} disabled={(!draft.trim() && !img) || posting} className="bg-[#6C5CE7] disabled:opacity-30 text-white text-sm font-medium px-4 py-1.5 rounded-full">{posting ? "กำลังโพสต์..." : "โพสต์"}</button>
+            <button onClick={handlePost} disabled={(!draft.trim() && !img && !ciPlace) || posting} className="bg-[#6C5CE7] disabled:opacity-30 text-white text-sm font-medium px-4 py-1.5 rounded-full">{posting ? "กำลังโพสต์..." : "โพสต์"}</button>
           </div>
         </div>
 
