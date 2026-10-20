@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import FogMapPanel from "./FogMap.jsx";
 import ConquestTab from "./Conquest.jsx";
 import InstallPrompt from "./InstallPrompt.jsx";
+import WelcomeCard, { AppIntro } from "./Welcome.jsx";
 import { BuyCredits, AdminPanel, FeedbackStrip, feedbackApi } from "./Shop.jsx";
 import { locateAt, LEVELS, REGION_TH, CONTINENT_TH, COUNTRY_TH } from "./geo.js";
 import {
@@ -1426,8 +1427,9 @@ export default function FeedApp() {
       : authMode === "forgot" ? !!authEmail
       : authEmail && authPassword && (authMode !== "signup" || (authName.trim().length >= 2 && agree)));
     return (
-      <div style={{ fontFamily: "'IBM Plex Sans Thai', sans-serif" }} className="min-h-screen bg-[#F3F5FA] flex items-center justify-center px-6">
+      <div style={{ fontFamily: "'IBM Plex Sans Thai', sans-serif" }} className="min-h-screen bg-[#F3F5FA] flex flex-col items-center justify-center px-6 py-8">
         <style>{FONT_IMPORT}</style>
+        {(authMode === "login" || authMode === "signup") && <AppIntro />}
         <div className="bg-white rounded-2xl shadow-sm border border-black/5 p-6 w-full max-w-sm">
           <h1 style={{ fontFamily: "'Kanit', sans-serif" }} className="text-xl font-semibold text-[#6C5CE7] mb-1">feedTH</h1>
           <p className="text-xs text-[#9199A8] mb-4">{titles[authMode]}</p>
@@ -1561,6 +1563,7 @@ export default function FeedApp() {
       </header>
 
       <main className="max-w-xl mx-auto px-4 pt-4 space-y-3">
+        <WelcomeCard />
         <InstallPrompt />
         <div className="bg-white rounded-2xl border border-black/5 p-3 shadow-sm">
           <textarea value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="กำลังคิดอะไรอยู่..." rows={2} className="w-full resize-none outline-none text-sm placeholder:text-[#9199A8]" />
