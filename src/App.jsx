@@ -323,7 +323,7 @@ function dayLabel(iso) {
 }
 
 // หน้าสถานที่: คะแนนเฉลี่ย + รีวิวของทุกคนเรียงเป็นไทม์ไลน์รายวัน
-function PlaceDetail({ placeId, rest, posts, userId, wallet, onBoosted, onLike, onBack, onProfile, onCheckin, showToast }) {
+function PlaceDetail({ salesOn, placeId, rest, posts, userId, wallet, onBoosted, onLike, onBack, onProfile, onCheckin, showToast }) {
   const [info, setInfo] = useState(null);
   const [boosted, setBoosted] = useState(false);
   const [showBoost, setShowBoost] = useState(false);
@@ -369,7 +369,7 @@ function PlaceDetail({ placeId, rest, posts, userId, wallet, onBoosted, onLike, 
               <div className="pb-1"><Stars n={Number(info.avg_rating || 0)} size={16} /><p className="text-xs text-[#6B7280]">{info.review_count} เช็คอิน · {info.visitors} คน</p></div>
             </div>
             <button onClick={onCheckin} className="w-full bg-[#6C5CE7] text-white text-sm font-semibold py-2.5 rounded-full flex items-center justify-center gap-1.5"><MapPin size={15} /> ไปเช็คอินที่นี่</button>
-            <button onClick={() => setShowBoost(v => !v)} className="w-full border border-[#FFB020]/50 text-[#B77600] text-sm font-medium py-2 rounded-full flex items-center justify-center gap-1.5"><Zap size={15} /> {boosted ? "กำลังโปรโมท · ต่อเวลา" : "โปรโมทสถานที่นี้"} ({wallet} เครดิต)</button>
+            {salesOn && <button onClick={() => setShowBoost(v => !v)} className="w-full border border-[#FFB020]/50 text-[#B77600] text-sm font-medium py-2 rounded-full flex items-center justify-center gap-1.5"><Zap size={15} /> {boosted ? "กำลังโปรโมท · ต่อเวลา" : "โปรโมทสถานที่นี้"} ({wallet} เครดิต)</button>}
             {showBoost && (
               <div className="space-y-2 pt-1">
                 {BOOST_OPTIONS.map(o => (
@@ -850,6 +850,7 @@ export default function FeedApp() {
   const [notif, setNotif] = useState(false);
   const [shop, setShop] = useState(null); // "buy" | "admin"
   const [payCfg, setPayCfg] = useState({ mode: "off", packages: [], is_admin: false });
+  const salesOn = payCfg.mode === "manual" || payCfg.is_admin; // ปิดการขาย = ซ่อนเครดิต/บูสต์ทั้งหมดจากผู้ใช้ทั่วไป
   const [unread, setUnread] = useState(0);
   const [tab, setTab] = useState("feed");
   const [placeView, setPlaceView] = useState(null);
@@ -1422,7 +1423,7 @@ export default function FeedApp() {
   );
   if (placeView) return (
     <>
-      <PlaceDetail placeId={placeView} rest={rest} posts={posts} userId={session.user_id} wallet={wallet} onBoosted={loadFeed} onLike={toggleLike} onBack={() => setPlaceView(null)}
+      <PlaceDetail salesOn={salesOn} placeId={placeView} rest={rest} posts={posts} userId={session.user_id} wallet={wallet} onBoosted={loadFeed} onLike={toggleLike} onBack={() => setPlaceView(null)}
         onProfile={(id) => { setPlaceView(null); setProfileId(id); setTab("profile"); }} onCheckin={() => { setPlaceView(null); setTab("checkin"); }} showToast={showToast} />
       <TabBar tab={tab} setTab={goTab} />
       {toast && <div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-[#1A1D29] text-white text-sm px-4 py-2 rounded-full shadow-lg z-40 max-w-[90%] text-center">{toast}</div>}
@@ -1455,10 +1456,10 @@ export default function FeedApp() {
         <div className="max-w-xl mx-auto flex items-center justify-between px-4 py-3">
           <h1 style={{ fontFamily: "'Kanit', sans-serif" }} className="text-xl font-semibold tracking-tight text-[#6C5CE7]">feedTH</h1>
           <div className="flex items-center gap-2">
-            <button onClick={demoMode ? topUp : () => { rest("/rest/v1/rpc/payment_config", { method: "POST", body: {} }).then(c => c && setPayCfg(c)).catch(() => {}); if (payCfg.mode === "manual") setShop("buy"); else showToast("ยังไม่เปิดให้เติมเครดิต"); }} className={`flex items-center gap-1.5 rounded-full pl-2 pr-3 py-1.5 border transition-all ${topUpFlash ? "bg-[#FFB020] border-[#FFB020] scale-105" : "bg-white border-[#FFB020]/40"}`}>
+            {salesOn && <button onClick={demoMode ? topUp : () => { rest("/rest/v1/rpc/payment_config", { method: "POST", body: {} }).then(c => c && setPayCfg(c)).catch(() => {}); if (payCfg.mode === "manual") setShop("buy"); else showToast("ยังไม่เปิดให้เติมเครดิต"); }} className={`flex items-center gap-1.5 rounded-full pl-2 pr-3 py-1.5 border transition-all ${topUpFlash ? "bg-[#FFB020] border-[#FFB020] scale-105" : "bg-white border-[#FFB020]/40"}`}>
               <Wallet size={15} className={topUpFlash ? "text-white" : "text-[#FFB020]"} />
               <span className={`text-sm font-medium ${topUpFlash ? "text-white" : "text-[#1A1D29]"}`}>{wallet} เครดิต</span>
-            </button>
+            </button>}
             {payCfg.is_admin && <button onClick={() => setShop("admin")} aria-label="จัดการร้าน" className="text-[#6C5CE7]"><Shield size={17} /></button>}
             <button onClick={() => setNotif(true)} aria-label="การแจ้งเตือน" className="relative text-[#6C5CE7]"><Bell size={17} />{unread > 0 && <span className="absolute -top-1.5 -right-2 min-w-[15px] h-[15px] rounded-full bg-[#EF4565] text-white text-[9px] leading-[15px] text-center px-1">{unread > 9 ? "9+" : unread}</span>}</button>
             <button onClick={() => setTab("checkin")} aria-label="เช็คอิน" className="text-[#6C5CE7]"><MapPin size={17} /></button>
@@ -1538,7 +1539,7 @@ export default function FeedApp() {
                 <button onClick={() => sharePost(post)} className="flex items-center gap-1.5 hover:text-[#17B890]">
                   <Share2 size={15} /> แชร์
                 </button>
-                {!post.is_boosted && !isOther && (
+                {salesOn && !post.is_boosted && !isOther && (
                   <button onClick={() => setBoostTarget(post.id)} className="flex items-center gap-1.5 ml-auto text-[#B77600] font-medium">
                     <Zap size={16} /> บูสต์โพสต์
                   </button>
