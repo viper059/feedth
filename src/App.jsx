@@ -8,7 +8,7 @@ import { BuyCredits, AdminPanel, FeedbackStrip, feedbackApi } from "./Shop.jsx";
 import { locateAt, LEVELS, REGION_TH, CONTINENT_TH, COUNTRY_TH } from "./geo.js";
 import {
   Heart, MessageCircle, Zap, Wallet, Send, X, Sparkles,
-  Share2, Trash2, Flag, Bell, ImagePlus, UserPlus, UserCheck, Crown, Trophy, Loader2, LogOut, MapPin, ArrowLeft, Home, User, Medal, Compass, Shield, Eye, EyeOff,
+  Share2, Download, Trash2, Flag, Bell, ImagePlus, UserPlus, UserCheck, Crown, Trophy, Loader2, LogOut, MapPin, ArrowLeft, Home, User, Medal, Compass, Shield, Eye, EyeOff,
 } from "lucide-react";
 
 // ==========================================================
@@ -1317,6 +1317,18 @@ export default function FeedApp() {
     }
     setShareFor(post);
   };
+  // บันทึกรูปโพสต์ลงเครื่อง (iPhone: เปิดหน้าต่างแชร์ให้เลือก "บันทึกรูปภาพ", อื่นๆ: ดาวน์โหลดไฟล์) เพื่อเอาไปโพสต์ Facebook เอง
+  const savePostImage = async (post) => {
+    const img = (post.media_urls || [])[0]; if (!img) return;
+    try {
+      const blob = await (await fetch(img)).blob();
+      const type = blob.type || "image/jpeg";
+      const f = new File([blob], "pinworld." + (type.split("/")[1] || "jpg").replace("jpeg", "jpg"), { type });
+      if (navigator.canShare && navigator.canShare({ files: [f] })) { try { await navigator.share({ files: [f] }); } catch {} return; }
+      const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = f.name; document.body.appendChild(a); a.click(); a.remove();
+      showToast("บันทึกรูปแล้ว");
+    } catch { window.open(img, "_blank", "noopener"); }
+  };
   const shareTo = (kind) => {
     const post = shareFor; if (!post) return;
     const text = encodeURIComponent((post.content || "").slice(0, 140));
@@ -1675,6 +1687,11 @@ export default function FeedApp() {
                 <button onClick={() => sharePost(post)} className="flex items-center gap-1.5 hover:text-[#17B890]">
                   <Share2 size={15} /> แชร์
                 </button>
+                {(post.media_urls || []).length > 0 && (
+                  <button onClick={() => savePostImage(post)} data-testid="save-image" className="flex items-center gap-1.5 hover:text-[#17B890]">
+                    <Download size={15} /> บันทึกรูป
+                  </button>
+                )}
                 {salesOn && !post.is_boosted && !isOther && (
                   <button onClick={() => setBoostTarget(post.id)} className="flex items-center gap-1.5 ml-auto text-[#B77600] font-medium">
                     <Zap size={16} /> บูสต์โพสต์
