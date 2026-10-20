@@ -3,6 +3,7 @@ import FogMapPanel from "./FogMap.jsx";
 import ConquestTab from "./Conquest.jsx";
 import InstallPrompt from "./InstallPrompt.jsx";
 import WelcomeCard, { AppIntro } from "./Welcome.jsx";
+import { InstallGuide, StoryReader } from "./Guide.jsx";
 import { BuyCredits, AdminPanel, FeedbackStrip, feedbackApi } from "./Shop.jsx";
 import { locateAt, LEVELS, REGION_TH, CONTINENT_TH, COUNTRY_TH } from "./geo.js";
 import {
@@ -756,6 +757,8 @@ function ProfileTab({ rest, session, userId, onLogout, onPrivacy, onPeople, onLe
   const [travel, setTravel] = useState(null);
   const [following, setFollowing] = useState(false);
   const [edit, setEdit] = useState(false);
+  const [guide, setGuide] = useState(false);
+  const [story, setStory] = useState(false);
   const [name, setName] = useState("");
   const [bio, setBio] = useState("");
   const [sureDel, setSureDel] = useState(false);
@@ -834,6 +837,10 @@ function ProfileTab({ rest, session, userId, onLogout, onPrivacy, onPeople, onLe
         </div>
         {travel && <Passport t={travel} />}
         {isMe && <button onClick={() => onPeople(userId, pending > 0 ? "requests" : "friends")} className="w-full bg-white rounded-2xl p-3 shadow-sm text-sm text-left text-[#6C5CE7] flex items-center justify-between">เพื่อนและคำขอ{pending > 0 && <span className="text-[11px] bg-[#EF4565] text-white rounded-full px-2 py-0.5">{pending} คำขอใหม่</span>}</button>}
+        {isMe && <button onClick={() => setGuide(true)} data-testid="profile-install" className="w-full bg-white rounded-2xl p-3 shadow-sm text-sm text-left text-[#6C5CE7]">วิธีติดตั้งแอปลงหน้าจอ</button>}
+        {isMe && <button onClick={() => setStory(true)} data-testid="profile-story" className="w-full bg-white rounded-2xl p-3 shadow-sm text-sm text-left text-[#6C5CE7]">อ่านนิยาย "ผู้กล้าผู้ปักหมุด"</button>}
+        {guide && <InstallGuide onClose={() => setGuide(false)} />}
+        {story && <StoryReader onClose={() => setStory(false)} />}
         {isMe && <button onClick={onPrivacy} className="w-full bg-white rounded-2xl p-3 shadow-sm text-sm text-left text-[#6C5CE7]">ตั้งค่าความเป็นส่วนตัวและการใช้ข้อมูล</button>}
         {isMe && <button onClick={onLegal} className="w-full bg-white rounded-2xl p-3 shadow-sm text-sm text-left text-[#6C5CE7]">ข้อกำหนดการใช้งานและนโยบายความเป็นส่วนตัว</button>}
         {isMe && (sureDel

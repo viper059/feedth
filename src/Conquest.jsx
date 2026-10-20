@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { MapPin, Flame, Zap, Lock, Check, Compass, Users, X } from "lucide-react";
+import { MapPin, Flame, Zap, Lock, Check, Compass, Users, X, BookOpen } from "lucide-react";
+import { StoryReader } from "./Guide.jsx";
 import FamilyView from "./Family.jsx";
 
 const CHAPTERS = [
@@ -20,6 +21,7 @@ export default function ConquestTab({ rest, onCheckin, onMap, showToast }) {
   const [me, setMe] = useState(null);
   const [sheet, setSheet] = useState(false);
   const [family, setFamily] = useState(false);
+  const [story, setStory] = useState(false);
   useEffect(() => {
     rest("/rest/v1/rpc/conquest_progress", { method: "POST", body: {} }).then(setData).catch(e => { showToast("โหลดความคืบหน้าไม่สำเร็จ: " + e.message); setData({ pins: 0, chapters: [] }); });
     rest("/rest/v1/rpc/my_explore", { method: "POST", body: {} }).then(setMe).catch(() => setMe({}));
@@ -69,6 +71,11 @@ export default function ConquestTab({ rest, onCheckin, onMap, showToast }) {
           <span className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "#1D2744" }}><Users size={20} color={G} /></span>
           <span className="flex-1"><span className="block font-semibold text-[15px]">ครอบครัว</span><span className="block text-xs" style={{ color: "#A3ABC4" }}>พ่อ แม่ ลูก ปักหมุดและทำเควสร่วมกัน</span></span>
         </button>
+        <button onClick={() => setStory(true)} data-testid="conquest-story" className="mt-3 w-full rounded-2xl p-4 flex items-center gap-3 text-left" style={{ background: "#151C33" }}>
+          <span className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "#1D2744" }}><BookOpen size={20} color={G} /></span>
+          <span className="flex-1"><span className="block font-semibold text-[15px]">นิยาย ผู้กล้าผู้ปักหมุด</span><span className="block text-xs" style={{ color: "#A3ABC4" }}>เรื่องของผู้กล้าที่ออกท่องโลกเพื่อพิชิตทุกหมุด</span></span>
+        </button>
+        {story && <StoryReader onClose={() => setStory(false)} />}
         {!data && <p className="text-center text-xs py-8" style={{ color: "#A3ABC4" }}>กำลังโหลด...</p>}
       </main>
 
