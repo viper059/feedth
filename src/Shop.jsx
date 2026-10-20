@@ -187,7 +187,7 @@ export function FeedbackStrip({ tab }) {
   };
   return (
     <>
-      <button onClick={() => setOpen(true)} aria-label="แจ้งปัญหา" className="fixed right-2 bottom-16 z-30 flex items-center gap-1 bg-[#1A1D29]/85 text-white text-[10px] px-2.5 py-1 rounded-full shadow">
+      <button onClick={() => setOpen(true)} aria-label="แจ้งปัญหา" className="pw-fb z-30 flex items-center gap-1 bg-[#1A1D29]/85 text-white text-[10px] px-2.5 py-1 rounded-full shadow">
         <MessageSquareWarning size={11} /> เวอร์ชันทดสอบ · แจ้งปัญหา
       </button>
       {open && (

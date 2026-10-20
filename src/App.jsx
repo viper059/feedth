@@ -615,8 +615,8 @@ function TabBar({ tab, setTab, badge = 0 }) {
   return (
     <>
       <FeedbackStrip tab={tab} />
-      <div className="h-16" />
-      <nav className="fixed bottom-0 inset-x-0 z-30 bg-white border-t border-black/5 flex">
+      <div className="pw-spacer" />
+      <nav className="pw-nav z-30 bg-white border-t border-black/5 flex">
         {items.map(([k, label, Icon]) => (
           <button key={k} onClick={() => setTab(k)} className={`flex-1 flex flex-col items-center gap-0.5 py-2 text-[11px] ${(tab === k || (k === "conquest" && tab === "explore")) ? "text-[#6C5CE7] font-semibold" : "text-[#9199A8]"}`}>
             <span className="relative"><Icon size={20} />{k === "profile" && badge > 0 && <span className="absolute -top-1 -right-2 min-w-[14px] h-[14px] rounded-full bg-[#EF4565] text-white text-[9px] leading-[14px] text-center px-0.5">{badge}</span>}</span>{label}
