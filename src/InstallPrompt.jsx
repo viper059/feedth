@@ -31,7 +31,7 @@ export default function InstallPrompt() {
       <div className="flex items-center gap-3">
         <img src="./icon-192.png" alt="" className="w-10 h-10 rounded-xl" />
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold">ติดตั้ง feedTH ลงหน้าจอ</p>
+          <p className="text-sm font-semibold">ติดตั้ง ปักหมุด ลงหน้าจอ</p>
           <p className="text-xs text-[#6B7280]">เปิดไวเหมือนแอป ไม่ต้องเข้าผ่านเบราว์เซอร์</p>
         </div>
         <button onClick={install} className="bg-[#6C5CE7] text-white text-sm font-medium px-3.5 py-2 rounded-full flex items-center gap-1.5 shrink-0"><Download size={15} />ติดตั้ง</button>

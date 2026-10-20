@@ -1,7 +1,7 @@
 {
-  "name": "feedTH",
-  "short_name": "feedTH",
-  "description": "โซเชียล เช็คอิน และเพื่อนรัก",
+  "name": "ปักหมุด · Pinworld",
+  "short_name": "ปักหมุด",
+  "description": "เช็คอินทั่วไทย สะสมหมุด พิชิตโลก",
   "lang": "th",
   "start_url": "./",
   "scope": "./",

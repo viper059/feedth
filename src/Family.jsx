@@ -58,7 +58,7 @@ export default function FamilyView({ rest, onBack, showToast }) {
     try { await navigator.clipboard.writeText(fam.invite_code); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { showToast("คัดลอกไม่ได้ จดรหัสเองนะ"); }
   };
   const share = async () => {
-    const text = `มาร่วมครอบครัว "${fam.name}" ใน feedTH ด้วยรหัส ${fam.invite_code}`;
+    const text = `มาร่วมครอบครัว "${fam.name}" ใน ปักหมุด ด้วยรหัส ${fam.invite_code}`;
     try { if (navigator.share) await navigator.share({ text }); else { await navigator.clipboard.writeText(text); showToast("คัดลอกข้อความเชิญแล้ว"); } } catch { /* ยกเลิก */ }
   };
   const open = async (m) => {

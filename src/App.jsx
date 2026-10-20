@@ -135,8 +135,8 @@ const OsmCredit = () => (
 // ร่างข้อกำหนดและนโยบายความเป็นส่วนตัว (PDPA) — เป็นแบบร่าง ควรให้ผู้เชี่ยวชาญกฎหมายตรวจและใส่ช่องทางติดต่อก่อนเปิดใช้จริง
 const LEGAL = {
   terms: [
-    ["การใช้งาน", "feedTH เป็นพื้นที่แชร์ประสบการณ์ท่องเที่ยวและเช็คอินสถานที่ คุณต้องให้ข้อมูลที่เป็นจริง ไม่ปลอมตำแหน่ง ไม่ปั่นคะแนน และไม่เผยแพร่เนื้อหาที่ผิดกฎหมาย ละเมิดสิทธิผู้อื่น หลอกลวง หรือคุกคาม"],
-    ["เนื้อหาของคุณ", "โพสต์ รีวิว และรูปที่คุณเผยแพร่ยังเป็นของคุณ แต่คุณอนุญาตให้ feedTH แสดงเนื้อหานั้นในบริการ ลบเนื้อหาของคุณได้ทุกเมื่อ"],
+    ["การใช้งาน", "ปักหมุด (Pinworld) เป็นพื้นที่แชร์ประสบการณ์ท่องเที่ยวและเช็คอินสถานที่ คุณต้องให้ข้อมูลที่เป็นจริง ไม่ปลอมตำแหน่ง ไม่ปั่นคะแนน และไม่เผยแพร่เนื้อหาที่ผิดกฎหมาย ละเมิดสิทธิผู้อื่น หลอกลวง หรือคุกคาม"],
+    ["เนื้อหาของคุณ", "โพสต์ รีวิว และรูปที่คุณเผยแพร่ยังเป็นของคุณ แต่คุณอนุญาตให้ ปักหมุด แสดงเนื้อหานั้นในบริการ ลบเนื้อหาของคุณได้ทุกเมื่อ"],
     ["การดูแลเนื้อหา", "เราอาจซ่อนหรือลบเนื้อหาที่ถูกรายงานว่าฝ่าฝืนข้อกำหนด และระงับบัญชีที่ฝ่าฝืนซ้ำ"],
     ["เครดิตและการโปรโมท", "เครดิตใช้โปรโมทโพสต์หรือสถานที่ในแอปเท่านั้น ไม่สามารถแลกเป็นเงินสด ช่วงทดลองอาจมีการเติมเครดิตทดลองซึ่งไม่มีมูลค่า"],
     ["ข้อมูลสถานที่", "ข้อมูลสถานที่บางส่วนมาจาก OpenStreetMap contributors (ODbL) และอาจคลาดเคลื่อน โปรดตรวจสอบก่อนเดินทาง"],
@@ -1137,7 +1137,7 @@ export default function FeedApp() {
     <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 px-4">
       <div className="bg-white rounded-2xl w-full max-w-sm p-4 space-y-3">
         <h3 style={{ fontFamily: "'Kanit', sans-serif" }} className="font-semibold">ความเป็นส่วนตัวของคุณ</h3>
-        <p className="text-xs text-[#6B7280]">เลือกได้ว่าจะให้ feedTH ใช้ข้อมูลอะไร ปิดได้ทุกเมื่อและข้อมูลที่เก็บไว้ในข้อนั้นจะถูกลบ แอปใช้งานได้ปกติไม่ว่าจะเลือกอะไร</p>
+        <p className="text-xs text-[#6B7280]">เลือกได้ว่าจะให้ ปักหมุด ใช้ข้อมูลอะไร ปิดได้ทุกเมื่อและข้อมูลที่เก็บไว้ในข้อนั้นจะถูกลบ แอปใช้งานได้ปกติไม่ว่าจะเลือกอะไร</p>
         <label className="flex gap-2 text-sm"><input type="checkbox" checked={cA} onChange={e => setCA(e.target.checked)} /><span>เก็บสถิติการใช้งาน (ช่วงเวลาและระยะเวลาที่ใช้แอป) เพื่อปรับปรุงแอป</span></label>
         <label className="flex gap-2 text-sm"><input type="checkbox" checked={cP} onChange={e => setCP(e.target.checked)} /><span>เรียนรู้ความสนใจของฉัน เพื่อแสดงโฆษณาที่ตรงใจ</span></label>
         <button onClick={saveConsent} className="w-full bg-[#6C5CE7] text-white text-sm font-semibold py-2.5 rounded-full">บันทึก</button>
@@ -1285,7 +1285,7 @@ export default function FeedApp() {
   const sharePost = async (post) => {
     const text = (post.content || "").slice(0, 140);
     if (navigator.share) {
-      try { await navigator.share({ title: "feedTH", text, url: shareUrl }); awardFanPoints(post.author.id, post.author.username, post.id, "share", 3); }
+      try { await navigator.share({ title: "ปักหมุด · Pinworld", text, url: shareUrl }); awardFanPoints(post.author.id, post.author.username, post.id, "share", 3); }
       catch { /* ผู้ใช้ปิดหน้าต่างแชร์ */ }
       return;
     }
@@ -1431,7 +1431,7 @@ export default function FeedApp() {
         <style>{FONT_IMPORT}</style>
         {(authMode === "login" || authMode === "signup") && <AppIntro />}
         <div className="bg-white rounded-2xl shadow-sm border border-black/5 p-6 w-full max-w-sm">
-          <h1 style={{ fontFamily: "'Kanit', sans-serif" }} className="text-xl font-semibold text-[#6C5CE7] mb-1">feedTH</h1>
+          <h1 style={{ fontFamily: "'Kanit', sans-serif" }} className="text-xl font-semibold text-[#6C5CE7] mb-1">ปักหมุด <span className="text-sm font-medium text-[#9199A8]">Pinworld</span></h1>
           <p className="text-xs text-[#9199A8] mb-4">{titles[authMode]}</p>
           <form onSubmit={(e) => { e.preventDefault(); if (canSubmit) handleAuth(); }}>
             <div className="space-y-2 mb-3">
@@ -1548,7 +1548,7 @@ export default function FeedApp() {
 
       <header className="sticky top-0 z-20 bg-[#F3F5FA]/90 backdrop-blur border-b border-black/5">
         <div className="max-w-xl mx-auto flex items-center justify-between px-4 py-3">
-          <h1 style={{ fontFamily: "'Kanit', sans-serif" }} className="text-xl font-semibold tracking-tight text-[#6C5CE7]">feedTH</h1>
+          <h1 style={{ fontFamily: "'Kanit', sans-serif" }} className="text-xl font-semibold tracking-tight text-[#6C5CE7]">ปักหมุด</h1>
           <div className="flex items-center gap-2">
             {salesOn && <button onClick={demoMode ? topUp : () => { rest("/rest/v1/rpc/payment_config", { method: "POST", body: {} }).then(c => c && setPayCfg(c)).catch(() => {}); if (payCfg.mode === "manual") setShop("buy"); else showToast("ยังไม่เปิดให้เติมเครดิต"); }} className={`flex items-center gap-1.5 rounded-full pl-2 pr-3 py-1.5 border transition-all ${topUpFlash ? "bg-[#FFB020] border-[#FFB020] scale-105" : "bg-white border-[#FFB020]/40"}`}>
               <Wallet size={15} className={topUpFlash ? "text-white" : "text-[#FFB020]"} />
