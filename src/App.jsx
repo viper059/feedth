@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import FogMapPanel from "./FogMap.jsx";
 import ConquestTab from "./Conquest.jsx";
+import InstallPrompt from "./InstallPrompt.jsx";
 import { BuyCredits, AdminPanel, FeedbackStrip, feedbackApi } from "./Shop.jsx";
 import { locateAt, LEVELS, REGION_TH, CONTINENT_TH, COUNTRY_TH } from "./geo.js";
 import {
@@ -1560,6 +1561,7 @@ export default function FeedApp() {
       </header>
 
       <main className="max-w-xl mx-auto px-4 pt-4 space-y-3">
+        <InstallPrompt />
         <div className="bg-white rounded-2xl border border-black/5 p-3 shadow-sm">
           <textarea value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="กำลังคิดอะไรอยู่..." rows={2} className="w-full resize-none outline-none text-sm placeholder:text-[#9199A8]" />
           {img && (
