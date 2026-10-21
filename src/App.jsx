@@ -4,6 +4,7 @@ import ConquestTab from "./Conquest.jsx";
 import InstallPrompt from "./InstallPrompt.jsx";
 import WelcomeCard, { AppIntro } from "./Welcome.jsx";
 import { InstallGuide, StoryReader } from "./Guide.jsx";
+import { shareCard } from "./ShareCard.js";
 import { BuyCredits, AdminPanel, FeedbackStrip, feedbackApi } from "./Shop.jsx";
 import { locateAt, LEVELS, REGION_TH, CONTINENT_TH, COUNTRY_TH } from "./geo.js";
 import {
@@ -882,6 +883,15 @@ function ProfileTab({ rest, session, userId, onLogout, onPrivacy, onPeople, onLe
             </div>
           )}
         </div>
+        {isMe && travel && (
+          <button data-testid="share-passport" onClick={async () => {
+            const on = ACHIEVEMENTS.filter(a => a.test(travel)).length;
+            let code = null; try { code = (await rest("/rest/v1/rpc/my_referrals", { method: "POST", body: {} })).code; } catch {}
+            const link = `${window.location.origin}${window.location.pathname}${code ? "?ref=" + code : ""}`;
+            const r = await shareCard({ name: p?.display_name, stats: { ...travel, stampsOn: on, stampsTotal: ACHIEVEMENTS.length }, link, text: "ดูพาสปอร์ตนักเที่ยวของฉันใน ปักหมุด 📍 มาแข่งกันว่าใครเที่ยวเยอะกว่า" });
+            if (r === "downloaded") showToast("บันทึกการ์ดแล้ว เอาไปโพสต์ได้เลย");
+          }} className="w-full text-white text-sm font-medium py-2.5 rounded-2xl shadow-sm" style={{ background: "linear-gradient(135deg,#7B61FF,#FF5C8A)" }}>แชร์พาสปอร์ตนักเที่ยวของฉัน 📸</button>
+        )}
         {travel && <Passport t={travel} />}
         {isMe && <button onClick={() => onPeople(userId, pending > 0 ? "requests" : "friends")} className="w-full bg-white rounded-2xl p-3 shadow-sm text-sm text-left text-[#6C5CE7] flex items-center justify-between">เพื่อนและคำขอ{pending > 0 && <span className="text-[11px] bg-[#EF4565] text-white rounded-full px-2 py-0.5">{pending} คำขอใหม่</span>}</button>}
         {isMe && <InviteCard rest={rest} showToast={showToast} />}
