@@ -58,6 +58,9 @@ function PostImages({ urls, cls = "" }) {
   );
 }
 
+const FEED_SELECT = "id,content,media_urls,is_boosted,boost_expire_at,created_at,place_id,rating,place:places(id,name,category),author:profiles!posts_user_id_fkey(id,username:display_name),comments(id,content,created_at,author:profiles!comments_user_id_fkey(username:display_name)),likes(user_id)";
+const FEED_PAGE = 30;
+
 async function compressImage(file) {
   if (!/^image\/(jpeg|png|webp)$/.test(file.type)) throw new Error("ใช้ได้เฉพาะรูป JPG, PNG หรือ WebP");
   const bmp = await createImageBitmap(file);
@@ -895,6 +898,8 @@ export default function FeedApp() {
   const [posts, setPosts] = useState([]);
   const [wallet, setWallet] = useState(0);
   const [loadingFeed, setLoadingFeed] = useState(false);
+  const [feedLimit, setFeedLimit] = useState(FEED_PAGE);
+  const [placePosts, setPlacePosts] = useState([]); // รีวิวของสถานที่ที่เปิดดู (ดึงแยก เพราะฟีดโหลดทีละหน้า)
   const [draft, setDraft] = useState("");
   const [imgs, setImgs] = useState([]); // [{ blob, url }] สูงสุด MAX_IMGS รูป
   const [posting, setPosting] = useState(false);
@@ -1102,8 +1107,7 @@ export default function FeedApp() {
   const loadFeed = useCallback(async () => {
     setLoadingFeed(true);
     try {
-      const rows = await rest(
-        "/rest/v1/posts?select=id,content,media_urls,is_boosted,boost_expire_at,created_at,place_id,rating,place:places(id,name,category),author:profiles!posts_user_id_fkey(id,username:display_name),comments(id,content,created_at,author:profiles!comments_user_id_fkey(username:display_name)),likes(user_id)&order=created_at.desc"
+      const rows = await rest(`/rest/v1/posts?select=${FEED_SELECT}&order=created_at.desc&limit=${feedLimit}`
       );
       setPosts(rows.map(p => ({ ...p, is_boosted: boostActive(p) })).sort((a, b) => Number(b.is_boosted) - Number(a.is_boosted)));
       const w = await rest(`/rest/v1/wallets?user_id=eq.${session.user_id}&select=credit_balance`);
@@ -1113,9 +1117,16 @@ export default function FeedApp() {
     } finally {
       setLoadingFeed(false);
     }
-  }, [rest, session]);
+  }, [rest, session, feedLimit]);
 
   useEffect(() => { if (session) loadFeed(); }, [session, loadFeed]);
+  useEffect(() => {
+    if (!placeView || !session) { setPlacePosts([]); return; }
+    let live = true;
+    rest(`/rest/v1/posts?select=${FEED_SELECT}&place_id=eq.${placeView}&order=created_at.desc&limit=100`)
+      .then(rows => { if (live) setPlacePosts(rows.map(p => ({ ...p, is_boosted: boostActive(p) }))); }).catch(() => {});
+    return () => { live = false; };
+  }, [placeView, posts, session, rest]); // eslint-disable-line
 
   // โหลดสถานะการยินยอม ถ้ายังไม่เคยเลือกให้ถามก่อน (ค่าเริ่มต้น = ไม่เก็บ)
   useEffect(() => {
@@ -1576,7 +1587,7 @@ export default function FeedApp() {
   );
   if (placeView) return (
     <>
-      <PlaceDetail salesOn={salesOn} placeId={placeView} rest={rest} posts={posts} userId={session.user_id} wallet={wallet} onBoosted={loadFeed} onLike={toggleLike} onBack={() => setPlaceView(null)}
+      <PlaceDetail salesOn={salesOn} placeId={placeView} rest={rest} posts={[...posts, ...placePosts.filter(x => !posts.some(y => y.id === x.id))]} userId={session.user_id} wallet={wallet} onBoosted={loadFeed} onLike={toggleLike} onBack={() => setPlaceView(null)}
         onProfile={(id) => { setPlaceView(null); setProfileId(id); setTab("profile"); }} onCheckin={() => { setPlaceView(null); setTab("checkin"); }} showToast={showToast} />
       <TabBar tab={tab} setTab={goTab} />
       {toast && <div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-[#1A1D29] text-white text-sm px-4 py-2 rounded-full shadow-lg z-40 max-w-[90%] text-center">{toast}</div>}
@@ -1744,6 +1755,9 @@ export default function FeedApp() {
             </article>
           );
         })}
+        {!loadingFeed && posts.length >= feedLimit && (
+          <button onClick={() => setFeedLimit(n => n + FEED_PAGE)} data-testid="feed-more" className="w-full text-sm text-[#6C5CE7] bg-white rounded-2xl py-3 shadow-sm">โหลดโพสต์เพิ่ม</button>
+        )}
       </main>
 
       {boostTarget !== null && (
