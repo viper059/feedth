@@ -60,6 +60,13 @@ function PostImages({ urls, cls = "" }) {
 
 const FEED_SELECT = "id,content,media_urls,is_boosted,boost_expire_at,created_at,place_id,rating,place:places(id,name,category),author:profiles!posts_user_id_fkey(id,username:display_name),comments(id,content,created_at,author:profiles!comments_user_id_fkey(username:display_name)),likes(user_id)";
 const FEED_PAGE = 30;
+const REF_KEY = "feedth:ref";
+// ลิงก์ชวนเพื่อน ?ref=รหัส 8 ตัว: เก็บไว้ก่อน แล้วค่อยใช้หลังสมัคร/ล็อกอิน
+try {
+  const rf = new URLSearchParams(window.location.search).get("ref");
+  if (rf && /^[0-9a-f]{8}$/i.test(rf)) localStorage.setItem(REF_KEY, rf.toLowerCase());
+} catch { /* ไม่มี localStorage */ }
+
 
 async function compressImage(file) {
   if (!/^image\/(jpeg|png|webp)$/.test(file.type)) throw new Error("ใช้ได้เฉพาะรูป JPG, PNG หรือ WebP");
@@ -768,6 +775,27 @@ function PeopleView({ rest, session, userId, initialTab, onBack, onProfile, onCh
   );
 }
 
+function InviteCard({ rest, showToast }) {
+  const [r, setR] = useState(null);
+  useEffect(() => { rest("/rest/v1/rpc/my_referrals", { method: "POST", body: {} }).then(setR).catch(() => {}); }, []); // eslint-disable-line
+  if (!r) return null;
+  const link = `${window.location.origin}${window.location.pathname}?ref=${r.code}`;
+  const text = "มาปักหมุดด้วยกัน! เช็คอินที่เที่ยว แข่งกันว่าใครเที่ยวเยอะกว่า 📍";
+  const invite = async () => {
+    if (navigator.share) { try { await navigator.share({ title: "ปักหมุด", text, url: link }); } catch {} return; }
+    try { await navigator.clipboard.writeText(`${text} ${link}`); showToast("คัดลอกลิงก์ชวนแล้ว"); } catch { showToast("คัดลอกไม่สำเร็จ"); }
+  };
+  return (
+    <div className="bg-white rounded-2xl p-3 shadow-sm space-y-2" data-testid="invite-card">
+      <p className="text-sm font-medium text-[#1A1D29]">ชวนเพื่อน รับแต้ม</p>
+      <p className="text-xs text-[#6B7280]">เพื่อนสมัครผ่านลิงก์ของคุณแล้วเช็คอินครั้งแรก คุณได้ +30 แต้ม เพื่อนได้ +20 แต้ม (นับสูงสุด 20 คนที่ชวน)</p>
+      <div className="flex items-center gap-2 text-xs"><span className="flex-1 truncate bg-[#F3F5FA] rounded-lg px-2 py-1.5 text-[#6B7280]" data-testid="invite-link">{link}</span>
+        <button onClick={invite} data-testid="invite-btn" className="bg-[#6C5CE7] text-white rounded-full px-4 py-1.5 font-medium shrink-0">ชวนเพื่อน</button></div>
+      <p className="text-[11px] text-[#9199A8]">ชวนแล้ว {r.invited} คน · เช็คอินแล้ว {r.qualified} คน · ได้ {r.bonus} แต้ม</p>
+    </div>
+  );
+}
+
 function ProfileTab({ rest, session, userId, onLogout, onPrivacy, onPeople, onLegal, onDelete, pending, showToast }) {
   const isMe = userId === session.user_id;
   const [p, setP] = useState(null);
@@ -856,6 +884,7 @@ function ProfileTab({ rest, session, userId, onLogout, onPrivacy, onPeople, onLe
         </div>
         {travel && <Passport t={travel} />}
         {isMe && <button onClick={() => onPeople(userId, pending > 0 ? "requests" : "friends")} className="w-full bg-white rounded-2xl p-3 shadow-sm text-sm text-left text-[#6C5CE7] flex items-center justify-between">เพื่อนและคำขอ{pending > 0 && <span className="text-[11px] bg-[#EF4565] text-white rounded-full px-2 py-0.5">{pending} คำขอใหม่</span>}</button>}
+        {isMe && <InviteCard rest={rest} showToast={showToast} />}
         {isMe && <button onClick={() => setGuide(true)} data-testid="profile-install" className="w-full bg-white rounded-2xl p-3 shadow-sm text-sm text-left text-[#6C5CE7]">วิธีติดตั้งแอปลงหน้าจอ</button>}
         {isMe && <button onClick={() => setStory(true)} data-testid="profile-story" className="w-full bg-white rounded-2xl p-3 shadow-sm text-sm text-left text-[#6C5CE7]">อ่านนิยาย "ผู้กล้าผู้ปักหมุด"</button>}
         {guide && <InstallGuide onClose={() => setGuide(false)} />}
@@ -899,6 +928,7 @@ export default function FeedApp() {
   const [wallet, setWallet] = useState(0);
   const [loadingFeed, setLoadingFeed] = useState(false);
   const [feedLimit, setFeedLimit] = useState(FEED_PAGE);
+  const [firstPin, setFirstPin] = useState(null); // ยังไม่เคยเช็คอินเลย → แสดงการ์ดชวนปักหมุดแรก
   const [placePosts, setPlacePosts] = useState([]); // รีวิวของสถานที่ที่เปิดดู (ดึงแยก เพราะฟีดโหลดทีละหน้า)
   const [draft, setDraft] = useState("");
   const [imgs, setImgs] = useState([]); // [{ blob, url }] สูงสุด MAX_IMGS รูป
@@ -1121,6 +1151,19 @@ export default function FeedApp() {
 
   useEffect(() => { if (session) loadFeed(); }, [session, loadFeed]);
   useEffect(() => {
+    if (!session || firstPin === false) return;
+    rest(`/rest/v1/checkins?user_id=eq.${session.user_id}&select=id&limit=1`).then(r => setFirstPin(Array.isArray(r) && r.length === 0)).catch(() => {});
+  }, [session, tab]); // eslint-disable-line
+  // ใช้รหัสชวนเพื่อนที่เก็บไว้ (ครั้งเดียว ผลลัพธ์ใด ๆ จากเซิร์ฟเวอร์ถือว่าจบ)
+  useEffect(() => {
+    if (!session) return;
+    let code = null; try { code = localStorage.getItem(REF_KEY); } catch {}
+    if (!code) return;
+    rest("/rest/v1/rpc/claim_referral", { method: "POST", body: { p_code: code } })
+      .then(r => { try { localStorage.removeItem(REF_KEY); } catch {} if (r && r.ok) showToast("เข้าร่วมผ่านคำชวนของเพื่อนแล้ว เช็คอินครั้งแรกรับ +20 แต้ม"); })
+      .catch(() => {});
+  }, [session]); // eslint-disable-line
+  useEffect(() => {
     if (!placeView || !session) { setPlacePosts([]); return; }
     let live = true;
     rest(`/rest/v1/posts?select=${FEED_SELECT}&place_id=eq.${placeView}&order=created_at.desc&limit=100`)
@@ -1257,7 +1300,7 @@ export default function FeedApp() {
         } catch (e) { photoErr = e.message; if (up) await deletePaths(up.paths); }
       }
       showToast(photoErr ? `เช็คอินแล้ว แต่แนบรูปไม่สำเร็จ: ${photoErr}` : r.repeat ? "เช็คอินซ้ำสำเร็จ (ไม่ได้แต้มเพิ่ม)" : `เช็คอินที่ ${ciPlace.name} สำเร็จ +${r.points}`);
-      setDraft(""); clearImage(); setCiPlace(null); setCiList(null);
+      setDraft(""); clearImage(); setCiPlace(null); setCiList(null); setFirstPin(false);
       loadFeed();
     } catch (e) {
       const m = e.message || "";
@@ -1653,6 +1696,13 @@ export default function FeedApp() {
       <main className="max-w-xl mx-auto px-4 pt-4 space-y-3">
         <WelcomeCard />
         <InstallPrompt />
+        {firstPin === true && (
+          <div className="rounded-2xl p-4 text-white shadow-sm" style={{ background: "linear-gradient(135deg,#7B61FF,#FF5C8A)" }} data-testid="first-pin">
+            <p className="font-semibold" style={{ fontFamily: "'Kanit', sans-serif" }}>ปักหมุดแรกของคุณ 📍</p>
+            <p className="text-xs opacity-90 mt-1">เปิดตำแหน่ง เลือกสถานที่ใกล้ตัว แล้วกดเช็คอินได้เลย ไม่ต้องรอไปเที่ยวไกล ร้านกาแฟหรือที่ทำงานก็นับ</p>
+            <button onClick={() => { window.scrollTo({ top: 0, behavior: "smooth" }); openCiPicker(); }} data-testid="first-pin-btn" className="mt-3 bg-white text-[#6C5CE7] text-sm font-medium px-4 py-1.5 rounded-full">เลือกสถานที่ใกล้ตัว</button>
+          </div>
+        )}
         <div className="bg-white rounded-2xl border border-black/5 p-3 shadow-sm">
           <textarea value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="กำลังคิดอะไรอยู่..." rows={2} className="w-full resize-none outline-none text-sm placeholder:text-[#9199A8]" />
           {imgs.length > 0 && (

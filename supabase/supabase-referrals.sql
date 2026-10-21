@@ -1,0 +1,4 @@
+-- ระบบชวนเพื่อน (ใช้แล้วใน production: migration referrals_v1)
+-- ตาราง referrals + claim_referral(code) + my_referrals() + trigger ที่นับเมื่อเพื่อนเช็คอินครั้งแรก
+-- รหัสชวน = 8 ตัวแรกของ user id (ไม่มีขีด) · ผู้ชวนได้ +30 (สูงสุด 20 คน) · ผู้ถูกชวนได้ +20 · ใช้ได้เฉพาะบัญชีอายุไม่เกิน 3 วันและยังไม่เคยเช็คอิน
+-- ดูคำนิยามเต็มได้จาก: select pg_get_functiondef('public.claim_referral(text)'::regprocedure);
