@@ -1,6 +1,6 @@
 // service worker แบบเบา: เก็บหน้าเว็บ/ไฟล์ของแอปไว้เปิดเร็วและเปิดได้แม้สัญญาณหลุด
 // ไม่แคชคำขอไป Supabase (ข้ามโดเมน) ข้อมูลจึงสดเสมอ
-const CACHE = "feedth-v8";
+const CACHE = "feedth-v9";
 self.addEventListener("install", (e) => { self.skipWaiting(); });
 self.addEventListener("activate", (e) => {
   e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));

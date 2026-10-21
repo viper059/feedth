@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>ปักหมุด · เช็คอินทั่วไทย สะสมแผนที่ พิชิตโลก</title>
-<meta name="description" content="ปักหมุด Pinworld แอปเช็คอินท่องเที่ยว ปักหมุดที่ที่คุณไปจริง ปลดล็อกตำบล อำเภอ จังหวัด แข่งกับเพื่อนและครอบครัว ใช้ฟรีบนมือถือ ไม่ต้องโหลดจากสโตร์">
+<title>ปักหมุด · เที่ยวมากี่จังหวัดแล้ว ปักหมุดให้ครบ</title>
+<meta name="description" content="เที่ยวมาแล้วกี่จังหวัด? ปักหมุด แอปเช็คอินท่องเที่ยว ปลดล็อกตำบล อำเภอ จังหวัด แข่งกับเพื่อนว่าใครเที่ยวเยอะกว่า ใช้ฟรี ไม่ต้องโหลดจากสโตร์">
 <meta property="og:type" content="website">
-<meta property="og:title" content="ปักหมุด · เช็คอินทั่วไทย พิชิตโลก">
-<meta property="og:description" content="ปักหมุดที่ที่คุณไปจริง ปลดล็อกแผนที่ แข่งกับเพื่อนและครอบครัว ใช้ฟรีบนมือถือ">
+<meta property="og:title" content="เที่ยวมากี่จังหวัดแล้ว? ปักหมุดให้ครบ">
+<meta property="og:description" content="เช็คอินที่เที่ยว ปลดล็อกแผนที่ แข่งกับเพื่อนว่าใครเที่ยวเยอะกว่า ใช้ฟรีบนมือถือ">
 <meta property="og:image" content="https://viper059.github.io/feedth/og-image.png">
 <meta name="theme-color" content="#6C5CE7">
 <link rel="icon" type="image/png" href="../icon-192.png">
@@ -26,11 +26,11 @@ header.nav{position:sticky;top:0;z-index:10;background:rgba(255,255,255,.92);bac
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--p);color:#fff;text-decoration:none;font-family:Kanit,sans-serif;font-weight:500;border-radius:999px;padding:12px 24px;font-size:16px;border:0;cursor:pointer;box-shadow:0 6px 18px rgba(108,92,231,.35)}
 .btn.sm{padding:8px 16px;font-size:14px;box-shadow:none}
 .btn.ghost{background:#fff;color:var(--p);box-shadow:none;border:1.5px solid var(--p)}
-.hero{background:linear-gradient(160deg,#F1EEFF 0%,#fff 60%);padding:48px 0 40px;overflow:hidden}
+.hero{background:radial-gradient(circle at 85% 10%,#FFE3EE 0,transparent 40%),linear-gradient(160deg,#F1EEFF 0%,#fff 60%);padding:48px 0 40px;overflow:hidden}
 .hero .wrap{display:grid;gap:32px;align-items:center}
 .eyebrow{display:inline-block;background:#fff;border:1px solid var(--line);color:var(--p);font-size:13px;padding:4px 12px;border-radius:999px;margin-bottom:14px}
 .hero h1{font-size:clamp(30px,7vw,52px);font-weight:600}
-.hero h1 em{font-style:normal;color:var(--p)}
+.hero h1 em{font-style:normal;background:linear-gradient(90deg,#7B61FF,#FF5C8A);-webkit-background-clip:text;background-clip:text;color:transparent}
 .hero p.lead{color:var(--mute);font-size:clamp(16px,2.6vw,19px);margin:14px 0 22px;max-width:520px}
 .cta-row{display:flex;gap:12px;flex-wrap:wrap}
 .note{font-size:13px;color:var(--mute);margin-top:12px}
@@ -56,7 +56,7 @@ section .sub{text-align:center;color:var(--mute);margin:8px auto 32px;max-width:
 .install ol{margin:8px 0 0;padding-left:20px;color:var(--mute);font-size:15px}
 details{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px 18px;margin-bottom:10px}
 summary{cursor:pointer;font-weight:500}details p{margin:8px 0 0;color:var(--mute);font-size:15px}
-.final{background:linear-gradient(135deg,#6C5CE7,#8B6CF6);color:#fff;text-align:center;border-radius:28px;padding:44px 20px}
+.final{background:linear-gradient(135deg,#7B61FF,#FF5C8A);color:#fff;text-align:center;border-radius:28px;padding:44px 20px}
 .final h2{color:#fff}.final p{opacity:.9;margin:8px 0 22px}
 .final .btn{background:#fff;color:var(--p);box-shadow:none}
 footer{padding:28px 0 40px;font-size:13px;color:var(--mute);text-align:center}footer a{margin:0 8px}
@@ -67,17 +67,17 @@ footer{padding:28px 0 40px;font-size:13px;color:var(--mute);text-align:center}fo
 </head>
 <body>
 <header class="nav"><div class="wrap">
-  <a class="logo" href="#top"><svg width="26" height="26" viewBox="0 0 512 512"><rect width="512" height="512" rx="110" fill="#6C5CE7"/><path d="M256 96c-62 0-112 48-112 108 0 78 112 212 112 212s112-134 112-212c0-60-50-108-112-108z" fill="#fff"/><circle cx="256" cy="204" r="42" fill="#6C5CE7"/></svg> ปักหมุด</a>
+  <a class="logo" href="#top"><svg width="26" height="26" viewBox="0 0 512 512"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7B61FF"/><stop offset="1" stop-color="#FF5C8A"/></linearGradient></defs><rect width="512" height="512" rx="110" fill="url(#lg)"/><path d="M256 96c-62 0-112 48-112 108 0 78 112 212 112 212s112-134 112-212c0-60-50-108-112-108z" fill="#fff"/><circle cx="256" cy="204" r="42" fill="#7B61FF"/></svg> ปักหมุด</a>
   <a class="btn sm" data-cta="nav" href="../">เปิดแอปฟรี</a>
 </div></header>
 
 <main id="top">
 <div class="hero"><div class="wrap">
   <div>
-    <span class="eyebrow">เช็คอินทั่วไทย · ใช้ฟรีบนมือถือ</span>
-    <h1>ปักหมุดที่ที่คุณ<em>ไปจริง</em><br>สะสมแผนที่ พิชิตโลก</h1>
-    <p class="lead">ไปถึงที่ไหนก็กดเช็คอิน ปลดล็อกตำบล อำเภอ และจังหวัดทีละแห่ง เก็บแต้ม แข่งกับเพื่อนและครอบครัว พร้อมแชร์รูปเที่ยวของคุณ</p>
-    <div class="cta-row"><a class="btn" data-cta="hero" href="../">เริ่มปักหมุดฟรี</a><a class="btn ghost" href="#how">ดูวิธีเล่น</a></div>
+    <span class="eyebrow">🔥 สายเที่ยวต้องมี · ใช้ฟรีบนมือถือ</span>
+    <h1>เที่ยวมาแล้วกี่ที่?<br><em>ปักหมุดให้ครบ</em> พิชิตทั้งประเทศ</h1>
+    <p class="lead">ไปถึงที่ไหนก็กดเช็คอิน ปลดล็อกตำบล อำเภอ จังหวัดทีละที่ เก็บแต้ม แล้วลองดูว่าใครเที่ยวเยอะกว่ากัน 😎</p>
+    <div class="cta-row"><a class="btn" data-cta="hero" href="../">เริ่มปักหมุดฟรี 📍</a><a class="btn ghost" href="#how">ดูวิธีเล่น</a></div>
     <p class="note">ไม่ต้องโหลดจากสโตร์ เปิดผ่านเบราว์เซอร์แล้วเพิ่มลงหน้าจอได้เลย</p>
   </div>
   <div class="phone" aria-hidden="true">
@@ -90,15 +90,15 @@ footer{padding:28px 0 40px;font-size:13px;color:var(--mute);text-align:center}fo
 </div></div>
 
 <section class="alt" id="features"><div class="wrap">
-  <h2>เที่ยวทุกที่ ให้มีความหมายมากขึ้น</h2>
-  <p class="sub">ปักหมุดเปลี่ยนทริปของคุณให้เป็นแผนที่ที่ค่อย ๆ เปิดออก พร้อมคนที่เที่ยวไปด้วยกัน</p>
+  <h2>เที่ยวให้เป็นเกม เก็บให้ครบทั้งไทย</h2>
+  <p class="sub">ทุกทริปทำให้แผนที่ของคุณเปิดออกอีกนิด ชวนเพื่อนมาแข่งก็สนุกกว่าเดิม</p>
   <div class="grid c3">
-    <div class="card"><div class="ic">📍</div><h3>เช็คอินจากที่จริง</h3><p>ระบบตรวจตำแหน่งของคุณว่าอยู่ใกล้สถานที่จริง (ในรัศมี 150 เมตร) แต้มจึงยุติธรรมกับทุกคน</p></div>
-    <div class="card"><div class="ic">🗺️</div><h3>พิชิตทีละพื้นที่</h3><p>ปักหมุดครบ 10 แห่งพิชิตตำบล ครบ 5 ตำบลพิชิตอำเภอ ครบ 3 อำเภอพิชิตจังหวัด แล้วค่อยขยายไปทั้งโลก</p></div>
-    <div class="card"><div class="ic">📸</div><h3>แชร์รูปเที่ยวได้หลายรูป</h3><p>โพสต์รูปได้สูงสุด 6 รูปต่อโพสต์ แม้เป็นรูปเก่าก็ยังปักหมุดที่นั่นได้</p></div>
-    <div class="card"><div class="ic">👨‍👩‍👧</div><h3>เล่นกับเพื่อนและครอบครัว</h3><p>ตามเพื่อน ดูอันดับ ทำภารกิจร่วมกัน และมีระบบครอบครัวสำหรับพ่อแม่ลูก</p></div>
-    <div class="card"><div class="ic">🏆</div><h3>ภารกิจและอันดับ</h3><p>ภารกิจ สตรีกการเช็คอิน และอันดับผู้พิชิต ให้ออกไปเที่ยวบ่อยขึ้นอีกนิด</p></div>
-    <div class="card"><div class="ic">📖</div><h3>นิยายในแอป 60 ตอน</h3><p>อ่าน "ผู้กล้าผู้ปักหมุด" นิยายไซไฟแฟนตาซีฟรี ได้ทั้งตอนรอรถหรือก่อนนอน</p></div>
+    <div class="card"><div class="ic">📍</div><h3>เช็คอินของจริง ไม่โกงกัน</h3><p>ต้องไปถึงที่นั่นจริง (ในรัศมี 150 เมตร) ถึงจะได้แต้ม ใครเที่ยวเยอะ ใครก็รู้</p></div>
+    <div class="card"><div class="ic">🗺️</div><h3>เก็บให้ครบทีละที่</h3><p>ครบ 10 หมุดพิชิตตำบล ครบ 5 ตำบลพิชิตอำเภอ ครบ 3 อำเภอพิชิตจังหวัด แล้วไปต่อให้ทั่วโลก</p></div>
+    <div class="card"><div class="ic">📸</div><h3>โพสต์รูปได้ 6 รูป</h3><p>รูปเก่าจากทริปที่แล้วก็ยังปักหมุดย้อนหลังที่นั่นได้ ไม่ต้องรอไปใหม่</p></div>
+    <div class="card"><div class="ic">👨‍👩‍👧</div><h3>ชวนเพื่อน ชวนน้อง แข่งกัน</h3><p>ตามเพื่อน ดูอันดับ ทำภารกิจด้วยกัน ใครพิชิตได้มากกว่ากัน</p></div>
+    <div class="card"><div class="ic">🏆</div><h3>ภารกิจ สตรีก อันดับ</h3><p>เช็คอินต่อเนื่องเพื่อรักษาสตรีก ทำภารกิจเก็บแต้ม แล้วไต่อันดับผู้พิชิต</p></div>
+    <div class="card"><div class="ic">📖</div><h3>นิยายไซไฟ 60 ตอน ฟรี</h3><p>"ผู้กล้าผู้ปักหมุด" อ่านตอนนั่งรถหรือก่อนนอนได้ในแอปเลย</p></div>
   </div>
 </div></section>
 
@@ -132,7 +132,7 @@ footer{padding:28px 0 40px;font-size:13px;color:var(--mute);text-align:center}fo
 </div></section>
 
 <section style="padding-top:0"><div class="wrap">
-  <div class="final"><h2>พร้อมปักหมุดแรกหรือยัง</h2><p>เริ่มจากที่ที่คุณอยู่ตอนนี้ก็ได้</p><a class="btn" data-cta="final" href="../">เริ่มปักหมุดฟรี</a></div>
+  <div class="final"><h2>ปักหมุดแรกเลยไหม?</h2><p>เริ่มจากที่ที่คุณอยู่ตอนนี้ก็ได้ แล้วชวนเพื่อนมาแข่ง</p><a class="btn" data-cta="final" href="../">เริ่มปักหมุดฟรี 📍</a> <button class="btn ghost" id="invite" style="background:transparent;color:#fff;border-color:#fff">ชวนเพื่อน 🤝</button></div>
 </div></section>
 </main>
 
@@ -161,6 +161,12 @@ var AW_CONV_LABEL = "";    // เช่น "AbC-D_efG-h12_34-567" (ป้าย�
     var s = document.createElement("script"); s.async = true; s.src = "https://www.googletagmanager.com/gtag/js?id=" + encodeURIComponent(AW_ID); document.head.appendChild(s);
     gtag("js", new Date()); gtag("config", AW_ID);
   }
+  var inv = document.getElementById("invite");
+  if (inv) inv.addEventListener("click", function(){
+    var u = location.origin + location.pathname;
+    if (navigator.share) navigator.share({ title: "ปักหมุด", text: "มาแข่งกันว่าใครเที่ยวเยอะกว่า 📍", url: u }).catch(function(){});
+    else if (navigator.clipboard) navigator.clipboard.writeText(u).then(function(){ inv.textContent = "คัดลอกลิงก์แล้ว ✓"; });
+  });
   document.querySelectorAll("[data-cta]").forEach(function(a){
     a.addEventListener("click", function(){
       if (window.gtag && AW_ID && AW_CONV_LABEL) gtag("event", "conversion", { send_to: AW_ID + "/" + AW_CONV_LABEL });
