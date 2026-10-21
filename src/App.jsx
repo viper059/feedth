@@ -1469,6 +1469,20 @@ export default function FeedApp() {
     return row?.points || 0;
   };
 
+  // กดแท็บ "ฟีด" ซ้ำตอนอยู่หน้าฟีดแล้ว = เลื่อนขึ้นบนสุด + รีเฟรชฟีด (เหมือน Facebook)
+  const refreshFeed = () => { window.scrollTo({ top: 0, behavior: "smooth" }); if (feedLimit !== FEED_PAGE) setFeedLimit(FEED_PAGE); else loadFeed(); };
+  // ดึงหน้าจอลงที่บนสุดของฟีดเพื่อรีเฟรช (pull-to-refresh)
+  const [pull, setPull] = useState(0);
+  useEffect(() => {
+    if (tab !== "feed" || placeView || people || notif) return;
+    let y0 = null, d = 0;
+    const st = (e) => { y0 = window.scrollY <= 0 ? e.touches[0].clientY : null; d = 0; };
+    const mv = (e) => { if (y0 === null) return; d = Math.max(0, e.touches[0].clientY - y0); setPull(Math.min(d, 90)); };
+    const en = () => { if (y0 !== null && d > 70) refreshFeed(); y0 = null; d = 0; setPull(0); };
+    window.addEventListener("touchstart", st, { passive: true }); window.addEventListener("touchmove", mv, { passive: true }); window.addEventListener("touchend", en);
+    return () => { window.removeEventListener("touchstart", st); window.removeEventListener("touchmove", mv); window.removeEventListener("touchend", en); };
+  }); // eslint-disable-line
+
   // ---------- หน้าจอ: ยังไม่ได้ตั้งค่า Supabase ----------
   if (!configured) {
     return (
@@ -1556,7 +1570,11 @@ export default function FeedApp() {
   }
 
   const openPlace = (id) => setPlaceView(id);
-  const goTab = (t) => { if (t === "profile") setProfileId(null); setPlaceView(null); setPeople(null); setNotif(false); setTab(t); };
+  const goTab = (t) => {
+    const onPlainFeed = t === "feed" && tab === "feed" && !placeView && !people && !notif && !shop;
+    if (t === "profile") setProfileId(null); setPlaceView(null); setPeople(null); setNotif(false); setTab(t);
+    if (onPlainFeed) refreshFeed();
+  };
   const openNotif = (n) => {
     setNotif(false);
     if (n.type === "friend_request") { setPeople({ userId: session.user_id, tab: "requests" }); return; }
@@ -1668,6 +1686,7 @@ export default function FeedApp() {
           </div>
         </div>
 
+        {pull > 0 && !loadingFeed && <p className="text-center text-xs text-[#9199A8]" style={{ height: pull / 2 }}>{pull > 70 ? "ปล่อยเพื่อรีเฟรช" : "ดึงลงเพื่อรีเฟรช"}</p>}
         {loadingFeed && <p className="text-center text-xs text-[#9199A8] py-4">กำลังโหลดฟีด...</p>}
 
         {posts.map((post) => {
