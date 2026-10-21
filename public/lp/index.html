@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ปักหมุด · เช็คอินทั่วไทย สะสมแผนที่ พิชิตโลก</title>
+<meta name="description" content="ปักหมุด Pinworld แอปเช็คอินท่องเที่ยว ปักหมุดที่ที่คุณไปจริง ปลดล็อกตำบล อำเภอ จังหวัด แข่งกับเพื่อนและครอบครัว ใช้ฟรีบนมือถือ ไม่ต้องโหลดจากสโตร์">
+<meta property="og:type" content="website">
+<meta property="og:title" content="ปักหมุด · เช็คอินทั่วไทย พิชิตโลก">
+<meta property="og:description" content="ปักหมุดที่ที่คุณไปจริง ปลดล็อกแผนที่ แข่งกับเพื่อนและครอบครัว ใช้ฟรีบนมือถือ">
+<meta property="og:image" content="https://viper059.github.io/feedth/og-image.png">
+<meta name="theme-color" content="#6C5CE7">
+<link rel="icon" type="image/png" href="../icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@500;600&family=Noto+Sans+Thai:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--p:#6C5CE7;--p2:#8B7CF6;--ink:#1A1D29;--mute:#5B6475;--bg:#F6F7FB;--ok:#17B890;--card:#fff;--line:#E8EAF0}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;font-family:"Noto Sans Thai",system-ui,sans-serif;color:var(--ink);background:#fff;line-height:1.65;-webkit-text-size-adjust:100%}
+h1,h2,h3{font-family:"Kanit","Noto Sans Thai",sans-serif;line-height:1.25;margin:0}
+a{color:inherit}
+.wrap{max-width:1040px;margin:0 auto;padding:0 20px}
+header.nav{position:sticky;top:0;z-index:10;background:rgba(255,255,255,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.nav .wrap{display:flex;align-items:center;justify-content:space-between;height:56px}
+.logo{display:flex;align-items:center;gap:8px;font-family:Kanit,sans-serif;font-weight:600;font-size:18px;text-decoration:none}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--p);color:#fff;text-decoration:none;font-family:Kanit,sans-serif;font-weight:500;border-radius:999px;padding:12px 24px;font-size:16px;border:0;cursor:pointer;box-shadow:0 6px 18px rgba(108,92,231,.35)}
+.btn.sm{padding:8px 16px;font-size:14px;box-shadow:none}
+.btn.ghost{background:#fff;color:var(--p);box-shadow:none;border:1.5px solid var(--p)}
+.hero{background:linear-gradient(160deg,#F1EEFF 0%,#fff 60%);padding:48px 0 40px;overflow:hidden}
+.hero .wrap{display:grid;gap:32px;align-items:center}
+.eyebrow{display:inline-block;background:#fff;border:1px solid var(--line);color:var(--p);font-size:13px;padding:4px 12px;border-radius:999px;margin-bottom:14px}
+.hero h1{font-size:clamp(30px,7vw,52px);font-weight:600}
+.hero h1 em{font-style:normal;color:var(--p)}
+.hero p.lead{color:var(--mute);font-size:clamp(16px,2.6vw,19px);margin:14px 0 22px;max-width:520px}
+.cta-row{display:flex;gap:12px;flex-wrap:wrap}
+.note{font-size:13px;color:var(--mute);margin-top:12px}
+.phone{justify-self:center;width:250px;height:480px;border-radius:38px;background:#fff;border:8px solid var(--ink);box-shadow:0 24px 60px rgba(60,40,160,.25);position:relative;overflow:hidden}
+.phone .map{position:absolute;inset:0;background:radial-gradient(circle at 35% 40%,#dff7ee 0 18%,transparent 19%),radial-gradient(circle at 70% 60%,#e6defd 0 22%,transparent 23%),linear-gradient(#EEF0F7,#EEF0F7)}
+.phone .fog{position:absolute;inset:0;background:radial-gradient(circle at 35% 40%,transparent 0 24%,rgba(180,186,205,.85) 40%),radial-gradient(circle at 70% 60%,transparent 0 12%,rgba(180,186,205,.0) 13%)}
+.pin{position:absolute;width:30px;height:38px}
+.chip{position:absolute;left:14px;right:14px;bottom:16px;background:#fff;border-radius:16px;padding:12px;box-shadow:0 6px 20px rgba(0,0,0,.15);font-size:13px}
+.chip b{font-family:Kanit,sans-serif;font-size:15px;display:block}
+.bar{height:8px;border-radius:99px;background:#E8EAF0;margin-top:8px;overflow:hidden}.bar i{display:block;height:100%;width:70%;background:linear-gradient(90deg,var(--p),var(--ok))}
+section{padding:56px 0}
+section h2{font-size:clamp(24px,5vw,34px);text-align:center;font-weight:600}
+section .sub{text-align:center;color:var(--mute);margin:8px auto 32px;max-width:560px}
+.grid{display:grid;gap:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:20px}
+.card .ic{width:44px;height:44px;border-radius:14px;background:#EFEBFF;color:var(--p);display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:10px}
+.card h3{font-size:18px;margin-bottom:4px}.card p{margin:0;color:var(--mute);font-size:15px}
+.alt{background:var(--bg)}
+.steps{counter-reset:s}.step{display:flex;gap:14px;align-items:flex-start}
+.step:before{counter-increment:s;content:counter(s);flex:none;width:36px;height:36px;border-radius:50%;background:var(--p);color:#fff;font-family:Kanit,sans-serif;display:flex;align-items:center;justify-content:center}
+.step h3{font-size:18px}.step p{margin:2px 0 0;color:var(--mute);font-size:15px}
+.install{display:grid;gap:16px}
+.install ol{margin:8px 0 0;padding-left:20px;color:var(--mute);font-size:15px}
+details{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px 18px;margin-bottom:10px}
+summary{cursor:pointer;font-weight:500}details p{margin:8px 0 0;color:var(--mute);font-size:15px}
+.final{background:linear-gradient(135deg,#6C5CE7,#8B6CF6);color:#fff;text-align:center;border-radius:28px;padding:44px 20px}
+.final h2{color:#fff}.final p{opacity:.9;margin:8px 0 22px}
+.final .btn{background:#fff;color:var(--p);box-shadow:none}
+footer{padding:28px 0 40px;font-size:13px;color:var(--mute);text-align:center}footer a{margin:0 8px}
+.ck{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));z-index:20;background:var(--ink);color:#fff;border-radius:16px;padding:14px;font-size:13px;display:none;gap:10px;align-items:center;flex-wrap:wrap;max-width:560px;margin:0 auto}
+.ck button{border:0;border-radius:999px;padding:8px 16px;font-family:Kanit,sans-serif;cursor:pointer}
+@media(min-width:720px){.hero .wrap{grid-template-columns:1.1fr .9fr}.grid.c3{grid-template-columns:repeat(3,1fr)}.grid.c2{grid-template-columns:repeat(2,1fr)}.install{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<header class="nav"><div class="wrap">
+  <a class="logo" href="#top"><svg width="26" height="26" viewBox="0 0 512 512"><rect width="512" height="512" rx="110" fill="#6C5CE7"/><path d="M256 96c-62 0-112 48-112 108 0 78 112 212 112 212s112-134 112-212c0-60-50-108-112-108z" fill="#fff"/><circle cx="256" cy="204" r="42" fill="#6C5CE7"/></svg> ปักหมุด</a>
+  <a class="btn sm" data-cta="nav" href="../">เปิดแอปฟรี</a>
+</div></header>
+
+<main id="top">
+<div class="hero"><div class="wrap">
+  <div>
+    <span class="eyebrow">เช็คอินทั่วไทย · ใช้ฟรีบนมือถือ</span>
+    <h1>ปักหมุดที่ที่คุณ<em>ไปจริง</em><br>สะสมแผนที่ พิชิตโลก</h1>
+    <p class="lead">ไปถึงที่ไหนก็กดเช็คอิน ปลดล็อกตำบล อำเภอ และจังหวัดทีละแห่ง เก็บแต้ม แข่งกับเพื่อนและครอบครัว พร้อมแชร์รูปเที่ยวของคุณ</p>
+    <div class="cta-row"><a class="btn" data-cta="hero" href="../">เริ่มปักหมุดฟรี</a><a class="btn ghost" href="#how">ดูวิธีเล่น</a></div>
+    <p class="note">ไม่ต้องโหลดจากสโตร์ เปิดผ่านเบราว์เซอร์แล้วเพิ่มลงหน้าจอได้เลย</p>
+  </div>
+  <div class="phone" aria-hidden="true">
+    <div class="map"></div><div class="fog"></div>
+    <svg class="pin" style="left:62px;top:150px" viewBox="0 0 30 38"><path d="M15 1C8 1 3 6 3 12.500 3 22 15 37 15 37s12-15 12-24.500C27 6 22 1 15 1z" fill="#6C5CE7"/><circle cx="15" cy="12.500" r="5" fill="#fff"/></svg>
+    <svg class="pin" style="left:120px;top:210px" viewBox="0 0 30 38"><path d="M15 1C8 1 3 6 3 12.500 3 22 15 37 15 37s12-15 12-24.500C27 6 22 1 15 1z" fill="#17B890"/><circle cx="15" cy="12.500" r="5" fill="#fff"/></svg>
+    <svg class="pin" style="left:170px;top:290px" viewBox="0 0 30 38"><path d="M15 1C8 1 3 6 3 12.500 3 22 15 37 15 37s12-15 12-24.500C27 6 22 1 15 1z" fill="#EF4565"/><circle cx="15" cy="12.500" r="5" fill="#fff"/></svg>
+    <div class="chip"><b>พิชิตตำบล</b>ปักหมุดครบ 10 แห่งเพื่อพิชิตตำบล<div class="bar"><i></i></div></div>
+  </div>
+</div></div>
+
+<section class="alt" id="features"><div class="wrap">
+  <h2>เที่ยวทุกที่ ให้มีความหมายมากขึ้น</h2>
+  <p class="sub">ปักหมุดเปลี่ยนทริปของคุณให้เป็นแผนที่ที่ค่อย ๆ เปิดออก พร้อมคนที่เที่ยวไปด้วยกัน</p>
+  <div class="grid c3">
+    <div class="card"><div class="ic">📍</div><h3>เช็คอินจากที่จริง</h3><p>ระบบตรวจตำแหน่งของคุณว่าอยู่ใกล้สถานที่จริง (ในรัศมี 150 เมตร) แต้มจึงยุติธรรมกับทุกคน</p></div>
+    <div class="card"><div class="ic">🗺️</div><h3>พิชิตทีละพื้นที่</h3><p>ปักหมุดครบ 10 แห่งพิชิตตำบล ครบ 5 ตำบลพิชิตอำเภอ ครบ 3 อำเภอพิชิตจังหวัด แล้วค่อยขยายไปทั้งโลก</p></div>
+    <div class="card"><div class="ic">📸</div><h3>แชร์รูปเที่ยวได้หลายรูป</h3><p>โพสต์รูปได้สูงสุด 6 รูปต่อโพสต์ แม้เป็นรูปเก่าก็ยังปักหมุดที่นั่นได้</p></div>
+    <div class="card"><div class="ic">👨‍👩‍👧</div><h3>เล่นกับเพื่อนและครอบครัว</h3><p>ตามเพื่อน ดูอันดับ ทำภารกิจร่วมกัน และมีระบบครอบครัวสำหรับพ่อแม่ลูก</p></div>
+    <div class="card"><div class="ic">🏆</div><h3>ภารกิจและอันดับ</h3><p>ภารกิจ สตรีกการเช็คอิน และอันดับผู้พิชิต ให้ออกไปเที่ยวบ่อยขึ้นอีกนิด</p></div>
+    <div class="card"><div class="ic">📖</div><h3>นิยายในแอป 60 ตอน</h3><p>อ่าน "ผู้กล้าผู้ปักหมุด" นิยายไซไฟแฟนตาซีฟรี ได้ทั้งตอนรอรถหรือก่อนนอน</p></div>
+  </div>
+</div></section>
+
+<section id="how"><div class="wrap">
+  <h2>เริ่มได้ใน 3 ขั้นตอน</h2>
+  <p class="sub">ไม่ซับซ้อน ใช้เวลาไม่ถึงนาที</p>
+  <div class="grid c3 steps">
+    <div class="step"><div><h3>สมัครด้วยอีเมล</h3><p>เปิดแอปผ่านเบราว์เซอร์ ตั้งชื่อที่แสดง แล้วเริ่มใช้งานได้ทันที</p></div></div>
+    <div class="step"><div><h3>ไปถึงแล้วกดเช็คอิน</h3><p>อนุญาตตำแหน่ง เลือกสถานที่ใกล้ตัว แนบรูปและข้อความได้ตามชอบ</p></div></div>
+    <div class="step"><div><h3>ปลดล็อกและสะสมแต้ม</h3><p>ดูแผนที่ของคุณค่อย ๆ เปิดออก แข่งอันดับกับเพื่อน</p></div></div>
+  </div>
+  <p style="text-align:center;margin-top:28px"><a class="btn" data-cta="how" href="../">เปิดแอปปักหมุด</a></p>
+</div></section>
+
+<section class="alt" id="install"><div class="wrap">
+  <h2>เพิ่มลงหน้าจอมือถือ</h2>
+  <p class="sub">เปิดได้เหมือนแอปปกติ ไม่ต้องรอผ่านสโตร์</p>
+  <div class="install">
+    <div class="card"><h3>iPhone</h3><ol><li>เปิดลิงก์ด้วย Safari (ไม่ใช่ในแอป Facebook หรือ LINE)</li><li>กดปุ่มแชร์ แล้วเลือก "เพิ่มไปยังหน้าจอโฮม"</li><li>กด "เพิ่ม"</li></ol></div>
+    <div class="card"><h3>Android</h3><ol><li>เปิดลิงก์ด้วย Chrome</li><li>กดเมนู ⋮ แล้วเลือก "ติดตั้งแอป" หรือ "เพิ่มลงในหน้าจอหลัก"</li><li>กดยืนยัน</li></ol></div>
+  </div>
+</div></section>
+
+<section id="faq"><div class="wrap" style="max-width:720px">
+  <h2>คำถามที่พบบ่อย</h2><p class="sub"></p>
+  <details><summary>ใช้ฟรีไหม</summary><p>ใช้งานหลักฟรีทั้งหมด ทั้งเช็คอิน แผนที่ อันดับ และนิยาย</p></details>
+  <details><summary>ต้องโหลดจาก App Store หรือ Google Play ไหม</summary><p>ไม่ต้อง เปิดผ่านเบราว์เซอร์ แล้วเพิ่มลงหน้าจอหลักได้ตามวิธีด้านบน</p></details>
+  <details><summary>แอปใช้ตำแหน่งของฉันอย่างไร</summary><p>ใช้เฉพาะตอนที่คุณกดเช็คอิน เพื่อตรวจว่าคุณอยู่ใกล้สถานที่นั้นจริง ไม่ได้ติดตามตำแหน่งตลอดเวลา อ่านรายละเอียดได้ที่ <a href="privacy.html">นโยบายความเป็นส่วนตัว</a></p></details>
+  <details><summary>ปลอมตำแหน่งเพื่อเก็บแต้มได้ไหม</summary><p>ไม่ได้ ระบบตรวจระยะจากสถานที่และความเร็วในการเดินทางระหว่างการเช็คอิน และกำหนดเงื่อนไขเช็คอินซ้ำ</p></details>
+  <details><summary>ลบบัญชีและข้อมูลได้ไหม</summary><p>ได้ ลบเองได้ในหน้าโปรไฟล์ของแอป</p></details>
+</div></section>
+
+<section style="padding-top:0"><div class="wrap">
+  <div class="final"><h2>พร้อมปักหมุดแรกหรือยัง</h2><p>เริ่มจากที่ที่คุณอยู่ตอนนี้ก็ได้</p><a class="btn" data-cta="final" href="../">เริ่มปักหมุดฟรี</a></div>
+</div></section>
+</main>
+
+<footer><div class="wrap">
+  <a href="privacy.html">นโยบายความเป็นส่วนตัว</a><a href="privacy.html#terms">ข้อกำหนดการใช้งาน</a><a href="../">เปิดแอป</a>
+  <p>ข้อมูลสถานที่บางส่วนมาจาก OpenStreetMap contributors · ปักหมุด · Pinworld</p>
+</div></footer>
+
+<div class="ck" id="ck" role="dialog" aria-label="คุกกี้"><span style="flex:1;min-width:200px">เราใช้คุกกี้เพื่อวัดผลโฆษณา คุณเลือกได้ว่าจะยอมรับหรือไม่ <a href="privacy.html#cookies" style="color:#C9C2FF">รายละเอียด</a></span><button id="ck-no" style="background:#394056;color:#fff">ไม่ยอมรับ</button><button id="ck-yes" style="background:#fff;color:#1A1D29">ยอมรับ</button></div>
+
+<script>
+// ===== ตั้งค่าโฆษณา Google (ใส่ค่าจริงตอนสร้างแคมเปญ ถ้าเว้นว่างไว้ หน้านี้จะไม่โหลดสคริปต์ติดตามใด ๆ) =====
+var AW_ID = "";            // เช่น "AW-1234567890"
+var AW_CONV_LABEL = "";    // เช่น "AbC-D_efG-h12_34-567" (ป้ายกำกับ Conversion ของการคลิกปุ่มเปิดแอป)
+// ======================================================================================================
+(function(){
+  // ส่งต่อพารามิเตอร์โฆษณา (gclid, utm_*) ไปยังแอป เพื่อให้วัดผลต่อเนื่อง
+  var q = location.search;
+  if (q) document.querySelectorAll('a[href="../"]').forEach(function(a){ a.href = "../" + q; });
+  var KEY = "pw_lp_consent";
+  var get = function(){ try { return localStorage.getItem(KEY); } catch(e){ return null; } };
+  var set = function(v){ try { localStorage.setItem(KEY, v); } catch(e){} };
+  function loadTag(){
+    if (!AW_ID || window.__gtagLoaded) return; window.__gtagLoaded = true;
+    window.dataLayer = window.dataLayer || []; window.gtag = function(){ dataLayer.push(arguments); };
+    var s = document.createElement("script"); s.async = true; s.src = "https://www.googletagmanager.com/gtag/js?id=" + encodeURIComponent(AW_ID); document.head.appendChild(s);
+    gtag("js", new Date()); gtag("config", AW_ID);
+  }
+  document.querySelectorAll("[data-cta]").forEach(function(a){
+    a.addEventListener("click", function(){
+      if (window.gtag && AW_ID && AW_CONV_LABEL) gtag("event", "conversion", { send_to: AW_ID + "/" + AW_CONV_LABEL });
+    });
+  });
+  if (AW_ID) {
+    var st = get(), box = document.getElementById("ck");
+    if (st === "yes") loadTag();
+    else if (st !== "no") {
+      box.style.display = "flex";
+      document.getElementById("ck-yes").onclick = function(){ set("yes"); box.style.display = "none"; loadTag(); };
+      document.getElementById("ck-no").onclick = function(){ set("no"); box.style.display = "none"; };
+    }
+  }
+})();
+</script>
+</body>
+</html>
