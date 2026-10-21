@@ -1,0 +1,2 @@
+-- แนบหลายรูปกับโพสต์เช็คอิน (ใช้แล้วใน production: migration attach_checkin_photos_multi)
+-- ดูเนื้อหาฟังก์ชันได้จาก: select pg_get_functiondef('public.attach_checkin_photos(bigint,text[])'::regprocedure);

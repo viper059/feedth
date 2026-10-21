@@ -42,6 +42,22 @@ const BOOST_OPTIONS = [
 ];
 
 // ย่อรูปก่อนอัปโหลด (ด้านยาวสุด 1280px, JPEG) ให้เบาและกันรูปใหญ่เกินโควตา
+// แสดงรูปในโพสต์: 1 รูปเต็มความกว้าง, 2+ รูปเป็นตาราง (กดดูรูปใหญ่ในแท็บใหม่)
+function PostImages({ urls, cls = "" }) {
+  const list = urls || [];
+  if (!list.length) return null;
+  if (list.length === 1) return <img src={list[0]} alt="รูปในโพสต์" loading="lazy" className={`${cls} rounded-xl w-full max-h-96 object-cover`} />;
+  return (
+    <div className={`${cls} grid grid-cols-2 gap-1 rounded-xl overflow-hidden`} data-testid="post-images">
+      {list.map((u, i) => (
+        <a key={u} href={u} target="_blank" rel="noopener" className={`block ${list.length === 3 && i === 0 ? "row-span-2" : ""}`}>
+          <img src={u} alt={`รูปในโพสต์ ${i + 1}`} loading="lazy" className={`w-full object-cover ${list.length === 3 && i === 0 ? "h-full" : "aspect-square"}`} />
+        </a>
+      ))}
+    </div>
+  );
+}
+
 async function compressImage(file) {
   if (!/^image\/(jpeg|png|webp)$/.test(file.type)) throw new Error("ใช้ได้เฉพาะรูป JPG, PNG หรือ WebP");
   const bmp = await createImageBitmap(file);
@@ -850,7 +866,7 @@ function ProfileTab({ rest, session, userId, onLogout, onPrivacy, onPeople, onLe
           <div key={po.id} className="bg-white rounded-2xl p-4 shadow-sm">
             <p className="text-xs text-[#9199A8] mb-1">{timeAgo(po.created_at)}</p>
             {po.content && <p className="text-sm whitespace-pre-wrap">{po.content}</p>}
-            {(po.media_urls || []).map(u => <img key={u} src={u} alt="รูปในโพสต์" loading="lazy" className="mt-2 rounded-xl w-full max-h-80 object-cover" />)}
+            <PostImages urls={po.media_urls} cls="mt-2" />
           </div>
         ))}
         {posts.length === 0 && <p className="text-center text-xs text-[#9199A8] py-4">ยังไม่มีโพสต์</p>}
@@ -880,7 +896,7 @@ export default function FeedApp() {
   const [wallet, setWallet] = useState(0);
   const [loadingFeed, setLoadingFeed] = useState(false);
   const [draft, setDraft] = useState("");
-  const [img, setImg] = useState(null); // { blob, url }
+  const [imgs, setImgs] = useState([]); // [{ blob, url }] สูงสุด MAX_IMGS รูป
   const [posting, setPosting] = useState(false);
   const fileRef = useRef(null);
   const [ciPlace, setCiPlace] = useState(null); // สถานที่ที่เลือกเช็คอินพร้อมโพสต์ {id,name,lat,lng,category}
@@ -1164,17 +1180,36 @@ export default function FeedApp() {
     }
   };
 
+  const MAX_IMGS = 6;
   const pickImage = async (e) => {
-    const f = e.target.files && e.target.files[0];
+    const files = Array.from(e.target.files || []);
     e.target.value = "";
-    if (!f) return;
+    if (!files.length) return;
+    const room = MAX_IMGS - imgs.length;
+    if (room <= 0) { showToast(`แนบได้สูงสุด ${MAX_IMGS} รูป`); return; }
+    if (files.length > room) showToast(`แนบได้สูงสุด ${MAX_IMGS} รูป ใช้ ${room} รูปแรก`);
     try {
-      const blob = await compressImage(f);
-      if (img) URL.revokeObjectURL(img.url);
-      setImg({ blob, url: URL.createObjectURL(blob) });
+      const added = [];
+      for (const f of files.slice(0, room)) { const blob = await compressImage(f); added.push({ blob, url: URL.createObjectURL(blob) }); }
+      setImgs(prev => [...prev, ...added].slice(0, MAX_IMGS));
     } catch (err) { showToast(err.message || "เลือกรูปไม่สำเร็จ"); }
   };
-  const clearImage = () => { if (img) URL.revokeObjectURL(img.url); setImg(null); };
+  const removeImage = (i) => setImgs(prev => { if (prev[i]) URL.revokeObjectURL(prev[i].url); return prev.filter((_, k) => k !== i); });
+  const clearImage = () => { imgs.forEach(x => URL.revokeObjectURL(x.url)); setImgs([]); };
+  // อัปโหลดทุกรูปไปที่ storage คืน {urls, paths}; ถ้าพลาดกลางทางจะลบรูปที่ขึ้นไปแล้วแล้วโยน error
+  const uploadImgs = async (list) => {
+    const token = await getToken(); const paths = [];
+    try {
+      for (const it of list) {
+        const path = `${session.user_id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+        const up = await fetch(`${SUPABASE_URL}/storage/v1/object/post-images/${path}`, { method: "POST", headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${token}`, "Content-Type": "image/jpeg", "x-upsert": "false" }, body: it.blob });
+        if (!up.ok) { const eb = await up.json().catch(() => ({})); throw new Error(eb.message || `อัปโหลดรูปไม่สำเร็จ (${up.status})`); }
+        paths.push(path);
+      }
+    } catch (e) { await deletePaths(paths); throw e; }
+    return { paths, urls: paths.map(IMG_PUBLIC) };
+  };
+  const deletePaths = async (paths) => { if (!paths.length) return; const t = await getToken().catch(() => null); if (!t) return; paths.forEach(pt => fetch(`${SUPABASE_URL}/storage/v1/object/post-images/${pt}`, { method: "DELETE", headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${t}` } }).catch(() => {})); };
 
   const openCiPicker = () => {
     if (ciList !== null) { setCiList(null); return; }
@@ -1197,24 +1232,18 @@ export default function FeedApp() {
   // โพสต์พร้อมเช็คอิน: เช็คอินตามตำแหน่งปัจจุบัน (ตรวจที่เซิร์ฟเวอร์) แล้วแนบรูป/ข้อความลงโพสต์เช็คอินนั้น — รูปจะเป็นรูปเก่าก็ได้
   const handlePostWithCheckin = async () => {
     setPosting(true);
-    let path = null;
     try {
       const loc = (await locateAt(ciPlace.lat, ciPlace.lng).catch(() => null)) || {};
       const r = await rest("/rest/v1/rpc/check_in_v4", { method: "POST", body: { p_place_id: ciPlace.id, p_lat: ciPos.lat, p_lng: ciPos.lng, p_rating: 5, p_caption: draft.trim(), p_cty: loc.cty || null, p_pro: loc.pro || null, p_dis: loc.dis || null, p_sub: loc.sub || null } });
       rest("/rest/v1/rpc/record_interest", { method: "POST", body: { p_topic: ciPlace.category, p_weight: 3 } }).catch(() => {});
       let photoErr = null;
-      if (img) {
+      if (imgs.length) {
+        let up = null;
         try {
-          const token = await getToken();
-          path = `${session.user_id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
-          const up = await fetch(`${SUPABASE_URL}/storage/v1/object/post-images/${path}`, { method: "POST", headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${token}`, "Content-Type": "image/jpeg", "x-upsert": "false" }, body: img.blob });
-          if (!up.ok) { path = null; throw new Error(`อัปโหลดรูปไม่สำเร็จ (${up.status})`); }
-          const ok = await rest("/rest/v1/rpc/attach_checkin_photo", { method: "POST", body: { p_checkin_id: r.checkin_id, p_url: IMG_PUBLIC(path) } });
+          up = await uploadImgs(imgs);
+          const ok = await rest("/rest/v1/rpc/attach_checkin_photos", { method: "POST", body: { p_checkin_id: r.checkin_id, p_urls: up.urls } });
           if (!ok) throw new Error("ไม่พบโพสต์เช็คอินให้แนบรูป");
-        } catch (e) {
-          photoErr = e.message;
-          if (path) fetch(`${SUPABASE_URL}/storage/v1/object/post-images/${path}`, { method: "DELETE", headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${await getToken()}` } }).catch(() => {});
-        }
+        } catch (e) { photoErr = e.message; if (up) await deletePaths(up.paths); }
       }
       showToast(photoErr ? `เช็คอินแล้ว แต่แนบรูปไม่สำเร็จ: ${photoErr}` : r.repeat ? "เช็คอินซ้ำสำเร็จ (ไม่ได้แต้มเพิ่ม)" : `เช็คอินที่ ${ciPlace.name} สำเร็จ +${r.points}`);
       setDraft(""); clearImage(); setCiPlace(null); setCiList(null);
@@ -1228,28 +1257,18 @@ export default function FeedApp() {
 
   const handlePost = async () => {
     if (ciPlace && !posting) return handlePostWithCheckin();
-    if ((!draft.trim() && !img) || posting) return;
+    if ((!draft.trim() && !imgs.length) || posting) return;
     setPosting(true);
-    let path = null;
+    let up = null;
     try {
       let media_urls = null;
-      if (img) {
-        const token = await getToken();
-        path = `${session.user_id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
-        const up = await fetch(`${SUPABASE_URL}/storage/v1/object/post-images/${path}`, {
-          method: "POST",
-          headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${token}`, "Content-Type": "image/jpeg", "x-upsert": "false" },
-          body: img.blob,
-        });
-        if (!up.ok) { path = null; const eb = await up.json().catch(() => ({})); throw new Error(eb.message || `อัปโหลดรูปไม่สำเร็จ (${up.status})`); }
-        media_urls = [IMG_PUBLIC(path)];
-      }
+      if (imgs.length) { up = await uploadImgs(imgs); media_urls = up.urls; }
       await rest("/rest/v1/posts", { method: "POST", body: { user_id: session.user_id, content: draft.trim(), ...(media_urls ? { media_urls } : {}) } });
       track(draft, 2);
       setDraft(""); clearImage();
       loadFeed();
     } catch (e) {
-      if (path) fetch(`${SUPABASE_URL}/storage/v1/object/post-images/${path}`, { method: "DELETE", headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${await getToken()}` } }).catch(() => {});
+      if (up) await deletePaths(up.paths);
       showToast("โพสต์ไม่สำเร็จ: " + e.message);
     }
     setPosting(false);
@@ -1319,15 +1338,17 @@ export default function FeedApp() {
   };
   // บันทึกรูปโพสต์ลงเครื่อง (iPhone: เปิดหน้าต่างแชร์ให้เลือก "บันทึกรูปภาพ", อื่นๆ: ดาวน์โหลดไฟล์) เพื่อเอาไปโพสต์ Facebook เอง
   const savePostImage = async (post) => {
-    const img = (post.media_urls || [])[0]; if (!img) return;
+    const urls = post.media_urls || []; if (!urls.length) return;
     try {
-      const blob = await (await fetch(img)).blob();
-      const type = blob.type || "image/jpeg";
-      const f = new File([blob], "pinworld." + (type.split("/")[1] || "jpg").replace("jpeg", "jpg"), { type });
-      if (navigator.canShare && navigator.canShare({ files: [f] })) { try { await navigator.share({ files: [f] }); } catch {} return; }
-      const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = f.name; document.body.appendChild(a); a.click(); a.remove();
+      const files = [];
+      for (const [i, u] of urls.entries()) {
+        const blob = await (await fetch(u)).blob(); const type = blob.type || "image/jpeg";
+        files.push(new File([blob], `pinworld-${i + 1}.` + (type.split("/")[1] || "jpg").replace("jpeg", "jpg"), { type }));
+      }
+      if (navigator.canShare && navigator.canShare({ files })) { try { await navigator.share({ files }); } catch {} return; }
+      for (const f of files) { const a = document.createElement("a"); a.href = URL.createObjectURL(f); a.download = f.name; document.body.appendChild(a); a.click(); a.remove(); }
       showToast("บันทึกรูปแล้ว");
-    } catch { window.open(img, "_blank", "noopener"); }
+    } catch { window.open(urls[0], "_blank", "noopener"); }
   };
   const shareTo = (kind) => {
     const post = shareFor; if (!post) return;
@@ -1605,10 +1626,14 @@ export default function FeedApp() {
         <InstallPrompt />
         <div className="bg-white rounded-2xl border border-black/5 p-3 shadow-sm">
           <textarea value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="กำลังคิดอะไรอยู่..." rows={2} className="w-full resize-none outline-none text-sm placeholder:text-[#9199A8]" />
-          {img && (
-            <div className="relative mt-2">
-              <img src={img.url} alt="ตัวอย่างรูป" className="rounded-xl w-full max-h-64 object-cover" />
-              <button onClick={clearImage} aria-label="เอารูปออก" className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 text-white flex items-center justify-center"><X size={14} /></button>
+          {imgs.length > 0 && (
+            <div className="mt-2 grid grid-cols-3 gap-1.5" data-testid="img-previews">
+              {imgs.map((it, i) => (
+                <div key={it.url} className="relative aspect-square">
+                  <img src={it.url} alt={`ตัวอย่างรูป ${i + 1}`} className="rounded-xl w-full h-full object-cover" />
+                  <button onClick={() => removeImage(i)} aria-label="เอารูปออก" className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center"><X size={13} /></button>
+                </div>
+              ))}
             </div>
           )}
           {ciPlace && (
@@ -1625,10 +1650,10 @@ export default function FeedApp() {
             </div>
           )}
           <div className="flex items-center justify-between mt-1">
-            <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={pickImage} data-testid="img-input" />
+            <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" multiple onChange={pickImage} data-testid="img-input" />
             <button onClick={openCiPicker} aria-label="เช็คอินพร้อมโพสต์" className={`p-1 ${ciPlace ? "text-[#178A5D]" : "text-[#6C5CE7]"}`}>{ciBusy ? <Loader2 size={20} className="animate-spin" /> : <MapPin size={20} />}</button>
-            <button onClick={() => fileRef.current && fileRef.current.click()} aria-label="เพิ่มรูป" className="text-[#6C5CE7] p-1"><ImagePlus size={20} /></button>
-            <button onClick={handlePost} disabled={(!draft.trim() && !img && !ciPlace) || posting} className="bg-[#6C5CE7] disabled:opacity-30 text-white text-sm font-medium px-4 py-1.5 rounded-full">{posting ? "กำลังโพสต์..." : "โพสต์"}</button>
+            <button onClick={() => fileRef.current && fileRef.current.click()} aria-label="เพิ่มรูป" className="text-[#6C5CE7] p-1 flex items-center gap-1"><ImagePlus size={20} />{imgs.length > 0 && <span className="text-[11px]">{imgs.length}/{MAX_IMGS}</span>}</button>
+            <button onClick={handlePost} disabled={(!draft.trim() && !imgs.length && !ciPlace) || posting} className="bg-[#6C5CE7] disabled:opacity-30 text-white text-sm font-medium px-4 py-1.5 rounded-full">{posting ? "กำลังโพสต์..." : "โพสต์"}</button>
           </div>
         </div>
 
@@ -1662,7 +1687,7 @@ export default function FeedApp() {
               </div>
 
               {post.content && <p className="text-sm leading-relaxed mb-2 whitespace-pre-wrap">{post.content}</p>}
-              {(post.media_urls || []).map(u => <img key={u} src={u} alt="รูปในโพสต์" loading="lazy" className="mb-2 rounded-xl w-full max-h-96 object-cover" />)}
+              <PostImages urls={post.media_urls} cls="mb-2" />
 
               {post.place && (
                 <button onClick={() => openPlace(post.place.id)} className="flex items-center gap-1.5 mb-2 text-xs px-2.5 py-1 rounded-full w-fit" style={{ background: CAT_COLOR[post.place.category] + "1A", color: "#1A1D29" }}>
@@ -1689,7 +1714,7 @@ export default function FeedApp() {
                 </button>
                 {(post.media_urls || []).length > 0 && (
                   <button onClick={() => savePostImage(post)} data-testid="save-image" className="flex items-center gap-1.5 hover:text-[#17B890]">
-                    <Download size={15} /> บันทึกรูป
+                    <Download size={15} /> บันทึกรูป{(post.media_urls || []).length > 1 ? ` (${post.media_urls.length})` : ""}
                   </button>
                 )}
                 {salesOn && !post.is_boosted && !isOther && (
