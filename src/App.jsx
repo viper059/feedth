@@ -5,6 +5,7 @@ import InstallPrompt from "./InstallPrompt.jsx";
 import WelcomeCard, { AppIntro } from "./Welcome.jsx";
 import { InstallGuide, StoryReader } from "./Guide.jsx";
 import { shareCard } from "./ShareCard.js";
+import TripsView from "./Trips.jsx";
 import { BuyCredits, AdminPanel, FeedbackStrip, feedbackApi } from "./Shop.jsx";
 import { locateAt, LEVELS, REGION_TH, CONTINENT_TH, COUNTRY_TH } from "./geo.js";
 import {
@@ -938,6 +939,8 @@ export default function FeedApp() {
   const [wallet, setWallet] = useState(0);
   const [loadingFeed, setLoadingFeed] = useState(false);
   const [feedLimit, setFeedLimit] = useState(FEED_PAGE);
+  const [tripsOpen, setTripsOpen] = useState(false);
+  const [tripBadge, setTripBadge] = useState(0);
   const [firstPin, setFirstPin] = useState(null); // ยังไม่เคยเช็คอินเลย → แสดงการ์ดชวนปักหมุดแรก
   const [placePosts, setPlacePosts] = useState([]); // รีวิวของสถานที่ที่เปิดดู (ดึงแยก เพราะฟีดโหลดทีละหน้า)
   const [draft, setDraft] = useState("");
@@ -1164,6 +1167,11 @@ export default function FeedApp() {
     if (!session || firstPin === false) return;
     rest(`/rest/v1/checkins?user_id=eq.${session.user_id}&select=id&limit=1`).then(r => setFirstPin(Array.isArray(r) && r.length === 0)).catch(() => {});
   }, [session, tab]); // eslint-disable-line
+  const loadTripBadge = useCallback(() => {
+    if (!session) return;
+    rest("/rest/v1/rpc/my_trips", { method: "POST", body: {} }).then(r => setTripBadge(Array.isArray(r) ? r.filter(t => t.my_status === "invited").length : 0)).catch(() => {});
+  }, [rest, session]);
+  useEffect(() => { loadTripBadge(); }, [loadTripBadge, tab]);
   // ใช้รหัสชวนเพื่อนที่เก็บไว้ (ครั้งเดียว ผลลัพธ์ใด ๆ จากเซิร์ฟเวอร์ถือว่าจบ)
   useEffect(() => {
     if (!session) return;
@@ -1706,6 +1714,10 @@ export default function FeedApp() {
       <main className="max-w-xl mx-auto px-4 pt-4 space-y-3">
         <WelcomeCard />
         <InstallPrompt />
+        <button onClick={() => setTripsOpen(true)} data-testid="open-trips" className="w-full bg-white rounded-2xl p-3 shadow-sm text-sm text-left flex items-center justify-between">
+          <span className="text-[#6C5CE7] font-medium">🧭 ทริปกับเพื่อน <span className="text-[#9199A8] font-normal text-xs">นัดไปเที่ยวด้วยกัน ลงชื่อ รับแต้ม</span></span>
+          {tripBadge > 0 && <span className="min-w-[18px] h-[18px] rounded-full bg-[#EF4565] text-white text-[10px] leading-[18px] text-center px-1">{tripBadge}</span>}
+        </button>
         {firstPin === true && (
           <div className="rounded-2xl p-4 text-white shadow-sm" style={{ background: "linear-gradient(135deg,#7B61FF,#FF5C8A)" }} data-testid="first-pin">
             <p className="font-semibold" style={{ fontFamily: "'Kanit', sans-serif" }}>ปักหมุดแรกของคุณ 📍</p>
@@ -1916,6 +1928,7 @@ export default function FeedApp() {
         </div>
       )}
 
+      {tripsOpen && <TripsView rest={rest} session={session} showToast={showToast} onChanged={loadTripBadge} onClose={() => { setTripsOpen(false); loadTripBadge(); }} />}
       <TabBar tab="feed" setTab={goTab} />
       {consentModal}
       {legalModal}

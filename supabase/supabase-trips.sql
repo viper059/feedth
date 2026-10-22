@@ -1,0 +1,7 @@
+-- ทริปกับเพื่อน (ใช้แล้วใน production: migrations trips_v1, places_name_trgm)
+-- ตาราง trips / trip_members (RLS เปิด ไม่มี policy: ใช้ผ่าน RPC เท่านั้น)
+-- RPC: create_trip(title, place_id, place_name, starts_at, note, open, invitees[]) · respond_trip(trip, 'going'|'declined') · my_trips()
+-- เชิญได้เฉพาะเพื่อนที่เป็นเพื่อนกัน (friendships.status='accepted') · เปิด "ลงชื่อเอง" ได้เฉพาะเพื่อนของเจ้าของทริป
+-- trigger บน checkins: เช็คอินที่สถานที่ของทริปในช่วง -3 ถึง +12 ชม. จากเวลานัด = checked_in_at
+-- โบนัส +5 แต้ม/ทริป (สูงสุด 20 ทริป) เมื่อมีคนเช็คอินจริง ≥ 2 คน รวมใน my_explore().score
+-- ดูคำนิยามเต็ม: select pg_get_functiondef('public.create_trip(text,bigint,text,timestamptz,text,boolean,uuid[])'::regprocedure);
