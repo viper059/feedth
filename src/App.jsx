@@ -154,6 +154,7 @@ const ACHIEVEMENTS = [
   { g: "สตรีคและสังคม", id: "streak7", icon: "⚡", label: "ไฟลุกทั้งสัปดาห์", desc: "เช็คอินต่อเนื่อง 7 วัน", test: t => (t.best_streak || 0) >= 7 },
   { g: "สตรีคและสังคม", id: "streak30", icon: "🌋", label: "มาราธอน 30 วัน", desc: "เช็คอินต่อเนื่อง 30 วัน", test: t => (t.best_streak || 0) >= 30 },
   { g: "สตรีคและสังคม", id: "fans1", icon: "👥", label: "มีแฟนคลับ", desc: "มีผู้ติดตาม 1 คน", test: t => (t.followers || 0) >= 1 },
+  { g: "พิเศษ", id: "founder", icon: "🏛️", label: "สมาชิกยุคแรก", desc: "1,000 คนแรกของปักหมุด", test: t => t.founder > 0 && t.founder <= 1000 },
   { g: "สตรีคและสังคม", id: "fans10", icon: "🌟", label: "ดาวเด่น", desc: "มีผู้ติดตาม 10 คน", test: t => (t.followers || 0) >= 10 },
 ];
 
@@ -815,7 +816,10 @@ function ProfileTab({ rest, session, userId, onLogout, onPrivacy, onPeople, onLe
   useEffect(() => {
     (async () => {
       try {
-        rest("/rest/v1/rpc/travel_stats", { method: "POST", body: { p_user: userId } }).then(setTravel).catch(() => {});
+        Promise.all([
+          rest("/rest/v1/rpc/travel_stats", { method: "POST", body: { p_user: userId } }),
+          rest("/rest/v1/rpc/founder_rank", { method: "POST", body: { p_user: userId } }).catch(() => 0),
+        ]).then(([t, fr]) => setTravel({ ...t, founder: Number(fr) || 0 })).catch(() => {});
         if (!isMe) rest(`/rest/v1/follows?follower_id=eq.${session.user_id}&followee_id=eq.${userId}&select=followee_id`).then(r => setFollowing(r.length > 0)).catch(() => {});
         const [pr, st, ps] = await Promise.all([
           rest(`/rest/v1/profiles?id=eq.${userId}&select=display_name,bio`),
@@ -939,6 +943,7 @@ export default function FeedApp() {
   const [wallet, setWallet] = useState(0);
   const [loadingFeed, setLoadingFeed] = useState(false);
   const [feedLimit, setFeedLimit] = useState(FEED_PAGE);
+  const [visitedHint] = useState(() => { try { const a = JSON.parse(localStorage.getItem("pw_visited") || "[]"); return Array.isArray(a) ? a.length : 0; } catch { return 0; } });
   const [tripsOpen, setTripsOpen] = useState(false);
   const [tripBadge, setTripBadge] = useState(0);
   const [firstPin, setFirstPin] = useState(null); // ยังไม่เคยเช็คอินเลย → แสดงการ์ดชวนปักหมุดแรก
@@ -1722,6 +1727,7 @@ export default function FeedApp() {
           <div className="rounded-2xl p-4 text-white shadow-sm" style={{ background: "linear-gradient(135deg,#7B61FF,#FF5C8A)" }} data-testid="first-pin">
             <p className="font-semibold" style={{ fontFamily: "'Kanit', sans-serif" }}>ปักหมุดแรกของคุณ 📍</p>
             <p className="text-xs opacity-90 mt-1">เปิดตำแหน่ง เลือกสถานที่ใกล้ตัว แล้วกดเช็คอินได้เลย ไม่ต้องรอไปเที่ยวไกล ร้านกาแฟหรือที่ทำงานก็นับ</p>
+            {visitedHint > 0 && <p className="text-xs mt-1 font-medium">คุณบอกไว้ว่าเคยไป {visitedHint} จังหวัด ปักหมุดจริงเพื่อให้แผนที่ของคุณเริ่มเปิดออก</p>}
             <button onClick={() => { window.scrollTo({ top: 0, behavior: "smooth" }); openCiPicker(); }} data-testid="first-pin-btn" className="mt-3 bg-white text-[#6C5CE7] text-sm font-medium px-4 py-1.5 rounded-full">เลือกสถานที่ใกล้ตัว</button>
           </div>
         )}

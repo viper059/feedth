@@ -62,6 +62,18 @@ summary{cursor:pointer;font-weight:500}details p{margin:8px 0 0;color:var(--mute
 footer{padding:28px 0 40px;font-size:13px;color:var(--mute);text-align:center}footer a{margin:0 8px}
 .ck{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));z-index:20;background:var(--ink);color:#fff;border-radius:16px;padding:14px;font-size:13px;display:none;gap:10px;align-items:center;flex-wrap:wrap;max-width:560px;margin:0 auto}
 .ck button{border:0;border-radius:999px;padding:8px 16px;font-family:Kanit,sans-serif;cursor:pointer}
+
+.quiz{background:#fff;padding:48px 0}
+.qbox{background:var(--bg);border:1px solid var(--line);border-radius:24px;padding:20px}
+.qscore{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin:6px 0 4px}
+.qscore b{font-family:Kanit,sans-serif;font-size:56px;line-height:1;background:linear-gradient(90deg,#7B61FF,#FF5C8A);-webkit-background-clip:text;background-clip:text;color:transparent}
+.qscore span{color:var(--mute)}
+.qbar{height:10px;border-radius:99px;background:#E4E6EF;overflow:hidden;margin:8px 0 14px}.qbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#7B61FF,#FF5C8A);transition:width .3s}
+.rg{margin-top:12px}.rg h3{font-size:14px;color:var(--mute);font-weight:500;margin-bottom:6px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip2{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 12px;font-size:14px;cursor:pointer;color:var(--ink);font-family:inherit}
+.chip2[aria-pressed=true]{background:var(--p);border-color:var(--p);color:#fff}
+.qact{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
 @media(min-width:720px){.hero .wrap{grid-template-columns:1.1fr .9fr}.grid.c3{grid-template-columns:repeat(3,1fr)}.grid.c2{grid-template-columns:repeat(2,1fr)}.install{grid-template-columns:1fr 1fr}}
 </style>
 </head>
@@ -77,7 +89,7 @@ footer{padding:28px 0 40px;font-size:13px;color:var(--mute);text-align:center}fo
     <span class="eyebrow">🔥 สายเที่ยวต้องมี · ใช้ฟรีบนมือถือ</span>
     <h1>เที่ยวมาแล้วกี่ที่?<br><em>ปักหมุดให้ครบ</em> พิชิตทั้งประเทศ</h1>
     <p class="lead">ไปถึงที่ไหนก็กดเช็คอิน ปลดล็อกตำบล อำเภอ จังหวัดทีละที่ เก็บแต้ม แล้วลองดูว่าใครเที่ยวเยอะกว่ากัน 😎</p>
-    <div class="cta-row"><a class="btn" data-cta="hero" href="../">เริ่มปักหมุดฟรี 📍</a><a class="btn ghost" href="#how">ดูวิธีเล่น</a></div>
+    <div class="cta-row"><a class="btn" data-cta="hero" href="../">เริ่มปักหมุดฟรี 📍</a><a class="btn ghost" href="#try">ลองเช็คก่อนสมัคร</a></div>
     <p class="note">ไม่ต้องโหลดจากสโตร์ เปิดผ่านเบราว์เซอร์แล้วเพิ่มลงหน้าจอได้เลย</p>
   </div>
   <div class="phone" aria-hidden="true">
@@ -88,6 +100,22 @@ footer{padding:28px 0 40px;font-size:13px;color:var(--mute);text-align:center}fo
     <div class="chip"><b>พิชิตตำบล</b>ปักหมุดครบ 10 แห่งเพื่อพิชิตตำบล<div class="bar"><i></i></div></div>
   </div>
 </div></div>
+
+<section class="quiz" id="try"><div class="wrap" style="max-width:720px">
+  <h2>ลองดู: คุณเที่ยวมาแล้วกี่จังหวัด?</h2>
+  <p class="sub">กดเลือกจังหวัดที่เคยไป ไม่ต้องสมัคร ได้ผลทันที</p>
+  <div class="qbox" id="qbox">
+    <div class="qscore"><b id="qn">0</b><span>จาก 77 จังหวัด · <strong id="qp">0%</strong></span></div>
+    <div class="qbar"><i id="qbar"></i></div>
+    <p id="qmsg" style="margin:0 0 4px;color:var(--mute);font-size:15px">เริ่มกดเลือกจังหวัดได้เลย</p>
+    <div id="qlist"></div>
+    <div class="qact">
+      <button class="btn" id="qshare">แชร์ผลของฉัน 📸</button>
+      <a class="btn ghost" id="qsave" data-cta="quiz" href="../">บันทึกแผนที่ของฉัน สมัครฟรี</a>
+    </div>
+    <p class="note">ข้อมูลที่เลือกเก็บไว้ในเครื่องของคุณเท่านั้น ในแอปการปลดล็อกจริงต้องไปเช็คอินที่นั่น</p>
+  </div>
+</div></section>
 
 <section class="alt" id="features"><div class="wrap">
   <h2>เที่ยวให้เป็นเกม เก็บให้ครบทั้งไทย</h2>
@@ -144,6 +172,63 @@ footer{padding:28px 0 40px;font-size:13px;color:var(--mute);text-align:center}fo
 <div class="ck" id="ck" role="dialog" aria-label="คุกกี้"><span style="flex:1;min-width:200px">เราใช้คุกกี้เพื่อวัดผลโฆษณา คุณเลือกได้ว่าจะยอมรับหรือไม่ <a href="privacy.html#cookies" style="color:#C9C2FF">รายละเอียด</a></span><button id="ck-no" style="background:#394056;color:#fff">ไม่ยอมรับ</button><button id="ck-yes" style="background:#fff;color:#1A1D29">ยอมรับ</button></div>
 
 <script>
+// ===== แบบทดสอบ "เที่ยวมากี่จังหวัด" (ทำงานในเครื่อง ไม่ส่งข้อมูลไปไหน) =====
+(function(){
+  var DATA = [["North","เหนือ",[["55","น่าน"],["56","พะเยา"],["52","ลำปาง"],["51","ลำพูน"],["53","อุตรดิตถ์"],["57","เชียงราย"],["50","เชียงใหม่"],["54","แพร่"],["58","แม่ฮ่องสอน"]]],["Northeast","ตะวันออกเฉียงเหนือ",[["46","กาฬสินธุ์"],["40","ขอนแก่น"],["36","ชัยภูมิ"],["48","นครพนม"],["30","นครราชสีมา"],["38","บึงกาฬ"],["31","บุรีรัมย์"],["44","มหาสารคาม"],["49","มุกดาหาร"],["35","ยโสธร"],["45","ร้อยเอ็ด"],["33","ศรีสะเกษ"],["47","สกลนคร"],["32","สุรินทร์"],["43","หนองคาย"],["39","หนองบัวลำภู"],["37","อำนาจเจริญ"],["41","อุดรธานี"],["34","อุบลราชธานี"],["42","เลย"]]],["Central","กลาง",[["10","กรุงเทพมหานคร"],["62","กำแพงเพชร"],["18","ชัยนาท"],["26","นครนายก"],["73","นครปฐม"],["60","นครสวรรค์"],["12","นนทบุรี"],["13","ปทุมธานี"],["14","พระนครศรีอยุธยา"],["66","พิจิตร"],["65","พิษณุโลก"],["16","ลพบุรี"],["11","สมุทรปราการ"],["75","สมุทรสงคราม"],["74","สมุทรสาคร"],["19","สระบุรี"],["17","สิงห์บุรี"],["72","สุพรรณบุรี"],["64","สุโขทัย"],["61","อุทัยธานี"],["15","อ่างทอง"],["67","เพชรบูรณ์"]]],["East","ตะวันออก",[["22","จันทบุรี"],["24","ฉะเชิงเทรา"],["20","ชลบุรี"],["23","ตราด"],["25","ปราจีนบุรี"],["21","ระยอง"],["27","สระแก้ว"]]],["West","ตะวันตก",[["71","กาญจนบุรี"],["63","ตาก"],["77","ประจวบคีรีขันธ์"],["70","ราชบุรี"],["76","เพชรบุรี"]]],["South","ใต้",[["81","กระบี่"],["86","ชุมพร"],["92","ตรัง"],["80","นครศรีธรรมราช"],["96","นราธิวาส"],["94","ปัตตานี"],["82","พังงา"],["93","พัทลุง"],["83","ภูเก็ต"],["95","ยะลา"],["85","ระนอง"],["90","สงขลา"],["91","สตูล"],["84","สุราษฎร์ธานี"]]]];
+  var KEY = "pw_visited", sel = {};
+  try { (JSON.parse(localStorage.getItem(KEY) || "[]") || []).forEach(function(c){ sel[c] = 1; }); } catch(e){}
+  var list = document.getElementById("qlist"); if (!list) return;
+  var all = 0; DATA.forEach(function(r){ all += r[2].length; });
+  function msg(n){
+    if (n === 0) return "เริ่มกดเลือกจังหวัดได้เลย";
+    if (n < 5) return "เพิ่งเริ่มต้น ยังมีที่ให้ไปอีกเพียบ 🌱";
+    if (n < 15) return "นักเที่ยวมาแรง! แต่ยังไปไม่ถึงครึ่งทาง 🔥";
+    if (n < 40) return "เที่ยวเก่งมาก ลองชวนเพื่อนมาเทียบกันไหม 😎";
+    if (n < 77) return "ตัวจริงของแท้! ใกล้ครบทั้งประเทศแล้ว 🏆";
+    return "ครบทั้ง 77 จังหวัด คุณคือราชาแผนที่ 👑";
+  }
+  function paint(){
+    var n = Object.keys(sel).length, p = Math.round(n / all * 100);
+    document.getElementById("qn").textContent = n;
+    document.getElementById("qp").textContent = p + "%";
+    document.getElementById("qbar").style.width = p + "%";
+    document.getElementById("qmsg").textContent = msg(n);
+    try { localStorage.setItem(KEY, JSON.stringify(Object.keys(sel))); } catch(e){}
+  }
+  DATA.forEach(function(r){
+    var box = document.createElement("div"); box.className = "rg";
+    box.innerHTML = "<h3>ภาค" + r[1] + "</h3>";
+    var chips = document.createElement("div"); chips.className = "chips";
+    r[2].forEach(function(pv){
+      var b = document.createElement("button"); b.type = "button"; b.className = "chip2"; b.textContent = pv[1]; b.dataset.c = pv[0];
+      b.setAttribute("aria-pressed", sel[pv[0]] ? "true" : "false");
+      b.onclick = function(){ if (sel[pv[0]]) delete sel[pv[0]]; else sel[pv[0]] = 1; b.setAttribute("aria-pressed", sel[pv[0]] ? "true" : "false"); paint(); };
+      chips.appendChild(b);
+    });
+    box.appendChild(chips); list.appendChild(box);
+  });
+  paint();
+  document.getElementById("qshare").onclick = function(){
+    var n = Object.keys(sel).length, p = Math.round(n / all * 100), W = 1080, H = 1350;
+    var c = document.createElement("canvas"); c.width = W; c.height = H; var x = c.getContext("2d");
+    var g = x.createLinearGradient(0,0,W,H); g.addColorStop(0,"#7B61FF"); g.addColorStop(1,"#FF5C8A"); x.fillStyle = g; x.fillRect(0,0,W,H);
+    x.fillStyle = "rgba(255,255,255,.08)"; x.beginPath(); x.arc(W-120,160,260,0,7); x.fill(); x.beginPath(); x.arc(100,H-220,220,0,7); x.fill();
+    var F = "Kanit,'Noto Sans Thai',sans-serif"; x.fillStyle = "#fff"; x.textAlign = "center";
+    x.font = "600 64px "+F; x.fillText("ปักหมุด", W/2, 150);
+    x.font = "400 44px "+F; x.fillText("ฉันเที่ยวมาแล้ว", W/2, 420);
+    x.font = "600 360px "+F; x.fillText(String(n), W/2, 760);
+    x.font = "500 56px "+F; x.fillText("จาก 77 จังหวัด · "+p+"%", W/2, 860);
+    x.fillStyle = "rgba(255,255,255,.3)"; x.fillRect(140, 940, W-280, 28); x.fillStyle = "#fff"; x.fillRect(140, 940, (W-280)*p/100, 28);
+    x.font = "400 44px "+F; x.fillText(msg(n).replace(/ [^ ]*$/, ""), W/2, 1060);
+    x.fillStyle = "rgba(255,255,255,.95)"; x.fillRect(120, 1150, W-240, 130);
+    x.fillStyle = "#1A1D29"; x.font = "600 42px "+F; x.fillText("เที่ยวมากี่จังหวัดแล้ว? ลองเช็คที่ ปักหมุด", W/2, 1230);
+    c.toBlob(function(blob){
+      var f = new File([blob], "pinworld-quiz.png", {type:"image/png"}), u = location.origin + location.pathname;
+      if (navigator.canShare && navigator.canShare({files:[f]})) navigator.share({files:[f], title:"ปักหมุด", text:"ฉันเที่ยวมาแล้ว "+n+" จังหวัด! ลองดูว่าคุณกี่จังหวัด 📍\n"+u}).catch(function(){});
+      else { var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = f.name; document.body.appendChild(a); a.click(); a.remove(); }
+    });
+  };
+})();
 // ===== ตั้งค่าโฆษณา Google (ใส่ค่าจริงตอนสร้างแคมเปญ ถ้าเว้นว่างไว้ หน้านี้จะไม่โหลดสคริปต์ติดตามใด ๆ) =====
 var AW_ID = "";            // เช่น "AW-1234567890"
 var AW_CONV_LABEL = "";    // เช่น "AbC-D_efG-h12_34-567" (ป้ายกำกับ Conversion ของการคลิกปุ่มเปิดแอป)
