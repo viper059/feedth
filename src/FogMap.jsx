@@ -64,7 +64,13 @@ function FogCanvas({ unlocked, onInfo, rest }) {
   }, []);
 
   // จังหวัดที่เปิดแล้ว (ใช้เลือกดูตำบล)
-  const openProvs = useMemo(() => (base ? base.pro.features.filter(f => unlocked.pro.has(f.properties.c)) : []), [base, unlocked]);
+  // เลือกดูได้ทุกจังหวัด (จังหวัดที่เปิดแล้วขึ้นก่อนและมี ✓) — จังหวัดที่ยังไม่เปิดจะเห็นเป็นเส้นแบ่งเขตในหมอก
+  const openProvs = useMemo(() => {
+    if (!base) return [];
+    const all = base.pro.features.slice().sort((x, y) => x.properties.c.localeCompare(y.properties.c));
+    const on = all.filter(f => unlocked.pro.has(f.properties.c));
+    return on.concat(all.filter(f => !unlocked.pro.has(f.properties.c)));
+  }, [base, unlocked]);
   useEffect(() => {
     if (!subProv && openProvs.length) setSubProv(openProvs[0].properties.c);
   }, [openProvs, subProv]);
@@ -205,15 +211,15 @@ function FogCanvas({ unlocked, onInfo, rest }) {
       {(active === "sub" || active === "vil") && openProvs.length > 0 && (
         <select value={subProv || ""} onChange={e => { setSubProv(e.target.value); onInfo(null); }} aria-label="เลือกจังหวัดที่จะดูตำบล"
           className="w-full mb-2 text-xs bg-[#111a2e] text-[#e8ecf5] border border-[#263456] rounded-lg px-3 py-2">
-          {openProvs.map(f => <option key={f.properties.c} value={f.properties.c}>{f.properties.th}</option>)}
+          {openProvs.map(f => <option key={f.properties.c} value={f.properties.c}>{unlocked.pro.has(f.properties.c) ? "✓ " : ""}{f.properties.th}</option>)}
         </select>
       )}
       <div ref={wrap} className="relative rounded-2xl overflow-hidden border border-[#263456]" style={{ background: "#0b1220", height: "52vh", minHeight: 320, touchAction: "none" }}>
         <svg ref={svgEl} className="absolute inset-0 w-full h-full" role="img" aria-label="แผนที่เส้นแบ่งเขตที่ปลดล็อกได้ด้วยการเช็คอิน" />
         {!base && !err && <div className="absolute inset-0 flex items-center justify-center text-[#8b97b3]"><Loader2 className="animate-spin" size={22} /></div>}
         {err && <p className="absolute inset-0 flex items-center justify-center text-xs text-[#8b97b3] px-6 text-center">{err}</p>}
-        {(active === "sub" || active === "vil") && base && openProvs.length === 0 && (
-          <p className="absolute inset-0 flex items-center justify-center text-xs text-[#8b97b3] px-8 text-center pointer-events-none">เช็คอินในจังหวัดใดจังหวัดหนึ่งก่อน แล้วตำบลของจังหวัดนั้นจะมาให้ปลดล็อก</p>
+        {active === "vil" && base && subProv && vils.length === 0 && (
+          <p className="absolute left-2 top-2 text-[10.5px] text-[#8b97b3] bg-[#111a2e]/90 border border-[#263456] rounded-lg px-2 py-1 pointer-events-none">ยังไม่มีข้อมูลหมู่บ้านในจังหวัดนี้</p>
         )}
         <div className="absolute right-2 top-2 flex flex-col gap-1.5">
           <button aria-label="ซูมเข้า" onClick={() => m.current.svg.transition().duration(250).call(m.current.zoom.scaleBy, 2.5)} className="w-9 h-9 text-lg leading-none bg-[#111a2e] text-[#e8ecf5] border border-[#263456] rounded-lg">+</button>
