@@ -50,7 +50,7 @@ export const LEVELS = [
   { k: "pro", name: "จังหวัด", pts: 50 },
   { k: "dis", name: "อำเภอ", pts: 20 },
   { k: "sub", name: "ตำบล", pts: 10 },
-  { k: "vil", name: "หมู่บ้าน", pts: 5 },
+  { k: "vil", name: "หมุด", pts: 5 },
 ];
 export const BASE_POINTS = 5;
 export const RANKS = [[0, "มือใหม่"], [100, "นักเดินทาง"], [300, "ผู้สำรวจ"], [900, "นักผจญภัย"], [2500, "ผู้พิชิตแผนที่"], [6000, "ตำนานนักเดินทาง"]];

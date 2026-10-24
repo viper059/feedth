@@ -82,13 +82,15 @@ function FogCanvas({ unlocked, onInfo, rest }) {
     return () => { live = false; };
   }, [subProv]);
 
+  // หมุดของฉัน: สร้างจากสถานที่ที่เคยเช็คอิน (ไม่พึ่งข้อมูลหมู่บ้าน) แล้วกรองตามจังหวัดที่เลือก
+  const [myPins, setMyPins] = useState([]);
   useEffect(() => {
-    setVils([]);
-    if (!subProv || !rest) return;
+    if (!rest) return;
     let live = true;
-    rest(`/rest/v1/villages?province=eq.${subProv}&select=id,name,lat,lng&limit=3000`).then(r => { if (live && Array.isArray(r)) setVils(r); }).catch(() => {});
+    rest("/rest/v1/rpc/my_place_pins", { method: "POST", body: {} }).then(r => { if (live && Array.isArray(r)) setMyPins(r); }).catch(() => {});
     return () => { live = false; };
-  }, [subProv, rest]);
+  }, [rest, unlocked]);
+  useEffect(() => { setVils(myPins.filter(r => String(r.province) === String(subProv))); }, [myPins, subProv]);
 
   // สร้าง svg + zoom ครั้งเดียว
   useEffect(() => {
@@ -137,7 +139,7 @@ function FogCanvas({ unlocked, onInfo, rest }) {
       const ds = dis ? dis.features.filter(f => f.properties.pc === subProv) : [];
       o.shapes.selectAll("path.ctx").data(ds).join("path").attr("d", o.path).attr("fill", "#121b31").attr("stroke", "#34466f")
         .attr("stroke-width", 0.6).attr("vector-effect", "non-scaling-stroke").attr("pointer-events", "none");
-      const pts = vils.map(v => ({ v, xy: o.proj([v.lng, v.lat]), on: unlocked.vil.has(String(v.id)) })).filter(d => d.xy && isFinite(d.xy[0]));
+      const pts = vils.map(v => ({ v, xy: o.proj([v.lng, v.lat]), on: true })).filter(d => d.xy && isFinite(d.xy[0]));
       pts.sort((a, b) => a.on - b.on);
       o.pins.selectAll("circle").data(pts.map(d => ({ ...d, r0: d.on ? 4.5 : 2.6 }))).join("circle")
         .attr("cx", d => d.xy[0]).attr("cy", d => d.xy[1]).attr("r", d => d.r0 / o.K)
@@ -219,7 +221,7 @@ function FogCanvas({ unlocked, onInfo, rest }) {
         {!base && !err && <div className="absolute inset-0 flex items-center justify-center text-[#8b97b3]"><Loader2 className="animate-spin" size={22} /></div>}
         {err && <p className="absolute inset-0 flex items-center justify-center text-xs text-[#8b97b3] px-6 text-center">{err}</p>}
         {active === "vil" && base && subProv && vils.length === 0 && (
-          <p className="absolute left-2 top-2 text-[10.5px] text-[#8b97b3] bg-[#111a2e]/90 border border-[#263456] rounded-lg px-2 py-1 pointer-events-none">ยังไม่มีข้อมูลหมู่บ้านในจังหวัดนี้</p>
+          <p className="absolute left-2 top-2 text-[10.5px] text-[#8b97b3] bg-[#111a2e]/90 border border-[#263456] rounded-lg px-2 py-1 pointer-events-none">ยังไม่มีหมุดในจังหวัดนี้ เช็คอินสถานที่ในจังหวัดนี้เพื่อปักหมุด</p>
         )}
         <div className="absolute right-2 top-2 flex flex-col gap-1.5">
           <button aria-label="ซูมเข้า" onClick={() => m.current.svg.transition().duration(250).call(m.current.zoom.scaleBy, 2.5)} className="w-9 h-9 text-lg leading-none bg-[#111a2e] text-[#e8ecf5] border border-[#263456] rounded-lg">+</button>
