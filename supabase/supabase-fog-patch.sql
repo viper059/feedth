@@ -167,3 +167,6 @@ revoke execute on function public.my_explore() from public, anon;
 grant execute on function public.check_in_v2(bigint, float8, float8, int, text, text, text, text) to authenticated;
 grant execute on function public.claim_mission(text) to authenticated;
 grant execute on function public.my_explore() to authenticated;
+
+-- 2026-10-24 rebalance_area_points (applied via migration): คะแนนปลดล็อกพื้นที่ใหม่
+-- ทวีป 50 / ประเทศ 30 / ภูมิภาค 40 / จังหวัด 60 / อำเภอ 25 / ตำบล 15 / หมุด 5 (check_in_v3 + คำนวณ area_unlocks.points ย้อนหลัง)

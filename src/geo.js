@@ -44,12 +44,12 @@ export async function locateAt(lat, lng) {
 }
 
 export const LEVELS = [
-  { k: "con", name: "ทวีป", pts: 500 },
-  { k: "cty", name: "ประเทศ", pts: 200 },
-  { k: "reg", name: "ภูมิภาค", pts: 100 },
-  { k: "pro", name: "จังหวัด", pts: 50 },
-  { k: "dis", name: "อำเภอ", pts: 20 },
-  { k: "sub", name: "ตำบล", pts: 10 },
+  { k: "con", name: "ทวีป", pts: 50 },
+  { k: "cty", name: "ประเทศ", pts: 30 },
+  { k: "reg", name: "ภูมิภาค", pts: 40 },
+  { k: "pro", name: "จังหวัด", pts: 60 },
+  { k: "dis", name: "อำเภอ", pts: 25 },
+  { k: "sub", name: "ตำบล", pts: 15 },
   { k: "vil", name: "หมุด", pts: 5 },
 ];
 export const BASE_POINTS = 5;
