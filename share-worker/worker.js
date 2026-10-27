@@ -1,13 +1,13 @@
 // Cloudflare Worker: ทำให้ลิงก์แชร์ของแต่ละโพสต์มีการ์ดพรีวิว (รูป+ข้อความ) ของโพสต์นั้นเอง
 // ลิงก์: https://<worker>/p/<post_id>  → บอต Facebook/LINE เห็นแท็ก og ของโพสต์ / คนทั่วไปถูกพาเข้าแอป
-// ตั้งค่า Variables ใน Worker: SUPABASE_URL, SUPABASE_ANON_KEY, APP_URL (เช่น https://viper059.github.io/feedth/)
+// ตั้งค่า Variables ใน Worker: SUPABASE_URL, SUPABASE_ANON_KEY, APP_URL (เช่น https://pinsworld.net/)
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
     const m = url.pathname.match(/^\/p\/([0-9a-fA-F-]{36})\/?$/);
-    const app = env.APP_URL || "https://viper059.github.io/feedth/";
+    const app = env.APP_URL || "https://pinsworld.net/";
     if (!m) return Response.redirect(app, 302);
     const id = m[1];
     let post = null;

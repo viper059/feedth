@@ -6,7 +6,7 @@
 1. สมัครบัญชี Stripe ประเทศไทย และเปิดใช้ PromptPay (ต้องยืนยันตัวตนธุรกิจ/บุคคลตามที่ Stripe กำหนด)
 2. ตั้งแพ็กเกจและราคาเอง (ราคาเป็นการตัดสินใจของเจ้าของ) ใน SQL Editor เช่น
    `insert into credit_packages (id, credits, price_thb, active) values ('p100', 100, <ราคา>, true);`
-3. ตั้ง secrets: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `SITE_URL` (https://viper059.github.io/feedth/)
+3. ตั้ง secrets: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `SITE_URL` (https://pinsworld.net/)
 4. deploy: `create-checkout` (ปกติ) และ `stripe-webhook` (ต้องใส่ `--no-verify-jwt`)
 5. ใน Stripe Dashboard สร้าง webhook ชี้ไปที่ `https://<project>.supabase.co/functions/v1/stripe-webhook` รับเหตุการณ์
    `checkout.session.completed` และ `checkout.session.async_payment_succeeded`
