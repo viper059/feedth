@@ -7,7 +7,7 @@ import { InstallGuide, StoryReader } from "./Guide.jsx";
 import { shareCard } from "./ShareCard.js";
 import TripsView from "./Trips.jsx";
 import { BuyCredits, AdminPanel, FeedbackStrip, feedbackApi } from "./Shop.jsx";
-import { locateAt, LEVELS, REGION_TH, CONTINENT_TH, COUNTRY_TH } from "./geo.js";
+import { locateAt, LEVELS, REGION_TH, CONTINENT_TH, COUNTRY_TH, RANKS } from "./geo.js";
 import {
   Heart, MessageCircle, Zap, Wallet, Send, X, Sparkles,
   Share2, Download, Trash2, Flag, Bell, ImagePlus, UserPlus, UserCheck, Crown, Trophy, Loader2, LogOut, MapPin, ArrowLeft, Home, User, Medal, Compass, Shield, Eye, EyeOff,
@@ -485,14 +485,25 @@ function PlaceDetail({ salesOn, placeId, rest, posts, userId, wallet, onBoosted,
 }
 
 function RankTab({ rest, userId, onProfile, showToast }) {
-  const [sort, setSort] = useState("checkins");
+  const [sort, setSort] = useState("score");
+  const [period, setPeriod] = useState("all");
   const [rows, setRows] = useState(null);
+  const [legacy, setLegacy] = useState(false); // ฐานข้อมูลยังไม่มี leaderboard_v2 -> ใช้อันดับแบบเดิม
   useEffect(() => {
+    let live = true;
     setRows(null);
-    rest("/rest/v1/rpc/leaderboard", { method: "POST", body: { p_sort: sort } }).then(setRows).catch(e => { showToast("โหลดอันดับไม่สำเร็จ: " + e.message); setRows([]); });
-  }, [sort]);
-  const sorts = [["checkins", "เช็คอิน", "ครั้ง"], ["rating_sum", "คะแนนรีวิว", "คะแนน"], ["likes_received", "ยอดไลค์", "ไลค์"]];
-  const unit = sorts.find(x => x[0] === sort)[2];
+    const old = (srt) => rest("/rest/v1/rpc/leaderboard", { method: "POST", body: { p_sort: srt } });
+    const load = legacy ? old(sort === "score" ? "checkins" : sort) : rest("/rest/v1/rpc/leaderboard_v2", { method: "POST", body: { p_sort: sort, p_period: period } });
+    load.then(r => { if (live) setRows(r); })
+      .catch(e => {
+        if (!legacy && /leaderboard_v2|PGRST202|404/.test(String(e.message))) { setLegacy(true); setSort(x => (x === "score" ? "checkins" : x)); return; }
+        showToast("โหลดอันดับไม่สำเร็จ: " + e.message); if (live) setRows([]);
+      });
+    return () => { live = false; };
+  }, [sort, period, legacy]);
+  const sorts = (legacy ? [] : [["score", "คะแนน", "คะแนน"]]).concat([["checkins", "เช็คอิน", "ครั้ง"], ["rating_sum", "คะแนนรีวิว", "คะแนน"], ["likes_received", "ยอดไลค์", "ไลค์"]]);
+  const unit = (sorts.find(x => x[0] === sort) || sorts[0])[2];
+  const rankOf = (sc) => { let n = RANKS[0][1]; for (const [min, name] of RANKS) if (sc >= min) n = name; return n; };
   return (
     <div style={{ fontFamily: "'IBM Plex Sans Thai', sans-serif" }} className="min-h-screen bg-[#F3F5FA] text-[#1A1D29] pb-20">
       <style>{FONT_IMPORT}</style>
@@ -500,16 +511,21 @@ function RankTab({ rest, userId, onProfile, showToast }) {
         <div className="max-w-xl mx-auto px-4 py-3"><h1 style={{ fontFamily: "'Kanit', sans-serif" }} className="text-xl font-semibold text-[#6C5CE7]">อันดับนักเดินทาง</h1></div>
       </header>
       <main className="max-w-xl mx-auto px-4 pt-3 space-y-2">
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           {sorts.map(([k, l]) => <button key={k} onClick={() => setSort(k)} className={`text-xs px-3 py-1.5 rounded-full ${sort === k ? "bg-[#6C5CE7] text-white" : "bg-white border border-black/10"}`}>{l}</button>)}
         </div>
+        {sort === "score" && !legacy && (
+          <div className="flex gap-2">
+            {[["all", "ตลอดกาล"], ["week", "สัปดาห์นี้"]].map(([k, l]) => <button key={k} onClick={() => setPeriod(k)} className={`text-[11px] px-2.5 py-1 rounded-full ${period === k ? "bg-[#1A1D29] text-white" : "bg-white border border-black/10 text-[#6B7280]"}`}>{l}</button>)}
+          </div>
+        )}
         {rows === null && <p className="text-center text-xs text-[#9199A8] py-6">กำลังโหลด...</p>}
-        {rows && rows.length === 0 && <p className="text-center text-xs text-[#9199A8] py-6">ยังไม่มีใครเช็คอิน</p>}
+        {rows && rows.length === 0 && <p className="text-center text-xs text-[#9199A8] py-6">{period === "week" && sort === "score" ? "สัปดาห์นี้ยังไม่มีใครทำคะแนน" : "ยังไม่มีใครเช็คอิน"}</p>}
         {rows && rows.map((r, i) => (
           <button key={r.user_id} onClick={() => onProfile(r.user_id)} className={`w-full bg-white rounded-2xl p-3 shadow-sm flex items-center gap-3 text-left ${r.user_id === userId ? "ring-1 ring-[#FFB020]" : ""}`}>
             <span className="w-6 text-center font-semibold" style={{ color: i < 3 ? "#B77600" : "#9199A8" }}>{i < 3 ? <Medal size={18} className="mx-auto" /> : i + 1}</span>
-            <span className="flex-1 min-w-0"><span className="block text-sm font-medium truncate">{r.username}{r.user_id === userId ? " (คุณ)" : ""}</span><span className="block text-xs text-[#9199A8]">{r.checkins} เช็คอิน</span></span>
-            <span className="text-sm font-semibold text-[#6C5CE7]">{r[sort]} {unit}</span>
+            <span className="flex-1 min-w-0"><span className="block text-sm font-medium truncate">{r.username}{r.user_id === userId ? " (คุณ)" : ""}</span><span className="block text-xs text-[#9199A8]">{r.total_score != null ? `${rankOf(Number(r.total_score))} · ` : ""}{r.checkins} เช็คอิน</span></span>
+            <span className="text-sm font-semibold text-[#6C5CE7]">{Number(r[sort] ?? 0).toLocaleString()} {unit}</span>
           </button>
         ))}
       </main>

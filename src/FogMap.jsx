@@ -90,6 +90,17 @@ function FogCanvas({ unlocked, onInfo, rest }) {
     rest("/rest/v1/rpc/my_place_pins", { method: "POST", body: {} }).then(r => { if (live && Array.isArray(r)) setMyPins(r); }).catch(() => {});
     return () => { live = false; };
   }, [rest, unlocked]);
+  // พิกัดจริงของหมุดตำบล/อำเภอ = สถานที่แรกที่เช็คอินในพื้นที่นั้น (ถ้ายังไม่มีฟังก์ชันในฐานข้อมูล ใช้จุดกลางพื้นที่แทน)
+  const [areaPins, setAreaPins] = useState({});
+  useEffect(() => {
+    if (!rest) return;
+    let live = true;
+    rest("/rest/v1/rpc/my_area_pins", { method: "POST", body: {} }).then(r => {
+      if (!live || !Array.isArray(r)) return;
+      const mp = {}; r.forEach(x => { mp[x.level + ":" + x.code] = { lng: x.lng, lat: x.lat, place: x.place_name }; }); setAreaPins(mp);
+    }).catch(() => {});
+    return () => { live = false; };
+  }, [rest, unlocked]);
   useEffect(() => { setVils(myPins.filter(r => String(r.province) === String(subProv))); }, [myPins, subProv]);
 
   // สร้าง svg + zoom ครั้งเดียว
@@ -172,7 +183,9 @@ function FogCanvas({ unlocked, onInfo, rest }) {
         .attr("stroke-opacity", 0.7).attr("stroke-width", 1.1).attr("vector-effect", "non-scaling-stroke").attr("pointer-events", "none");
     }
     const lit = data.filter(on).map(f => {
-      const [cx, cy] = o.path.centroid(f); const a = o.path.area(f); const name = nameOf(k, f);
+      let [cx, cy] = o.path.centroid(f); const a = o.path.area(f); const name = nameOf(k, f);
+      const ap = (k === "sub" || k === "dis") ? areaPins[k + ":" + idOf(k, f)] : null;
+      if (ap) { const xy = o.proj([ap.lng, ap.lat]); if (xy && isFinite(xy[0])) { cx = xy[0]; cy = xy[1]; } }
       return { f, cx, cy, a, name };
     }).filter(d => isFinite(d.cx) && isFinite(d.cy)).sort((x, y) => y.a - x.a);
     o.pins.selectAll("circle").data(lit).join("circle").attr("cx", d => d.cx).attr("cy", d => d.cy)
@@ -183,7 +196,7 @@ function FogCanvas({ unlocked, onInfo, rest }) {
       .style("font-size", 11 / o.K + "px").style("stroke-width", 3 / o.K + "px");
     o.lab = lit.map((d, i) => ({ el: tx.nodes()[i], cx: d.cx, cy: d.cy - 0, w: Math.max(24, d.name.length * 6.8) }));
     declutter(o);
-  }, [ready, sizeTick, base, dis, sub, vils, active, unlocked, subProv, feats]);
+  }, [ready, sizeTick, base, dis, sub, vils, active, unlocked, subProv, feats, areaPins]);
 
   // เลื่อน/ซูมไปยังพื้นที่ที่เกี่ยวข้อง
   const fitTo = useCallback((list, pad) => {
