@@ -22,7 +22,7 @@ const NATURE = {
   island: { t: "นักเดินเกาะ", d: "เกาะต่างๆ", icon: "🏝️" },
 };
 
-export default function ConquestTab({ rest, onCheckin, onMap, showToast }) {
+export default function ConquestTab({ rest, onCheckin, onMap, onShops, showToast }) {
   const [data, setData] = useState(null);
   const [me, setMe] = useState(null);
   const [sheet, setSheet] = useState(false);
@@ -103,7 +103,11 @@ export default function ConquestTab({ rest, onCheckin, onMap, showToast }) {
             </div>
           </section>
         )}
-        <button onClick={() => setFamily(true)} className="mt-4 w-full rounded-2xl p-4 flex items-center gap-3 text-left" style={{ background: "#151C33" }}>
+        {onShops && <button onClick={onShops} data-testid="conquest-shops" className="mt-4 w-full rounded-2xl p-4 flex items-center gap-3 text-left" style={{ background: "#151C33" }}>
+          <span className="w-10 h-10 rounded-full flex items-center justify-center text-xl" style={{ background: "#1D2744" }}>🏪</span>
+          <span className="flex-1"><span className="block font-semibold text-[15px]">แกลเลอรีร้านค้า</span><span className="block text-xs" style={{ color: "#A3ABC4" }}>ร้านใกล้คุณ รูปและรีวิว · ปักหมุดร้าน · ยื่นยืนยันเจ้าของ</span></span>
+        </button>}
+        <button onClick={() => setFamily(true)} className="mt-3 w-full rounded-2xl p-4 flex items-center gap-3 text-left" style={{ background: "#151C33" }}>
           <span className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "#1D2744" }}><Users size={20} color={G} /></span>
           <span className="flex-1"><span className="block font-semibold text-[15px]">ครอบครัว</span><span className="block text-xs" style={{ color: "#A3ABC4" }}>พ่อ แม่ ลูก ปักหมุดและทำเควสร่วมกัน</span></span>
         </button>

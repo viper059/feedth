@@ -65,6 +65,9 @@ declare
   r jsonb; v_place places%rowtype; v_vil villages%rowtype; v_n int; v_id bigint;
   v_nat nature_places%rowtype; v_cnt int; v_thr int[]; v_pt int[]; v_gain int; v_tier int; v_i int;
 begin
+  if exists (select 1 from shop_profiles where place_id = p_place_id and owner_id = auth.uid()) then
+    raise exception 'owner cannot check in own shop';
+  end if;
   perform set_config('app.repeat_checkin', '0', true);
   r := public.check_in_v3(p_place_id, p_lat, p_lng, p_rating, p_caption, p_cty, p_pro, p_dis, p_sub);
   if current_setting('app.repeat_checkin', true) = '1' then

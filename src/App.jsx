@@ -7,6 +7,7 @@ import { InstallGuide, StoryReader } from "./Guide.jsx";
 import { shareCard } from "./ShareCard.js";
 import TripsView from "./Trips.jsx";
 import { BuyCredits, AdminPanel, FeedbackStrip, feedbackApi } from "./Shop.jsx";
+import ShopsView from "./Shops.jsx";
 import { locateAt, LEVELS, REGION_TH, CONTINENT_TH, COUNTRY_TH, RANKS } from "./geo.js";
 import {
   Heart, MessageCircle, Zap, Wallet, Send, X, Sparkles,
@@ -991,6 +992,7 @@ export default function FeedApp() {
   const [people, setPeople] = useState(null); // { userId, tab }
   const [notif, setNotif] = useState(false);
   const [shop, setShop] = useState(null); // "buy" | "admin"
+  const [shopsView, setShopsView] = useState(false); // แกลเลอรีร้านค้า
   const [payCfg, setPayCfg] = useState({ mode: "off", packages: [], is_admin: false });
   const salesOn = payCfg.mode === "manual" || payCfg.is_admin; // ปิดการขาย = ซ่อนเครดิต/บูสต์ทั้งหมดจากผู้ใช้ทั่วไป
   const [unread, setUnread] = useState(0);
@@ -1693,10 +1695,17 @@ export default function FeedApp() {
       {toast && <div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-[#1A1D29] text-white text-sm px-4 py-2 rounded-full shadow-lg z-40 max-w-[90%] text-center">{toast}</div>}
     </>
   );
+  if (shopsView && !placeView) return (
+    <>
+      <ShopsView rest={rest} onBack={() => setShopsView(false)} onOpenPlace={(id) => setPlaceView(id)} showToast={showToast} />
+      <TabBar tab={tab} setTab={(t) => { setShopsView(false); goTab(t); }} badge={pending} />
+      {toast && <div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-[#1A1D29] text-white text-sm px-4 py-2 rounded-full shadow-lg z-40 max-w-[90%] text-center">{toast}</div>}
+    </>
+  );
   if (placeView) return (
     <>
       <PlaceDetail salesOn={salesOn} placeId={placeView} rest={rest} posts={[...posts, ...placePosts.filter(x => !posts.some(y => y.id === x.id))]} userId={session.user_id} wallet={wallet} onBoosted={loadFeed} onLike={toggleLike} onBack={() => setPlaceView(null)}
-        onProfile={(id) => { setPlaceView(null); setProfileId(id); setTab("profile"); }} onCheckin={() => { setPlaceView(null); setTab("checkin"); }} showToast={showToast} />
+        onProfile={(id) => { setPlaceView(null); setShopsView(false); setProfileId(id); setTab("profile"); }} onCheckin={() => { setPlaceView(null); setShopsView(false); setTab("checkin"); }} showToast={showToast} />
       <TabBar tab={tab} setTab={goTab} />
       {toast && <div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-[#1A1D29] text-white text-sm px-4 py-2 rounded-full shadow-lg z-40 max-w-[90%] text-center">{toast}</div>}
     </>
@@ -1706,7 +1715,7 @@ export default function FeedApp() {
       {tab === "checkin"
         ? <CheckinTab rest={rest} getToken={getToken} userId={session.user_id} onBack={() => setTab("feed")} showToast={showToast} onOpenPlace={openPlace} onOpenMap={() => { setExploreProv(null); setTab("explore"); }} />
         : tab === "conquest"
-        ? <ConquestTab rest={rest} onCheckin={() => setTab("checkin")} onMap={() => { setExploreProv(null); setTab("explore"); }} showToast={showToast} />
+        ? <ConquestTab rest={rest} onShops={() => setShopsView(true)} onCheckin={() => setTab("checkin")} onMap={() => { setExploreProv(null); setTab("explore"); }} showToast={showToast} />
         : tab === "explore"
         ? <ExploreTab rest={rest} prov={exploreProv} setProv={setExploreProv} onOpenPlace={openPlace} showToast={showToast} />
         : tab === "rank"

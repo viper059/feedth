@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { ArrowLeft, Loader2, Copy, MessageSquareWarning } from "lucide-react";
 import { promptPayPayload, qrDataUrl } from "./promptpay.js";
+import { AdminShopClaims } from "./Shops.jsx";
 
 const ST = { pending: ["รอตรวจสอบ", "bg-[#FFF4D6] text-[#B77600]"], paid: ["ชำระแล้ว", "bg-[#DDF6EA] text-[#0E8F5A]"], failed: ["ปฏิเสธ", "bg-[#FDE3E8] text-[#C0243F]"], refunded: ["คืนเงินแล้ว", "bg-[#E8EAF0] text-[#6B7280]"] };
 const Badge = ({ s }) => { const [l, c] = ST[s] || [s, "bg-[#E8EAF0]"]; return <span className={`text-[10px] px-2 py-0.5 rounded-full shrink-0 ${c}`}>{l}</span>; };
@@ -100,7 +101,7 @@ export function AdminPanel({ rest, onBack, showToast, onChanged }) {
     <Shell title="จัดการร้าน" onBack={onBack}>
       {stats && <div className="grid grid-cols-3 gap-2 mb-3 text-center">
         {[["รอตรวจสอบ", stats.pending], ["ยอด 30 วัน", baht(stats.revenue_30d)], ["ยอดรวม", baht(stats.revenue)]].map(([l, v]) => <div key={l} className="bg-white border border-[#E8EAF0] rounded-xl py-2"><p className="text-[10px] text-[#9199A8]">{l}</p><p className="text-sm font-semibold text-[#1A1D29]">{v}</p></div>)}</div>}
-      <div className="flex gap-1 mb-3 text-xs">{[["orders", "ออเดอร์"], ["packages", "แพ็กเกจ"], ["settings", "ตั้งค่า"], ["feedback", "ฟีดแบ็ก"]].map(([k, l]) => <button key={k} onClick={() => setTab(k)} className={`px-3 py-1.5 rounded-full ${tab === k ? "bg-[#6C5CE7] text-white" : "bg-white text-[#6B7280] border border-[#E8EAF0]"}`}>{l}</button>)}</div>
+      <div className="flex gap-1 mb-3 text-xs">{[["orders", "ออเดอร์"], ["packages", "แพ็กเกจ"], ["shops", "ร้านค้า"], ["settings", "ตั้งค่า"], ["feedback", "ฟีดแบ็ก"]].map(([k, l]) => <button key={k} onClick={() => setTab(k)} className={`px-3 py-1.5 rounded-full ${tab === k ? "bg-[#6C5CE7] text-white" : "bg-white text-[#6B7280] border border-[#E8EAF0]"}`}>{l}</button>)}</div>
 
       {tab === "orders" && <>
         <div className="flex gap-1 mb-2 overflow-x-auto text-[11px]">{[["pending", "รอตรวจสอบ"], ["paid", "ชำระแล้ว"], ["failed", "ปฏิเสธ"], ["refunded", "คืนเงิน"], ["all", "ทั้งหมด"]].map(([k, l]) => <button key={k} onClick={() => { setOrders(null); setFilter(k); }} className={`px-2.5 py-1 rounded-full shrink-0 ${filter === k ? "bg-[#1A1D29] text-white" : "bg-white text-[#6B7280] border border-[#E8EAF0]"}`}>{l}</button>)}</div>
@@ -118,6 +119,8 @@ export function AdminPanel({ rest, onBack, showToast, onChanged }) {
       </>}
 
       {tab === "packages" && (pk === null ? <p className="text-xs text-[#9199A8]">กำลังโหลด...</p> : <PackageEditor pk={pk} onSave={savePk} />)}
+
+      {tab === "shops" && <AdminShopClaims call={call} showToast={showToast} />}
 
       {tab === "feedback" && <FeedbackList call={call} showToast={showToast} />}
 
