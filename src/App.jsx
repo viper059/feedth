@@ -1850,7 +1850,7 @@ export default function FeedApp() {
               <PostImages urls={post.media_urls} cls="mb-2" />
 
               {post.place && (
-                <button onClick={() => openPlace(post.place.id)} className="flex items-center gap-1.5 mb-2 text-xs px-2.5 py-1 rounded-full w-fit" style={{ background: CAT_COLOR[post.place.category] + "1A", color: "#1A1D29" }}>
+                <button onClick={() => ["restaurant", "cafe", "hotel", "other"].includes(post.place.category) ? setShopsView(post.place.id) : openPlace(post.place.id)} className="flex items-center gap-1.5 mb-2 text-xs px-2.5 py-1 rounded-full w-fit" style={{ background: CAT_COLOR[post.place.category] + "1A", color: "#1A1D29" }}>
                   <MapPin size={12} style={{ color: CAT_COLOR[post.place.category] }} /> {post.place.name}
                   {post.rating && <Stars n={post.rating} size={11} />}
                 </button>
