@@ -271,7 +271,7 @@ function CheckinTab({ rest, getToken, userId, onBack, showToast, onOpenPlace, on
       else if (r.nature) showToast(natureMsg(r.nature));
       setResult({ place: target.name, points: r.points, unlocks: r.unlocks || [], repeat: !!r.repeat });
       rest("/rest/v1/rpc/record_interest", { method: "POST", body: { p_topic: target.category, p_weight: 3 } }).catch(() => {});
-      if (photo) await attachPhoto(r.checkin_id);
+      if (photo) { await attachPhoto(r.checkin_id); if (r.nature?.new) rest("/rest/v1/rpc/nature_settle", { method: "POST", body: {} }).then(x => { if (x?.pts > 0) showToast(`ได้โบนัสขั้นสูงจากรูปถ่าย +${x.pts}`); }).catch(() => {}); }
       setTarget(null); setCaption(""); clearPhoto(); load(pos);
     } catch (e) {
       const m = e.message;
@@ -490,7 +490,7 @@ const NATURE_TH = { park: "อุทยาน/เขตรักษาพัน�
 // ข้อความความท้าทายธรรมชาติหลังเช็คอิน (ต้องอยู่ห่างจุดไม่เกิน 100 ม.)
 const natureMsg = (n) => !n ? null
   : n.far ? `${n.name}: อยู่ไกลเกิน 100 ม. ไม่นับความท้าทาย`
-  : n.new ? `ความท้าทาย${NATURE_TH[n.kind] || ""}: ได้จุดใหม่ ${n.name} +${n.points}${n.tier ? ` · ถึงขั้นที่ ${n.tier}!` : ""} (รวม ${n.count} แห่ง)`
+  : n.new ? `ความท้าทาย${NATURE_TH[n.kind] || ""}: ได้จุดใหม่ ${n.name} +${n.points}${n.tier > 0 ? " · ปลดล็อกขั้นใหม่!" : ""} (รวม ${n.count} แห่ง)${n.pending_photo > 0 ? " · แนบรูปถ่ายที่จุดนี้เพื่อรับโบนัสขั้นสูง" : ""}`
   : `${n.name}: เคยนับในความท้าทายแล้ว`;
 
 function RankTab({ rest, userId, onProfile, showToast }) {
@@ -1346,6 +1346,7 @@ export default function FeedApp() {
           up = await uploadImgs(imgs);
           const ok = await rest("/rest/v1/rpc/attach_checkin_photos", { method: "POST", body: { p_checkin_id: r.checkin_id, p_urls: up.urls } });
           if (!ok) throw new Error("ไม่พบโพสต์เช็คอินให้แนบรูป");
+          if (r.nature?.new) rest("/rest/v1/rpc/nature_settle", { method: "POST", body: {} }).then(x => { if (x?.pts > 0) showToast(`ได้โบนัสขั้นสูงจากรูปถ่าย +${x.pts}`); }).catch(() => {});
         } catch (e) { photoErr = e.message; if (up) await deletePaths(up.paths); }
       }
       showToast(photoErr ? `เช็คอินแล้ว แต่แนบรูปไม่สำเร็จ: ${photoErr}` : r.repeat ? "เช็คอินซ้ำสำเร็จ (ไม่ได้แต้มเพิ่ม)" : `เช็คอินที่ ${ciPlace.name} สำเร็จ +${r.points}${r.nature ? " · " + natureMsg(r.nature) : ""}`);
@@ -1662,6 +1663,14 @@ export default function FeedApp() {
   }
 
   const openPlace = (id) => setPlaceView(id);
+  // อัปโหลดรูปปกร้าน (บีบอัดแล้วขึ้น storage โฟลเดอร์ของผู้ใช้) คืน URL สาธารณะ
+  const uploadCover = async (file) => {
+    const blob = await compressImage(file);
+    const path = `${session.user_id}/shop-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+    const up = await fetch(`${SUPABASE_URL}/storage/v1/object/post-images/${path}`, { method: "POST", headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${await getToken()}`, "Content-Type": "image/jpeg", "x-upsert": "false" }, body: blob });
+    if (!up.ok) throw new Error(`อัปโหลดรูปไม่สำเร็จ (${up.status})`);
+    return IMG_PUBLIC(path);
+  };
   const goTab = (t) => {
     const onPlainFeed = t === "feed" && tab === "feed" && !placeView && !people && !notif && !shop;
     if (t === "profile") setProfileId(null); setPlaceView(null); setPeople(null); setNotif(false); setTab(t);
@@ -1697,7 +1706,7 @@ export default function FeedApp() {
   );
   if (shopsView && !placeView) return (
     <>
-      <ShopsView rest={rest} onBack={() => setShopsView(false)} onOpenPlace={(id) => setPlaceView(id)} showToast={showToast} />
+      <ShopsView rest={rest} uploadCover={uploadCover} onBack={() => setShopsView(false)} onOpenPlace={(id) => setPlaceView(id)} showToast={showToast} />
       <TabBar tab={tab} setTab={(t) => { setShopsView(false); goTab(t); }} badge={pending} />
       {toast && <div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-[#1A1D29] text-white text-sm px-4 py-2 rounded-full shadow-lg z-40 max-w-[90%] text-center">{toast}</div>}
     </>

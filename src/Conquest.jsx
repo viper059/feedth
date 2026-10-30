@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { MapPin, Flame, Zap, Lock, Check, Compass, Users, X, BookOpen } from "lucide-react";
 import { StoryReader } from "./Guide.jsx";
 import FamilyView from "./Family.jsx";
+import { REGION_TH } from "./geo.js";
 
 const CHAPTERS = [
   { t: "หมุดแรก", d: "ปักหมุดแรกของคุณลงบนโลก", unit: "หมุด" },
@@ -20,6 +21,7 @@ const NATURE = {
   peak: { t: "ผู้พิชิตยอดเขา", d: "ภู ดอย เขา", icon: "⛰️" },
   falls: { t: "นักล่าน้ำตก", d: "น้ำตกทั่วไทย", icon: "💧" },
   island: { t: "นักเดินเกาะ", d: "เกาะต่างๆ", icon: "🏝️" },
+  region: { t: "อุทยานครบทุกภาค", d: "ไปอุทยานให้ครบ 6 ภาค (ภาคละ 1 แห่งขึ้นไป)", icon: "🧭" },
 };
 
 export default function ConquestTab({ rest, onCheckin, onMap, onShops, showToast }) {
@@ -82,21 +84,40 @@ export default function ConquestTab({ rest, onCheckin, onMap, onShops, showToast
             <div className="mt-3 space-y-3.5">
               {nat.map(n => {
                 const m = NATURE[n.kind] || { t: n.kind, d: "", icon: "📍" };
-                const next = n.thr.find(x => n.count < x);
-                const prev = [...n.thr].reverse().find(x => n.count >= x) || 0;
-                const pct = next ? Math.round(((n.count - prev) / (next - prev)) * 100) : 100;
+                const pf = n.photo_from || 99;
+                // ขั้นถัดไป: ขั้นต่ำสุดที่ยังไม่ถึง (ขั้นสูงนับเฉพาะจุดที่มีรูปถ่าย)
+                let next = null, cur = n.count, needPhoto = false;
+                for (let i = 0; i < n.thr.length; i++) {
+                  const c = i + 1 >= pf ? (n.verified ?? 0) : n.count;
+                  if (c < n.thr[i]) { next = n.thr[i]; cur = c; needPhoto = i + 1 >= pf; break; }
+                }
+                const waiting = needPhoto && next != null && n.count >= next;
+                const pct = next ? Math.min(100, Math.round((cur / next) * 100)) : 100;
+                const nextPts = next ? n.pts[n.thr.indexOf(next)] : 0;
                 return (
                   <div key={n.kind}>
                     <div className="flex items-center gap-2">
                       <span className="text-xl">{m.icon}</span>
                       <div className="flex-1 min-w-0">
                         <p className="text-[14px] font-semibold">{m.t} <span className="text-[11px] font-normal" style={{ color: "#A3ABC4" }}>ขั้น {n.tier}/{n.thr.length}</span></p>
-                        <p className="text-[11px] truncate" style={{ color: "#A3ABC4" }}>{m.d} · มีให้ปักทั้งหมด {n.total} แห่ง</p>
+                        <p className="text-[11px] truncate" style={{ color: "#A3ABC4" }}>{m.d}{n.kind !== "region" ? ` · มีให้ปักทั้งหมด ${n.total} แห่ง` : ""}</p>
                       </div>
-                      <span className="text-[13px] font-semibold">{n.count}{next ? ` / ${next}` : ""}</span>
+                      <span className="text-[13px] font-semibold">{cur}{next ? ` / ${next}` : ""}</span>
                     </div>
                     <div className="mt-1.5 h-1.5 rounded-full overflow-hidden" style={{ background: "#0B1020" }}><div className="h-full rounded-full" style={{ width: `${pct}%`, background: G }} /></div>
-                    <p className="text-[11px] mt-1" style={{ color: "#A3ABC4" }}>{next ? `ขั้นต่อไป ${next} แห่ง ได้ +${n.pts[n.tier]} คะแนน` : "ครบทุกขั้นแล้ว!"}</p>
+                    {n.kind === "region" && (
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {Object.keys(REGION_TH).map(rg => {
+                          const on = (n.regions || []).includes(rg), ver = (n.regions_verified || []).includes(rg);
+                          return <span key={rg} className="text-[11px] px-2 py-0.5 rounded-full" style={on ? { background: "#2A3358", color: G } : { background: "#0B1020", color: "#6F7898", border: "1px dashed #3A4772" }}>{on ? (ver ? "✓📷 " : "✓ ") : ""}{REGION_TH[rg]}</span>;
+                        })}
+                      </div>
+                    )}
+                    <p className="text-[11px] mt-1" style={{ color: waiting ? G : "#A3ABC4" }}>
+                      {!next ? "ครบทุกขั้นแล้ว!"
+                        : waiting ? `ครบจำนวนแล้ว แนบรูปถ่ายที่จุดตอนเช็คอินเพื่อรับ +${nextPts} คะแนน`
+                        : `ขั้นต่อไป ${next} ${n.kind === "region" ? "ภาค" : "แห่ง"} ได้ +${nextPts} คะแนน${needPhoto ? " · ต้องมีรูปถ่ายที่จุด" : ""}`}
+                    </p>
                   </div>
                 );
               })}

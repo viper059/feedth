@@ -19,7 +19,7 @@ function Stars({ v }) {
   return <span className="inline-flex items-center gap-0.5 text-[12px] font-medium text-[#B77600]"><Star size={12} fill="#FFB020" color="#FFB020" />{Number(v).toFixed(1)}</span>;
 }
 
-export default function ShopsView({ rest, onBack, onOpenPlace, showToast }) {
+export default function ShopsView({ rest, uploadCover, onBack, onOpenPlace, showToast }) {
   const [pos, setPos] = useState(null);
   const [cat, setCat] = useState(null);
   const [rows, setRows] = useState(null);
@@ -43,7 +43,7 @@ export default function ShopsView({ rest, onBack, onOpenPlace, showToast }) {
   }, [pos, cat]); // eslint-disable-line
   useEffect(() => { load(); }, [load]);
 
-  if (sel) return <ShopDetail id={sel} call={call} onBack={() => { setSel(null); load(); }} onOpenPlace={onOpenPlace} showToast={showToast} />;
+  if (sel) return <ShopDetail id={sel} call={call} uploadCover={uploadCover} onBack={() => { setSel(null); load(); }} onOpenPlace={onOpenPlace} showToast={showToast} />;
   if (creating) return <CreateShop pos={pos} call={call} onBack={() => setCreating(false)} onDone={(id) => { setCreating(false); setSel(id); }} showToast={showToast} />;
 
   return (
@@ -112,10 +112,11 @@ function CreateShop({ pos, call, onBack, onDone, showToast }) {
   );
 }
 
-function ShopDetail({ id, call, onBack, onOpenPlace, showToast }) {
+function ShopDetail({ id, call, uploadCover, onBack, onOpenPlace, showToast }) {
   const [d, setD] = useState(null);
   const [mode, setMode] = useState(null); // "claim" | "edit"
   const [busy, setBusy] = useState(false);
+  const [upl, setUpl] = useState(false);
   const [claim, setClaim] = useState({ contact: "", note: "" });
   const [edit, setEdit] = useState({ about: "", phone: "", hours: "", cover_url: "" });
   const load = useCallback(() => call("shop_detail", { p_place_id: id }).then(r => { setD(r); setEdit({ about: r?.about || "", phone: r?.phone || "", hours: r?.hours || "", cover_url: r?.cover_url || "" }); }).catch(e => showToast("โหลดร้านไม่สำเร็จ: " + e.message)), [id]); // eslint-disable-line
@@ -133,6 +134,14 @@ function ShopDetail({ id, call, onBack, onOpenPlace, showToast }) {
     try { await call("update_my_shop", { p_place_id: id, p_about: edit.about, p_phone: edit.phone, p_hours: edit.hours, p_cover_url: edit.cover_url || null }); showToast("บันทึกข้อมูลร้านแล้ว"); setMode(null); load(); }
     catch (e) { showToast("บันทึกไม่สำเร็จ: " + e.message); }
     setBusy(false);
+  };
+  const pickCover = async (e) => {
+    const f = e.target.files?.[0]; e.target.value = "";
+    if (!f || !uploadCover) return;
+    setUpl(true);
+    try { const url = await uploadCover(f); setEdit(x => ({ ...x, cover_url: url })); showToast("อัปโหลดรูปปกแล้ว กด บันทึก เพื่อใช้งาน"); }
+    catch (err) { showToast(err.message || "อัปโหลดรูปไม่สำเร็จ"); }
+    setUpl(false);
   };
   const photos = d.photos || [];
   return (
@@ -171,9 +180,13 @@ function ShopDetail({ id, call, onBack, onOpenPlace, showToast }) {
             <textarea aria-label="แนะนำร้าน" value={edit.about} onChange={e => setEdit(x => ({ ...x, about: e.target.value }))} className={inp} rows={3} maxLength={500} placeholder="แนะนำร้าน" />
             <input aria-label="เบอร์โทร" value={edit.phone} onChange={e => setEdit(x => ({ ...x, phone: e.target.value }))} className={inp} maxLength={30} placeholder="เบอร์โทร" />
             <input aria-label="เวลาเปิด-ปิด" value={edit.hours} onChange={e => setEdit(x => ({ ...x, hours: e.target.value }))} className={inp} maxLength={120} placeholder="เวลาเปิด-ปิด" />
-            <input aria-label="ลิงก์รูปปก" value={edit.cover_url} onChange={e => setEdit(x => ({ ...x, cover_url: e.target.value }))} className={inp} maxLength={500} placeholder="ลิงก์รูปปก https://..." />
+            <div className="flex items-center gap-3">
+              {edit.cover_url ? <img src={edit.cover_url} alt="รูปปก" className="h-16 w-24 object-cover rounded-xl" /> : <div className="h-16 w-24 rounded-xl bg-[#E8EAF0] flex items-center justify-center text-2xl">🏪</div>}
+              <label className="text-xs border border-[#6C5CE7] text-[#6C5CE7] rounded-full px-3 py-1.5 cursor-pointer">{upl ? "กำลังอัปโหลด..." : edit.cover_url ? "เปลี่ยนรูปปก" : "เลือกรูปปก"}
+                <input aria-label="เลือกรูปปก" type="file" accept="image/*" onChange={pickCover} disabled={upl} className="hidden" /></label>
+            </div>
             <div className="flex gap-2"><button onClick={() => setMode(null)} className="flex-1 border border-black/15 rounded-full py-2 text-sm">ยกเลิก</button>
-              <button onClick={save} disabled={busy} className="flex-1 bg-[#6C5CE7] text-white rounded-full py-2 text-sm">บันทึก</button></div>
+              <button onClick={save} disabled={busy || upl} className="flex-1 bg-[#6C5CE7] text-white rounded-full py-2 text-sm">บันทึก</button></div>
           </div>
         )}
       </div>
