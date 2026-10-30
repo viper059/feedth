@@ -1409,7 +1409,7 @@ export default function FeedApp() {
   useEffect(() => {
     if (!configured) return;
     fetch(`${SUPABASE_URL}/auth/v1/settings`, { headers: { apikey: SUPABASE_ANON_KEY } })
-      .then(r => r.json()).then(d => setOauthOn({ google: !!d?.external?.google, facebook: !!d?.external?.facebook })).catch(() => {});
+      .then(r => r.json()).then(d => setOauthOn({ google: !!d?.external?.google })).catch(() => {});
   }, []);
   const appUrl = window.location.origin + window.location.pathname;
   // ถ้าตั้ง VITE_SHARE_BASE (URL ของ Cloudflare Worker) ลิงก์แชร์จะเป็นรายโพสต์ เพื่อให้การ์ดพรีวิวขึ้นรูปของโพสต์นั้น
@@ -1639,12 +1639,11 @@ export default function FeedApp() {
               {authBusy ? "กำลังทำรายการ..." : authMode === "signup" ? "สมัครสมาชิก" : authMode === "forgot" ? "ส่งลิงก์ตั้งรหัสผ่านใหม่" : authMode === "reset" ? "บันทึกรหัสผ่านใหม่" : "เข้าสู่ระบบ"}
             </button>
           </form>
-          {(authMode === "login" || authMode === "signup") && (oauthOn.google || oauthOn.facebook) && (
+          {(authMode === "login" || authMode === "signup") && oauthOn.google && (
             <div className="mb-3">
               <div className="flex items-center gap-2 text-[11px] text-[#9199A8] mb-2"><span className="flex-1 h-px bg-black/10" />หรือ<span className="flex-1 h-px bg-black/10" /></div>
               <div className="flex gap-2">
                 {oauthOn.google && <button type="button" onClick={() => oauthLogin("google")} className="flex-1 border border-black/10 rounded-lg py-2 text-sm font-medium text-[#1A1D29]">Google</button>}
-                {oauthOn.facebook && <button type="button" onClick={() => oauthLogin("facebook")} className="flex-1 bg-[#1877F2] text-white rounded-lg py-2 text-sm font-medium">Facebook</button>}
               </div>
               <p className="text-[10px] text-[#9199A8] mt-2 text-center">การดำเนินการต่อถือว่าคุณยอมรับ<button type="button" onClick={() => setLegal("terms")} className="underline">ข้อกำหนดการใช้งาน</button>และ<button type="button" onClick={() => setLegal("privacy")} className="underline">นโยบายความเป็นส่วนตัว</button></p>
             </div>
