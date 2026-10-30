@@ -1,16 +1,16 @@
 -- ความท้าทายธรรมชาติ v2 (migration nature_v2): อุทยานครบทุกภาค + ขั้นสูงต้องมีรูปถ่าย
 -- ขั้นที่ต้องมีรูป: park ขั้น 3-4 (15, 30 แห่ง) · peak/falls/island ขั้น 3 · region ขั้น 2 (ครบ 6 ภาค)
 -- "มีรูป" = มีโพสต์เช็คอินของจุดนั้น (เวลาใกล้เคียงกับการนับจุด) ที่แนบรูปแล้ว
+-- (ไม่มีคำสั่ง drop: ใช้ชื่อฟังก์ชันใหม่ _nature_tiers_v2 แทนของเดิม)
 -- โบนัสขั้นสูงจะเข้าเมื่อแนบรูป (ระบบเรียก nature_settle หลังแนบรูป หรือเมื่อเปิดแท็บพิชิต)
 
-drop function if exists public._nature_tiers(text);
-create or replace function public._nature_tiers(p_kind text)
+create or replace function public._nature_tiers_v2(p_kind text)
 returns table (thr int[], pts int[], photo_from int) language sql immutable as $$
   select case p_kind when 'park' then array[1,5,15,30] when 'peak' then array[3,10,25] when 'falls' then array[5,15,40] when 'region' then array[3,6] else array[3,10,25] end,
          case p_kind when 'park' then array[50,150,400,1000] when 'peak' then array[50,150,400] when 'falls' then array[40,120,350] when 'region' then array[300,1500] else array[50,150,400] end,
          case p_kind when 'region' then 2 else 3 end;
 $$;
-revoke execute on function public._nature_tiers(text) from public, anon, authenticated;
+revoke execute on function public._nature_tiers_v2(text) from public, anon, authenticated;
 
 create or replace function public._nature_counts(p_uid uuid)
 returns table (kind text, total int, verified int) language sql stable security definer set search_path = public as $$
@@ -36,7 +36,7 @@ returns jsonb language plpgsql security definer set search_path = public as $$
 declare r record; t record; i int; c int; n int; v_pts int := 0; v_new int := 0; v_pending int := 0;
 begin
   for r in select * from public._nature_counts(p_uid) loop
-    select * into t from public._nature_tiers(r.kind);
+    select * into t from public._nature_tiers_v2(r.kind);
     for i in 1..array_length(t.thr, 1) loop
       c := case when i >= t.photo_from then r.verified else r.total end;
       if c >= t.thr[i] then
@@ -72,7 +72,7 @@ begin
       and exists (select 1 from posts po where po.user_id = nh.user_id and po.place_id = nh.place_id and cardinality(po.media_urls) > 0
                   and abs(extract(epoch from (po.created_at - nh.created_at))) < 60);
   for r in select * from public._nature_counts(auth.uid()) loop
-    select * into t from public._nature_tiers(r.kind);
+    select * into t from public._nature_tiers_v2(r.kind);
     v_total := case when r.kind = 'region' then 6 else (select count(distinct spot_key) from nature_places where kind = r.kind) end;
     select count(*) into v_done from nature_awards where user_id = auth.uid() and kind = r.kind;
     v_item := jsonb_build_object('kind', r.kind, 'count', r.total, 'verified', r.verified, 'total', v_total,
