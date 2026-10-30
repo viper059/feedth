@@ -1663,6 +1663,20 @@ export default function FeedApp() {
   }
 
   const openPlace = (id) => setPlaceView(id);
+  // รูปหลักฐานยืนยันเจ้าของร้าน: bucket ส่วนตัว (เฉพาะเจ้าของไฟล์และแอดมินเปิดดูได้) คืนพาธไฟล์
+  const uploadEvidence = async (file) => {
+    const blob = await compressImage(file);
+    const path = `${session.user_id}/claim-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+    const up = await fetch(`${SUPABASE_URL}/storage/v1/object/claim-evidence/${path}`, { method: "POST", headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${await getToken()}`, "Content-Type": "image/jpeg", "x-upsert": "false" }, body: blob });
+    if (!up.ok) throw new Error(`อัปโหลดรูปไม่สำเร็จ (${up.status})`);
+    return path;
+  };
+  // แอดมินเปิดดูรูปหลักฐาน (ดึงด้วยโทเค็น แล้วทำเป็น blob URL)
+  const fetchEvidence = async (path) => {
+    const res = await fetch(`${SUPABASE_URL}/storage/v1/object/authenticated/claim-evidence/${path}`, { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${await getToken()}` } });
+    if (!res.ok) throw new Error(`เปิดรูปไม่ได้ (${res.status})`);
+    return URL.createObjectURL(await res.blob());
+  };
   // อัปโหลดรูปปกร้าน (บีบอัดแล้วขึ้น storage โฟลเดอร์ของผู้ใช้) คืน URL สาธารณะ
   const uploadCover = async (file) => {
     const blob = await compressImage(file);
@@ -1684,7 +1698,7 @@ export default function FeedApp() {
   };
   if (shop) return (
     <>
-      {shop === "admin" ? <AdminPanel rest={rest} onBack={() => setShop(null)} showToast={showToast} onChanged={() => rest("/rest/v1/rpc/payment_config", { method: "POST", body: {} }).then(c => c && setPayCfg(c)).catch(() => {})} />
+      {shop === "admin" ? <AdminPanel rest={rest} fetchEvidence={fetchEvidence} onBack={() => setShop(null)} showToast={showToast} onChanged={() => rest("/rest/v1/rpc/payment_config", { method: "POST", body: {} }).then(c => c && setPayCfg(c)).catch(() => {})} />
         : <BuyCredits rest={rest} cfg={payCfg} onBack={() => setShop(null)} showToast={showToast} onChanged={() => {}} />}
       <TabBar tab={tab} setTab={(t) => { setShop(null); goTab(t); }} badge={pending} />
       {toast && <div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-[#1A1D29] text-white text-sm px-4 py-2 rounded-full shadow-lg z-40 max-w-[90%] text-center">{toast}</div>}
@@ -1706,7 +1720,7 @@ export default function FeedApp() {
   );
   if (shopsView && !placeView) return (
     <>
-      <ShopsView rest={rest} uploadCover={uploadCover} onBack={() => setShopsView(false)} onOpenPlace={(id) => setPlaceView(id)} showToast={showToast} />
+      <ShopsView rest={rest} uploadCover={uploadCover} uploadEvidence={uploadEvidence} onBack={() => setShopsView(false)} onOpenPlace={(id) => setPlaceView(id)} showToast={showToast} />
       <TabBar tab={tab} setTab={(t) => { setShopsView(false); goTab(t); }} badge={pending} />
       {toast && <div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-[#1A1D29] text-white text-sm px-4 py-2 rounded-full shadow-lg z-40 max-w-[90%] text-center">{toast}</div>}
     </>

@@ -19,7 +19,7 @@ function Stars({ v }) {
   return <span className="inline-flex items-center gap-0.5 text-[12px] font-medium text-[#B77600]"><Star size={12} fill="#FFB020" color="#FFB020" />{Number(v).toFixed(1)}</span>;
 }
 
-export default function ShopsView({ rest, uploadCover, onBack, onOpenPlace, showToast }) {
+export default function ShopsView({ rest, uploadCover, uploadEvidence, onBack, onOpenPlace, showToast }) {
   const [pos, setPos] = useState(null);
   const [cat, setCat] = useState(null);
   const [rows, setRows] = useState(null);
@@ -43,7 +43,7 @@ export default function ShopsView({ rest, uploadCover, onBack, onOpenPlace, show
   }, [pos, cat]); // eslint-disable-line
   useEffect(() => { load(); }, [load]);
 
-  if (sel) return <ShopDetail id={sel} call={call} uploadCover={uploadCover} onBack={() => { setSel(null); load(); }} onOpenPlace={onOpenPlace} showToast={showToast} />;
+  if (sel) return <ShopDetail id={sel} call={call} uploadCover={uploadCover} uploadEvidence={uploadEvidence} onBack={() => { setSel(null); load(); }} onOpenPlace={onOpenPlace} showToast={showToast} />;
   if (creating) return <CreateShop pos={pos} call={call} onBack={() => setCreating(false)} onDone={(id) => { setCreating(false); setSel(id); }} showToast={showToast} />;
 
   return (
@@ -112,12 +112,13 @@ function CreateShop({ pos, call, onBack, onDone, showToast }) {
   );
 }
 
-function ShopDetail({ id, call, uploadCover, onBack, onOpenPlace, showToast }) {
+function ShopDetail({ id, call, uploadCover, uploadEvidence, onBack, onOpenPlace, showToast }) {
   const [d, setD] = useState(null);
   const [mode, setMode] = useState(null); // "claim" | "edit"
   const [busy, setBusy] = useState(false);
   const [upl, setUpl] = useState(false);
   const [claim, setClaim] = useState({ contact: "", note: "" });
+  const [evid, setEvid] = useState([]); // ไฟล์รูปหลักฐานที่เลือก (สูงสุด 3)
   const [edit, setEdit] = useState({ about: "", phone: "", hours: "", cover_url: "" });
   const load = useCallback(() => call("shop_detail", { p_place_id: id }).then(r => { setD(r); setEdit({ about: r?.about || "", phone: r?.phone || "", hours: r?.hours || "", cover_url: r?.cover_url || "" }); }).catch(e => showToast("โหลดร้านไม่สำเร็จ: " + e.message)), [id]); // eslint-disable-line
   useEffect(() => { load(); }, [load]);
@@ -125,7 +126,12 @@ function ShopDetail({ id, call, uploadCover, onBack, onOpenPlace, showToast }) {
 
   const send = async () => {
     setBusy(true);
-    try { await call("submit_shop_claim", { p_place_id: id, p_contact: claim.contact, p_note: claim.note || null, p_evidence: [] }); showToast("ส่งคำขอแล้ว รอแอดมินตรวจสอบ"); setMode(null); load(); }
+    try {
+      const paths = [];
+      for (const f of evid) paths.push(await uploadEvidence(f));
+      await call("submit_shop_claim", { p_place_id: id, p_contact: claim.contact, p_note: claim.note || null, p_evidence: paths });
+      showToast("ส่งคำขอแล้ว รอแอดมินตรวจสอบ"); setMode(null); setEvid([]); load();
+    }
     catch (e) { showToast(errTh(e.message)); }
     setBusy(false);
   };
@@ -170,6 +176,11 @@ function ShopDetail({ id, call, uploadCover, onBack, onOpenPlace, showToast }) {
             <p className="text-sm font-medium">ยื่นยืนยันความเป็นเจ้าของ</p>
             <input aria-label="ช่องทางติดต่อ" placeholder="เบอร์โทร / LINE / เพจร้าน ที่แอดมินติดต่อกลับได้" value={claim.contact} onChange={e => setClaim(x => ({ ...x, contact: e.target.value }))} className={inp} maxLength={120} />
             <textarea aria-label="รายละเอียดยืนยัน" placeholder="บอกวิธียืนยัน เช่น ลิงก์เพจร้าน ทะเบียนพาณิชย์ หรือให้โทรที่เบอร์ร้าน" value={claim.note} onChange={e => setClaim(x => ({ ...x, note: e.target.value }))} className={inp} rows={3} maxLength={500} />
+            <label className="block text-xs border border-dashed border-[#6C5CE7] text-[#6C5CE7] rounded-xl px-3 py-2 text-center cursor-pointer">
+              {evid.length ? `เลือกรูปหลักฐานแล้ว ${evid.length}/3 (กดเพื่อเปลี่ยน)` : "แนบรูปหลักฐาน เช่น ป้ายร้าน ทะเบียนพาณิชย์ รูปคู่ป้ายร้าน (สูงสุด 3 รูป)"}
+              <input aria-label="แนบรูปหลักฐาน" type="file" accept="image/*" multiple className="hidden" onChange={e => { setEvid([...(e.target.files || [])].slice(0, 3)); e.target.value = ""; }} />
+            </label>
+            <p className="text-[10px] text-[#9199A8]">รูปหลักฐานเก็บแบบส่วนตัว เฉพาะคุณและแอดมินเปิดดูได้ ไม่ขึ้นในแอป</p>
             <div className="flex gap-2"><button onClick={() => setMode(null)} className="flex-1 border border-black/15 rounded-full py-2 text-sm">ยกเลิก</button>
               <button onClick={send} disabled={busy || claim.contact.trim().length < 5} className="flex-1 bg-[#6C5CE7] text-white rounded-full py-2 text-sm disabled:opacity-50">ส่งคำขอ</button></div>
           </div>
@@ -195,7 +206,15 @@ function ShopDetail({ id, call, uploadCover, onBack, onOpenPlace, showToast }) {
 }
 
 // แท็บแอดมิน: คำขอเป็นเจ้าของร้าน
-export function AdminShopClaims({ call, showToast }) {
+function EvidenceImg({ path, fetchEvidence }) {
+  const [src, setSrc] = useState(null);
+  const [err, setErr] = useState(false);
+  useEffect(() => { let live = true, url = null; fetchEvidence?.(path).then(u => { url = u; if (live) setSrc(u); else URL.revokeObjectURL(u); }).catch(() => live && setErr(true)); return () => { live = false; if (url) URL.revokeObjectURL(url); }; }, [path]); // eslint-disable-line
+  if (err) return <span className="text-[10px] text-[#C0243F]">เปิดรูปไม่ได้</span>;
+  return src ? <a href={src} target="_blank" rel="noreferrer"><img src={src} alt="หลักฐาน" className="h-16 w-16 object-cover rounded-lg" /></a> : <span className="h-16 w-16 rounded-lg bg-[#E8EAF0] inline-block" />;
+}
+
+export function AdminShopClaims({ call, fetchEvidence, showToast }) {
   const [filter, setFilter] = useState("pending");
   const [rows, setRows] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -220,6 +239,7 @@ export function AdminShopClaims({ call, showToast }) {
             <div className="flex items-center justify-between gap-2"><p className="font-medium text-[#1A1D29] truncate">{c.place_name}</p><span className="text-[10px] px-2 py-0.5 rounded-full bg-[#E8EAF0] text-[#6B7280] shrink-0">{ST[c.status] || c.status}</span></div>
             <p className="text-[#6B7280]">ผู้ยื่น: {c.username} · ติดต่อ: {c.contact}</p>
             {c.note && <p className="text-[#6B7280]">รายละเอียด: {c.note}</p>}
+            {c.evidence_urls?.length > 0 && <div className="flex gap-2 flex-wrap">{c.evidence_urls.map(pth => <EvidenceImg key={pth} path={pth} fetchEvidence={fetchEvidence} />)}</div>}
             {c.reason && <p className="text-[#9199A8]">เหตุผล: {c.reason}</p>}
             {c.status === "pending" && <div className="flex gap-2 pt-1">
               <button disabled={busy} onClick={() => review(c, true)} className="flex-1 bg-[#0E8F5A] text-white rounded-full py-1.5">อนุมัติ</button>

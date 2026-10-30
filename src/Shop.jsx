@@ -71,7 +71,7 @@ export function BuyCredits({ rest, cfg, onBack, showToast, onChanged }) {
 }
 
 // ---------- เจ้าของ: จัดการร้าน ----------
-export function AdminPanel({ rest, onBack, showToast, onChanged }) {
+export function AdminPanel({ rest, fetchEvidence, onBack, showToast, onChanged }) {
   const [tab, setTab] = useState("orders");
   const [filter, setFilter] = useState("pending");
   const [orders, setOrders] = useState(null);
@@ -120,7 +120,7 @@ export function AdminPanel({ rest, onBack, showToast, onChanged }) {
 
       {tab === "packages" && (pk === null ? <p className="text-xs text-[#9199A8]">กำลังโหลด...</p> : <PackageEditor pk={pk} onSave={savePk} />)}
 
-      {tab === "shops" && <AdminShopClaims call={call} showToast={showToast} />}
+      {tab === "shops" && <AdminShopClaims call={call} fetchEvidence={fetchEvidence} showToast={showToast} />}
 
       {tab === "feedback" && <FeedbackList call={call} showToast={showToast} />}
 
