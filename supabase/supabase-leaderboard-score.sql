@@ -1,6 +1,6 @@
 -- อันดับนักเดินทางแบบ "คะแนน" (leaderboard_v2) — รันใน Supabase SQL Editor
 -- p_sort: 'score' | 'checkins' | 'rating_sum' | 'likes_received'    p_period: 'all' | 'week'
--- คะแนนรวม = เช็คอิน*5 + area_unlocks + หมุดหมู่บ้าน*5 (ถ้ามีตาราง) + mission_claims + โบนัสชวนเพื่อน/ทริป (ถ้ามีฟังก์ชัน)
+-- คะแนนรวม = เช็คอิน*5 + area_unlocks + village_unlocks (ถ้ามีตาราง) + mission_claims + โบนัสชวนเพื่อน/ทริป (ถ้ามีฟังก์ชัน)
 -- รายสัปดาห์ นับเฉพาะเช็คอิน ปลดล็อก และภารกิจที่เกิดตั้งแต่ต้นสัปดาห์ (เวลาไทย) ไม่รวมโบนัส
 -- ตรวจให้ตรงกับ my_explore().score: select pg_get_functiondef('public.my_explore()'::regprocedure);
 
@@ -13,7 +13,7 @@ begin
      + coalesce((select sum(points) from mission_claims m where m.user_id = p_uid and (p_since is null or m.created_at >= p_since)), 0);
   if p_since is null then
     if to_regclass('public.village_unlocks') is not null then
-      execute 'select count(*) * 5 from village_unlocks where user_id = $1' into x using p_uid; v := v + coalesce(x, 0);
+      execute 'select coalesce(sum(points), 0) from village_unlocks where user_id = $1' into x using p_uid; v := v + coalesce(x, 0);
     end if;
     if to_regprocedure('public._referral_bonus(uuid)') is not null then
       execute 'select public._referral_bonus($1)::bigint' into x using p_uid; v := v + coalesce(x, 0);
