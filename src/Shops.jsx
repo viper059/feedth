@@ -119,8 +119,8 @@ function ShopDetail({ id, call, uploadCover, uploadEvidence, onBack, onOpenPlace
   const [upl, setUpl] = useState(false);
   const [claim, setClaim] = useState({ contact: "", note: "" });
   const [evid, setEvid] = useState([]); // ไฟล์รูปหลักฐานที่เลือก (สูงสุด 3)
-  const [edit, setEdit] = useState({ about: "", phone: "", hours: "", cover_url: "" });
-  const load = useCallback(() => call("shop_detail", { p_place_id: id }).then(r => { setD(r); setEdit({ about: r?.about || "", phone: r?.phone || "", hours: r?.hours || "", cover_url: r?.cover_url || "" }); }).catch(e => showToast("โหลดร้านไม่สำเร็จ: " + e.message)), [id]); // eslint-disable-line
+  const [edit, setEdit] = useState({ about: "", phone: "", hours: "", cover_url: "", gallery: [] });
+  const load = useCallback(() => call("shop_detail", { p_place_id: id }).then(r => { setD(r); setEdit({ about: r?.about || "", phone: r?.phone || "", hours: r?.hours || "", cover_url: r?.cover_url || "", gallery: r?.gallery || [] }); }).catch(e => showToast("โหลดร้านไม่สำเร็จ: " + e.message)), [id]); // eslint-disable-line
   useEffect(() => { load(); }, [load]);
   if (!d) return <div className="min-h-screen bg-[#F3F5FA] flex items-center justify-center"><Loader2 className="animate-spin text-[#6C5CE7]" /></div>;
 
@@ -137,7 +137,7 @@ function ShopDetail({ id, call, uploadCover, uploadEvidence, onBack, onOpenPlace
   };
   const save = async () => {
     setBusy(true);
-    try { await call("update_my_shop", { p_place_id: id, p_about: edit.about, p_phone: edit.phone, p_hours: edit.hours, p_cover_url: edit.cover_url || null }); showToast("บันทึกข้อมูลร้านแล้ว"); setMode(null); load(); }
+    try { await call("update_my_shop", { p_place_id: id, p_about: edit.about, p_phone: edit.phone, p_hours: edit.hours, p_cover_url: edit.cover_url || null }); await call("set_shop_gallery", { p_place_id: id, p_urls: edit.gallery }); showToast("บันทึกข้อมูลร้านแล้ว"); setMode(null); load(); }
     catch (e) { showToast("บันทึกไม่สำเร็จ: " + e.message); }
     setBusy(false);
   };
@@ -146,6 +146,16 @@ function ShopDetail({ id, call, uploadCover, uploadEvidence, onBack, onOpenPlace
     if (!f || !uploadCover) return;
     setUpl(true);
     try { const url = await uploadCover(f); setEdit(x => ({ ...x, cover_url: url })); showToast("อัปโหลดรูปปกแล้ว กด บันทึก เพื่อใช้งาน"); }
+    catch (err) { showToast(err.message || "อัปโหลดรูปไม่สำเร็จ"); }
+    setUpl(false);
+  };
+  const pickGallery = async (e) => {
+    const fs = Array.from(e.target.files || []); e.target.value = "";
+    if (!fs.length || !uploadCover) return;
+    const room = 12 - edit.gallery.length;
+    if (room <= 0) { showToast("เพิ่มรูปได้สูงสุด 12 รูป"); return; }
+    setUpl(true);
+    try { const urls = []; for (const f of fs.slice(0, room)) urls.push(await uploadCover(f)); setEdit(x => ({ ...x, gallery: [...x.gallery, ...urls] })); showToast("อัปโหลดรูปแล้ว กด บันทึก เพื่อใช้งาน"); }
     catch (err) { showToast(err.message || "อัปโหลดรูปไม่สำเร็จ"); }
     setUpl(false);
   };
@@ -195,6 +205,17 @@ function ShopDetail({ id, call, uploadCover, uploadEvidence, onBack, onOpenPlace
               {edit.cover_url ? <img src={edit.cover_url} alt="รูปปก" className="h-16 w-24 object-cover rounded-xl" /> : <div className="h-16 w-24 rounded-xl bg-[#E8EAF0] flex items-center justify-center text-2xl">🏪</div>}
               <label className="text-xs border border-[#6C5CE7] text-[#6C5CE7] rounded-full px-3 py-1.5 cursor-pointer">{upl ? "กำลังอัปโหลด..." : edit.cover_url ? "เปลี่ยนรูปปก" : "เลือกรูปปก"}
                 <input aria-label="เลือกรูปปก" type="file" accept="image/*" onChange={pickCover} disabled={upl} className="hidden" /></label>
+            </div>
+            <div>
+              <p className="text-xs text-[#5B6275] mb-1">รูปร้าน ({edit.gallery.length}/12)</p>
+              <div className="flex gap-2 flex-wrap">
+                {edit.gallery.map((u, i) => (
+                  <div key={u} className="relative"><img src={u} alt="" className="h-16 w-16 object-cover rounded-xl" />
+                    <button type="button" aria-label="ลบรูป" onClick={() => setEdit(x => ({ ...x, gallery: x.gallery.filter((_, j) => j !== i) }))} className="absolute -top-1 -right-1 bg-black/70 text-white rounded-full w-5 h-5 text-xs leading-5">×</button></div>
+                ))}
+                {edit.gallery.length < 12 && <label className="h-16 w-16 rounded-xl border border-dashed border-[#6C5CE7] text-[#6C5CE7] flex items-center justify-center text-2xl cursor-pointer">{upl ? "…" : "+"}
+                  <input aria-label="เพิ่มรูปร้าน" type="file" accept="image/*" multiple onChange={pickGallery} disabled={upl} className="hidden" /></label>}
+              </div>
             </div>
             <div className="flex gap-2"><button onClick={() => setMode(null)} className="flex-1 border border-black/15 rounded-full py-2 text-sm">ยกเลิก</button>
               <button onClick={save} disabled={busy || upl} className="flex-1 bg-[#6C5CE7] text-white rounded-full py-2 text-sm">บันทึก</button></div>
