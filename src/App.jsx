@@ -393,7 +393,7 @@ function dayLabel(iso) {
 }
 
 // หน้าสถานที่: คะแนนเฉลี่ย + รีวิวของทุกคนเรียงเป็นไทม์ไลน์รายวัน
-function PlaceDetail({ salesOn, placeId, rest, posts, userId, wallet, onBoosted, onLike, onBack, onProfile, onCheckin, showToast }) {
+function PlaceDetail({ salesOn, placeId, rest, posts, userId, wallet, onBoosted, onLike, onBack, onProfile, onCheckin, onShop, showToast }) {
   const [info, setInfo] = useState(null);
   const [boosted, setBoosted] = useState(false);
   const [showBoost, setShowBoost] = useState(false);
@@ -439,6 +439,7 @@ function PlaceDetail({ salesOn, placeId, rest, posts, userId, wallet, onBoosted,
               <div className="pb-1"><Stars n={Number(info.avg_rating || 0)} size={16} /><p className="text-xs text-[#6B7280]">{info.review_count} เช็คอิน · {info.visitors} คน</p></div>
             </div>
             <button onClick={onCheckin} className="w-full bg-[#6C5CE7] text-white text-sm font-semibold py-2.5 rounded-full flex items-center justify-center gap-1.5"><MapPin size={15} /> ไปเช็คอินที่นี่</button>
+            {onShop && ["restaurant", "cafe", "hotel", "other"].includes(info.category) && <button onClick={() => onShop(placeId)} data-testid="place-shop-page" className="w-full border border-[#6C5CE7] text-[#6C5CE7] text-sm font-medium py-2 rounded-full">🏪 หน้าร้าน · รูป · ยื่นเป็นเจ้าของ</button>}
             {salesOn && <button onClick={() => setShowBoost(v => !v)} className="w-full border border-[#FFB020]/50 text-[#B77600] text-sm font-medium py-2 rounded-full flex items-center justify-center gap-1.5"><Zap size={15} /> {boosted ? "กำลังโปรโมท · ต่อเวลา" : "โปรโมทสถานที่นี้"} ({wallet} เครดิต)</button>}
             {showBoost && (
               <div className="space-y-2 pt-1">
@@ -1715,7 +1716,7 @@ export default function FeedApp() {
   );
   if (shopsView && !placeView) return (
     <>
-      <ShopsView rest={rest} uploadCover={uploadCover} uploadEvidence={uploadEvidence} onBack={() => setShopsView(false)} onOpenPlace={(id) => setPlaceView(id)} showToast={showToast} />
+      <ShopsView initialSel={shopsView === true ? null : shopsView} rest={rest} uploadCover={uploadCover} uploadEvidence={uploadEvidence} onBack={() => setShopsView(false)} onOpenPlace={(id) => setPlaceView(id)} showToast={showToast} />
       <TabBar tab={tab} setTab={(t) => { setShopsView(false); goTab(t); }} badge={pending} />
       {toast && <div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-[#1A1D29] text-white text-sm px-4 py-2 rounded-full shadow-lg z-40 max-w-[90%] text-center">{toast}</div>}
     </>
@@ -1723,7 +1724,7 @@ export default function FeedApp() {
   if (placeView) return (
     <>
       <PlaceDetail salesOn={salesOn} placeId={placeView} rest={rest} posts={[...posts, ...placePosts.filter(x => !posts.some(y => y.id === x.id))]} userId={session.user_id} wallet={wallet} onBoosted={loadFeed} onLike={toggleLike} onBack={() => setPlaceView(null)}
-        onProfile={(id) => { setPlaceView(null); setShopsView(false); setProfileId(id); setTab("profile"); }} onCheckin={() => { setPlaceView(null); setShopsView(false); setTab("checkin"); }} showToast={showToast} />
+        onShop={(id) => { setPlaceView(null); setShopsView(id); }} onProfile={(id) => { setPlaceView(null); setShopsView(false); setProfileId(id); setTab("profile"); }} onCheckin={() => { setPlaceView(null); setShopsView(false); setTab("checkin"); }} showToast={showToast} />
       <TabBar tab={tab} setTab={goTab} />
       {toast && <div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-[#1A1D29] text-white text-sm px-4 py-2 rounded-full shadow-lg z-40 max-w-[90%] text-center">{toast}</div>}
     </>

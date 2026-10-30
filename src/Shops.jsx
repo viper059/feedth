@@ -19,11 +19,11 @@ function Stars({ v }) {
   return <span className="inline-flex items-center gap-0.5 text-[12px] font-medium text-[#B77600]"><Star size={12} fill="#FFB020" color="#FFB020" />{Number(v).toFixed(1)}</span>;
 }
 
-export default function ShopsView({ rest, uploadCover, uploadEvidence, onBack, onOpenPlace, showToast }) {
+export default function ShopsView({ initialSel, rest, uploadCover, uploadEvidence, onBack, onOpenPlace, showToast }) {
   const [pos, setPos] = useState(null);
   const [cat, setCat] = useState(null);
   const [rows, setRows] = useState(null);
-  const [sel, setSel] = useState(null); // place_id ที่เปิดดู
+  const [sel, setSel] = useState(initialSel || null); // place_id ที่เปิดดู
   const [creating, setCreating] = useState(false);
   const call = (fn, body = {}) => rest("/rest/v1/rpc/" + fn, { method: "POST", body });
 
