@@ -63,7 +63,7 @@ create or replace function public.check_in_v4(p_place_id bigint, p_lat double pr
 returns jsonb language plpgsql security definer set search_path to 'public' as $function$
 declare
   r jsonb; v_place places%rowtype; v_vil villages%rowtype; v_n int; v_id bigint;
-  v_nat nature_places%rowtype; v_cnt int; v_thr int[]; v_pt int[]; v_gain int; v_tier int; v_i int;
+  v_nat nature_places%rowtype; v_cnt int; v_gain int; v_set jsonb;
 begin
   if exists (select 1 from shop_profiles where place_id = p_place_id and owner_id = auth.uid()) then
     raise exception 'owner cannot check in own shop';
@@ -103,18 +103,12 @@ begin
         values (auth.uid(), v_nat.kind, v_nat.spot_key, p_place_id, v_id, 10) on conflict do nothing;
       get diagnostics v_n = row_count;
       if v_n > 0 then
-        v_gain := 10; v_tier := null;
+        v_set := public._nature_settle(auth.uid());
+        v_gain := 10 + (v_set->>'pts')::int;
         select count(*) into v_cnt from nature_hits where user_id = auth.uid() and kind = v_nat.kind;
-        select t.thr, t.pts into v_thr, v_pt from public._nature_tiers(v_nat.kind) t;
-        for v_i in 1..array_length(v_thr, 1) loop
-          if v_cnt >= v_thr[v_i] then
-            insert into nature_awards (user_id, kind, tier, points) values (auth.uid(), v_nat.kind, v_i, v_pt[v_i]) on conflict do nothing;
-            get diagnostics v_n = row_count;
-            if v_n > 0 then v_gain := v_gain + v_pt[v_i]; v_tier := v_i; end if;
-          end if;
-        end loop;
         r := jsonb_set(r, '{points}', to_jsonb((r->>'points')::int + v_gain));
-        r := r || jsonb_build_object('nature', jsonb_build_object('kind', v_nat.kind, 'name', v_nat.spot_key, 'new', true, 'points', v_gain, 'count', v_cnt, 'tier', v_tier));
+        r := r || jsonb_build_object('nature', jsonb_build_object('kind', v_nat.kind, 'name', v_nat.spot_key, 'new', true, 'points', v_gain, 'count', v_cnt,
+               'tier', (v_set->>'awarded')::int, 'pending_photo', (v_set->>'pending_photo')::int));
       else
         r := r || jsonb_build_object('nature', jsonb_build_object('kind', v_nat.kind, 'name', v_nat.spot_key, 'new', false));
       end if;
