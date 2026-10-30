@@ -218,7 +218,7 @@ function FogCanvas({ unlocked, onInfo, rest }) {
   return (
     <div>
       <div className="flex gap-1.5 overflow-x-auto pb-2" role="tablist">
-        {LEVELS.map(l => (
+        {LEVELS.filter(l => l.k !== "vil").map(l => (
           <button key={l.k} role="tab" aria-selected={active === l.k} onClick={() => { setActive(l.k); onInfo(null); }}
             className={`text-xs font-semibold px-3 py-1.5 rounded-full whitespace-nowrap border ${active === l.k ? "text-[#0b1220]" : "bg-[#111a2e] border-[#263456]"}`} style={active === l.k ? { background: LEVEL_COLOR[l.k], borderColor: LEVEL_COLOR[l.k] } : { color: LEVEL_COLOR[l.k] }}>{l.name}</button>
         ))}
