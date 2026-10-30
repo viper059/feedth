@@ -267,6 +267,7 @@ function CheckinTab({ rest, getToken, userId, onBack, showToast, onOpenPlace, on
       const loc = (await locateAt(target.lat, target.lng).catch(() => null)) || {};
       const r = await rest("/rest/v1/rpc/check_in_v4", { method: "POST", body: { p_place_id: target.id, p_lat: pos.lat, p_lng: pos.lng, p_rating: rating, p_caption: caption, p_cty: loc.cty || null, p_pro: loc.pro || null, p_dis: loc.dis || null, p_sub: loc.sub || null } });
       if (r.repeat) showToast("เช็คอินซ้ำสำเร็จ (ไม่ได้แต้มเพิ่ม)");
+      else if (r.nature) showToast(natureMsg(r.nature));
       setResult({ place: target.name, points: r.points, unlocks: r.unlocks || [], repeat: !!r.repeat });
       rest("/rest/v1/rpc/record_interest", { method: "POST", body: { p_topic: target.category, p_weight: 3 } }).catch(() => {});
       if (photo) await attachPhoto(r.checkin_id);
@@ -483,6 +484,13 @@ function PlaceDetail({ salesOn, placeId, rest, posts, userId, wallet, onBoosted,
     </div>
   );
 }
+
+const NATURE_TH = { park: "อุทยาน/เขตรักษาพันธุ์", peak: "ภูเขา", falls: "น้ำตก", island: "เกาะ" };
+// ข้อความความท้าทายธรรมชาติหลังเช็คอิน (ต้องอยู่ห่างจุดไม่เกิน 100 ม.)
+const natureMsg = (n) => !n ? null
+  : n.far ? `${n.name}: อยู่ไกลเกิน 100 ม. ไม่นับความท้าทาย`
+  : n.new ? `ความท้าทาย${NATURE_TH[n.kind] || ""}: ได้จุดใหม่ ${n.name} +${n.points}${n.tier ? ` · ถึงขั้นที่ ${n.tier}!` : ""} (รวม ${n.count} แห่ง)`
+  : `${n.name}: เคยนับในความท้าทายแล้ว`;
 
 function RankTab({ rest, userId, onProfile, showToast }) {
   const [sort, setSort] = useState("score");
@@ -1338,7 +1346,7 @@ export default function FeedApp() {
           if (!ok) throw new Error("ไม่พบโพสต์เช็คอินให้แนบรูป");
         } catch (e) { photoErr = e.message; if (up) await deletePaths(up.paths); }
       }
-      showToast(photoErr ? `เช็คอินแล้ว แต่แนบรูปไม่สำเร็จ: ${photoErr}` : r.repeat ? "เช็คอินซ้ำสำเร็จ (ไม่ได้แต้มเพิ่ม)" : `เช็คอินที่ ${ciPlace.name} สำเร็จ +${r.points}`);
+      showToast(photoErr ? `เช็คอินแล้ว แต่แนบรูปไม่สำเร็จ: ${photoErr}` : r.repeat ? "เช็คอินซ้ำสำเร็จ (ไม่ได้แต้มเพิ่ม)" : `เช็คอินที่ ${ciPlace.name} สำเร็จ +${r.points}${r.nature ? " · " + natureMsg(r.nature) : ""}`);
       setDraft(""); clearImage(); setCiPlace(null); setCiList(null); setFirstPin(false);
       loadFeed();
     } catch (e) {

@@ -15,6 +15,12 @@ const CHAPTERS = [
   { t: "ทั่วโลก", d: "ปักหมุดครบทุกทวีป", unit: "ทวีป" },
 ];
 const G = "#FFC24B";
+const NATURE = {
+  park: { t: "นักเดินป่า", d: "อุทยานแห่งชาติ วนอุทยาน เขตรักษาพันธุ์", icon: "🌲" },
+  peak: { t: "ผู้พิชิตยอดเขา", d: "ภู ดอย เขา", icon: "⛰️" },
+  falls: { t: "นักล่าน้ำตก", d: "น้ำตกทั่วไทย", icon: "💧" },
+  island: { t: "นักเดินเกาะ", d: "เกาะต่างๆ", icon: "🏝️" },
+};
 
 export default function ConquestTab({ rest, onCheckin, onMap, showToast }) {
   const [data, setData] = useState(null);
@@ -22,9 +28,11 @@ export default function ConquestTab({ rest, onCheckin, onMap, showToast }) {
   const [sheet, setSheet] = useState(false);
   const [family, setFamily] = useState(false);
   const [story, setStory] = useState(false);
+  const [nat, setNat] = useState(null);
   useEffect(() => {
     rest("/rest/v1/rpc/conquest_progress", { method: "POST", body: {} }).then(setData).catch(e => { showToast("โหลดความคืบหน้าไม่สำเร็จ: " + e.message); setData({ pins: 0, chapters: [] }); });
     rest("/rest/v1/rpc/my_explore", { method: "POST", body: {} }).then(setMe).catch(() => setMe({}));
+    rest("/rest/v1/rpc/nature_progress", { method: "POST", body: {} }).then(r => setNat(Array.isArray(r) ? r : [])).catch(() => setNat([]));
   }, []);
   if (family) return <FamilyView rest={rest} onBack={() => setFamily(false)} showToast={showToast} />;
   const ch = data?.chapters || [];
@@ -64,6 +72,34 @@ export default function ConquestTab({ rest, onCheckin, onMap, showToast }) {
             <div className="flex justify-between mt-3">
               <button onClick={() => setSheet(true)} className="text-[13px] underline" style={{ color: "#B7ABFF" }}>ดูเส้นทางพิชิตทั้ง 9 บท</button>
               <button onClick={onMap} className="text-[13px] underline flex items-center gap-1" style={{ color: "#B7ABFF" }}><Compass size={14} />แผนที่สำรวจ</button>
+            </div>
+          </section>
+        )}
+        {nat && nat.length > 0 && (
+          <section className="mt-4 rounded-3xl p-5" style={{ background: "#151C33" }} data-testid="nature-challenges">
+            <h2 style={{ fontFamily: "'Kanit', sans-serif" }} className="text-lg font-semibold">ความท้าทายธรรมชาติ</h2>
+            <p className="text-xs mt-0.5" style={{ color: "#A3ABC4" }}>เช็คอินให้อยู่ห่างจุดไม่เกิน 100 ม. ถึงจะนับ · แต่ละจุดนับครั้งเดียว</p>
+            <div className="mt-3 space-y-3.5">
+              {nat.map(n => {
+                const m = NATURE[n.kind] || { t: n.kind, d: "", icon: "📍" };
+                const next = n.thr.find(x => n.count < x);
+                const prev = [...n.thr].reverse().find(x => n.count >= x) || 0;
+                const pct = next ? Math.round(((n.count - prev) / (next - prev)) * 100) : 100;
+                return (
+                  <div key={n.kind}>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">{m.icon}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[14px] font-semibold">{m.t} <span className="text-[11px] font-normal" style={{ color: "#A3ABC4" }}>ขั้น {n.tier}/{n.thr.length}</span></p>
+                        <p className="text-[11px] truncate" style={{ color: "#A3ABC4" }}>{m.d} · มีให้ปักทั้งหมด {n.total} แห่ง</p>
+                      </div>
+                      <span className="text-[13px] font-semibold">{n.count}{next ? ` / ${next}` : ""}</span>
+                    </div>
+                    <div className="mt-1.5 h-1.5 rounded-full overflow-hidden" style={{ background: "#0B1020" }}><div className="h-full rounded-full" style={{ width: `${pct}%`, background: G }} /></div>
+                    <p className="text-[11px] mt-1" style={{ color: "#A3ABC4" }}>{next ? `ขั้นต่อไป ${next} แห่ง ได้ +${n.pts[n.tier]} คะแนน` : "ครบทุกขั้นแล้ว!"}</p>
+                  </div>
+                );
+              })}
             </div>
           </section>
         )}
