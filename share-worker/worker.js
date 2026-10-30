@@ -6,7 +6,7 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
-    const m = url.pathname.match(/^\/p\/([0-9a-fA-F-]{36})\/?$/);
+    const m = url.pathname.match(/^\/p\/(\d{1,18}|[0-9a-fA-F-]{36})\/?$/);
     const app = env.APP_URL || "https://pinsworld.net/";
     if (!m) return Response.redirect(app, 302);
     const id = m[1];
