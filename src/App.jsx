@@ -1630,7 +1630,7 @@ export default function FeedApp() {
             {authMode === "signup" && (
               <label className="flex items-start gap-2 text-xs text-[#6B7280] mb-3">
                 <input type="checkbox" checked={agree} onChange={e => setAgree(e.target.checked)} className="mt-0.5" />
-                <span>ฉันยอมรับ<button type="button" onClick={() => setLegal("terms")} className="text-[#6C5CE7] underline">ข้อกำหนดการใช้งาน</button>และ<button type="button" onClick={() => setLegal("privacy")} className="text-[#6C5CE7] underline">นโยบายความเป็นส่วนตัว</button></span>
+                <span>ฉันอายุ 13 ปีขึ้นไป (ถ้าอายุต่ำกว่า 20 ปี ผู้ปกครองรับทราบ) และยอมรับ<button type="button" onClick={() => setLegal("terms")} className="text-[#6C5CE7] underline">ข้อกำหนดการใช้งาน</button>และ<button type="button" onClick={() => setLegal("privacy")} className="text-[#6C5CE7] underline">นโยบายความเป็นส่วนตัว</button></span>
               </label>
             )}
             {authError && <p className="text-xs text-[#C43D3D] mb-2">{authError}</p>}
