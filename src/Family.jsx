@@ -78,7 +78,7 @@ export default function FamilyView({ rest, onBack, showToast }) {
         {role === "child" && (
           <label className="flex items-start gap-2 text-xs cursor-pointer" style={{ color: "#A3ABC4" }}>
             <input type="checkbox" checked={ageOk} onChange={e => setAgeOk(e.target.checked)} className="mt-0.5" />
-            ฉันอายุ 13 ปีขึ้นไป หรือมีผู้ปกครองรับทราบและยินยอมให้ใช้งาน
+            ฉันอายุ 18 ปีขึ้นไป
           </label>
         )}
       </section>
