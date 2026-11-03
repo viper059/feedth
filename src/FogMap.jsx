@@ -189,7 +189,8 @@ function FogCanvas({ unlocked, onInfo, rest }) {
       return { f, cx, cy, a, name };
     }).filter(d => isFinite(d.cx) && isFinite(d.cy)).sort((x, y) => y.a - x.a);
     o.pins.selectAll("circle").data(lit).join("circle").attr("cx", d => d.cx).attr("cy", d => d.cy)
-      .attr("r", 4.5 / o.K).attr("fill", C).attr("stroke", "#0b1220").style("stroke-width", 1.5 / o.K + "px").attr("pointer-events", "none");
+      .attr("r", 4.5 / o.K).attr("fill", C).attr("stroke", "#0b1220").style("stroke-width", 1.5 / o.K + "px").style("cursor", "pointer")
+      .on("click", (e, d) => { e.stopPropagation(); infoRef.current({ k, id: idOf(k, d.f), name: d.name, on: true, props: d.f.properties }); });
     const tx = o.labels.selectAll("text").data(lit).join("text").attr("transform", d => `translate(${d.cx},${d.cy})`)
       .attr("dy", "-0.75em").text(d => d.name).attr("fill", "#f6f1e3").attr("stroke", "#0b1220").attr("paint-order", "stroke").attr("stroke-linejoin", "round")
       .attr("text-anchor", "middle").attr("pointer-events", "none").style("font-weight", 600)
