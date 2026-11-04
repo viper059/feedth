@@ -194,10 +194,14 @@ function FogCanvas({ unlocked, onInfo, rest }) {
     if (k === "sub") {
       // ระดับตำบล: ไม่ปักหมุดชื่อตำบล — ปักหมุดสถานที่ที่เช็คอินจริงแทน (ชื่อตำบลดูได้จากรายการใต้แผนที่)
       setLitList(lit.map(d => ({ name: d.name, f: d.f })));
-      const pts = vils.map(v => ({ v, xy: o.proj([v.lng, v.lat]) })).filter(d => d.xy && isFinite(d.xy[0]));
+      // สถานที่เช็คอินจริง: จาก my_place_pins + เติมจาก my_area_pins (สถานที่แรกของแต่ละตำบล/อำเภอ) เผื่อฟังก์ชันแรกว่าง
+      const seen = new Set(vils.map(v => v.name));
+      const extra = Object.entries(areaPins).filter(([key, a]) => a.place && !seen.has(a.place) && a.lat != null && a.lng != null && seen.add(a.place))
+        .map(([key, a]) => ({ id: "a:" + key, name: a.place, lat: a.lat, lng: a.lng }));
+      const pts = vils.concat(extra).map(v => ({ v, xy: o.proj([v.lng, v.lat]) })).filter(d => d.xy && isFinite(d.xy[0]));
       o.pins.selectAll("circle").data(pts.map(d => ({ ...d, r0: 5 }))).join("circle").attr("cx", d => d.xy[0]).attr("cy", d => d.xy[1])
         .attr("r", 5 / o.K).attr("fill", "#ffd166").attr("stroke", "#0b1220").style("stroke-width", 1.5 / o.K + "px").style("cursor", "pointer")
-        .on("click", (e, d) => { e.stopPropagation(); infoRef.current({ k: "vil", id: String(d.v.id), name: d.v.name, on: true, props: {} }); });
+        .on("click", (e, d) => { e.stopPropagation(); if (/^\d+$/.test(String(d.v.id))) infoRef.current({ k: "vil", id: String(d.v.id), name: d.v.name, on: true, props: {} }); });
       const tp = o.labels.selectAll("text").data(pts).join("text").attr("transform", d => `translate(${d.xy[0]},${d.xy[1]})`)
         .attr("dy", "-0.8em").text(d => d.v.name).attr("fill", "#f6f1e3").attr("stroke", "#0b1220").attr("paint-order", "stroke").attr("stroke-linejoin", "round")
         .attr("text-anchor", "middle").attr("pointer-events", "none").style("font-weight", 600)
