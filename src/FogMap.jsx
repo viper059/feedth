@@ -52,6 +52,7 @@ function FogCanvas({ unlocked, onInfo, rest }) {
   const [dis, setDis] = useState(null);
   const [sub, setSub] = useState(null);
   const [vils, setVils] = useState([]);
+  const [litList, setLitList] = useState([]);
   const [active, setActive] = useState("pro");
   const [subProv, setSubProv] = useState(null);
   const [err, setErr] = useState("");
@@ -113,6 +114,7 @@ function FogCanvas({ unlocked, onInfo, rest }) {
       o.K = e.transform.k; o.T = e.transform; g.attr("transform", e.transform);
       o.labels.selectAll("text").style("font-size", 11 / o.K + "px").style("stroke-width", 3 / o.K + "px");
       o.pins.selectAll("circle").attr("r", d => (d.r0 || 4.5) / o.K).style("stroke-width", 1.5 / o.K + "px");
+      o.pins.selectAll("text").style("font-size", 10 / o.K + "px");
       declutter(o);
     });
     svg.call(o.zoom).on("dblclick.zoom", null);
@@ -146,6 +148,7 @@ function FogCanvas({ unlocked, onInfo, rest }) {
     o.shapes.selectAll("*").remove(); o.labels.selectAll("*").remove(); o.pins.selectAll("*").remove();
     const C = LEVEL_COLOR[k];
     if (k === "vil") {
+      setLitList([]);
       // หมู่บ้านเป็นจุดพิกัด: วาดเขตอำเภอของจังหวัดเป็นฉากหลัง แล้วปักหมุดหมู่บ้าน (สว่าง = ปลดล็อกแล้ว)
       const ds = dis ? dis.features.filter(f => f.properties.pc === subProv) : [];
       o.shapes.selectAll("path.ctx").data(ds).join("path").attr("d", o.path).attr("fill", "#121b31").attr("stroke", "#34466f")
@@ -188,11 +191,16 @@ function FogCanvas({ unlocked, onInfo, rest }) {
       if (ap) { const xy = o.proj([ap.lng, ap.lat]); if (xy && isFinite(xy[0])) { cx = xy[0]; cy = xy[1]; } }
       return { f, cx, cy, a, name };
     }).filter(d => isFinite(d.cx) && isFinite(d.cy)).sort((x, y) => y.a - x.a);
-    o.pins.selectAll("circle").data(lit).join("circle").attr("cx", d => d.cx).attr("cy", d => d.cy)
-      .attr("r", 4.5 / o.K).attr("fill", C).attr("stroke", "#0b1220").style("stroke-width", 1.5 / o.K + "px").style("cursor", "pointer")
-      .on("click", (e, d) => { e.stopPropagation(); infoRef.current({ k, id: idOf(k, d.f), name: d.name, on: true, props: d.f.properties }); });
+    const open = (d) => infoRef.current({ k, id: idOf(k, d.f), name: d.name, on: true, props: d.f.properties });
+    o.pins.selectAll("circle").data(lit.map((d, i) => ({ ...d, n: i + 1, r0: 9 }))).join("circle").attr("cx", d => d.cx).attr("cy", d => d.cy)
+      .attr("r", 9 / o.K).attr("fill", C).attr("stroke", "#fff").style("stroke-width", 1.5 / o.K + "px").style("cursor", "pointer")
+      .on("click", (e, d) => { e.stopPropagation(); open(d); });
+    o.pins.selectAll("text").data(lit.map((d, i) => ({ ...d, n: i + 1 }))).join("text").attr("x", d => d.cx).attr("y", d => d.cy)
+      .attr("dy", "0.35em").attr("text-anchor", "middle").attr("fill", "#0b1220").attr("pointer-events", "none")
+      .style("font-weight", 800).style("font-size", 10 / o.K + "px").text(d => d.n);
+    setLitList(lit.map((d, i) => ({ n: i + 1, name: d.name, f: d.f })));
     const tx = o.labels.selectAll("text").data(lit).join("text").attr("transform", d => `translate(${d.cx},${d.cy})`)
-      .attr("dy", "-0.75em").text(d => d.name).attr("fill", "#f6f1e3").attr("stroke", "#0b1220").attr("paint-order", "stroke").attr("stroke-linejoin", "round")
+      .attr("dy", "-1.15em").text(d => d.name).attr("fill", "#f6f1e3").attr("stroke", "#0b1220").attr("paint-order", "stroke").attr("stroke-linejoin", "round")
       .attr("text-anchor", "middle").attr("pointer-events", "none").style("font-weight", 600)
       .style("font-size", 11 / o.K + "px").style("stroke-width", 3 / o.K + "px");
     o.lab = lit.map((d, i) => ({ el: tx.nodes()[i], cx: d.cx, cy: d.cy - 0, w: Math.max(24, d.name.length * 6.8) }));
@@ -244,6 +252,19 @@ function FogCanvas({ unlocked, onInfo, rest }) {
         <button onClick={view} className="absolute right-2 bottom-2 text-[11px] bg-[#111a2e] text-[#e8ecf5] border border-[#263456] rounded-lg px-2.5 py-1.5">เต็มจอ</button>
         <p className="absolute left-2 bottom-1.5 max-w-[calc(100%-5.5rem)] leading-tight text-[9px] text-[#55627f] pointer-events-none">ขอบเขต: OpenGISData-Thailand (CC BY 4.0) · Natural Earth</p>
       </div>
+      {litList.length > 0 && (
+        <div className="mt-2.5" data-testid="lit-list">
+          <p className="text-[11px] text-[#8b97b3] mb-1.5">ที่ปลดล็อกแล้ว {litList.length} แห่ง · แตะชื่อเพื่อซูมไปดู</p>
+          <div className="flex flex-wrap gap-1.5">
+            {litList.map(x => (
+              <button key={x.n} onClick={() => { fitTo([x.f], 0.45); infoRef.current({ k: active, id: idOf(active, x.f), name: x.name, on: true, props: x.f.properties }); }}
+                className="flex items-center gap-1.5 text-xs bg-[#111a2e] border border-[#263456] rounded-full pl-1 pr-3 py-1 text-[#e8ecf5]">
+                <span className="w-5 h-5 rounded-full text-[10px] font-extrabold text-[#0b1220] flex items-center justify-center" style={{ background: LEVEL_COLOR[active] }}>{x.n}</span>{x.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
