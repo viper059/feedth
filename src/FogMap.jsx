@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { select } from "d3-selection";
 import { zoom as d3zoom, zoomIdentity } from "d3-zoom";
 import "d3-transition";
-import { geoNaturalEarth1, geoPath } from "d3-geo";
+import { geoNaturalEarth1, geoPath, geoContains } from "d3-geo";
 import { Flame, Lock, Check, Loader2 } from "lucide-react";
 import { loadBase, loadDis, loadSub, LEVELS, RANKS, REGION_TH, CONTINENT_TH, COUNTRY_TH } from "./geo.js";
 
@@ -41,10 +41,18 @@ function declutter(o) {
   });
 }
 
-// หมุดสถานที่ที่เช็คอินจริง (ระดับตำบล): หยดน้ำสีตามประเภท + ชื่อติดข้างหมุด หมุดที่ชิดกันรวมเป็นวงเลข แตะเพื่อซูมให้แตกออก
-const CAT_COLOR = { cafe: "#f59e0b", restaurant: "#fb7185", food: "#fb7185", attraction: "#a78bfa", temple: "#a78bfa", nature: "#34d399", park: "#34d399", hotel: "#60a5fa" };
-const pinColor = (c) => CAT_COLOR[String(c || "").toLowerCase()] || "#ffd166";
-const DROP = "M0,0 C-6,-8 -10,-13 -10,-19 A10,10 0 1 1 10,-19 C10,-13 6,-8 0,0Z";
+// หมุดสถานที่ที่เช็คอินจริง (ระดับตำบล): วงกลมไอคอนตามประเภท + ป้ายชื่อตำบลพร้อมจำนวนสถานที่ หมุดที่ชิดกันรวมเป็นวงเลข แตะเพื่อซูมให้แตกออก
+const CAT_COLOR = { cafe: "#f59e0b", restaurant: "#fb7185", attraction: "#a78bfa", hotel: "#60a5fa", other: "#34d399" };
+const CAT_TH = { attraction: "ที่เที่ยว", hotel: "ที่พัก", restaurant: "ร้านอาหาร", cafe: "คาเฟ่", other: "อื่นๆ" };
+const CAT_ICON = {
+  cafe: "M5 8h11v6a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4V8zm11 1h2a2 2 0 0 1 0 4h-2",
+  restaurant: "M7 3v7M10 3v7M7 10a1.5 1.5 0 0 0 3 0M8.5 10v11M16 3c-2 2-2 6 0 8v10",
+  attraction: "M12 3l3 4h-6l3-4zM6 21V11h12v10M3 21h18M10 21v-5h4v5",
+  hotel: "M3 11l9-7 9 7M5 10v10h14V10M10 20v-6h4v6",
+  other: "M12 21s-6-5.5-6-10a6 6 0 0 1 12 0c0 4.5-6 10-6 10zM12 13a2 2 0 1 0 0-4 2 2 0 0 0 0 4z",
+  wish: "M12 4l2.5 5 5.5.8-4 3.9.9 5.5-4.9-2.6-4.9 2.6.9-5.5-4-3.9 5.5-.8z",
+};
+const catKey = (c) => (CAT_ICON[String(c || "").toLowerCase()] && String(c).toLowerCase() !== "wish" ? String(c).toLowerCase() : "other");
 const kmBetween = (a, b) => {
   const R = 6371, r = Math.PI / 180, dLat = (b.lat - a.lat) * r, dLng = (b.lng - a.lng) * r;
   const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(dLng / 2) ** 2;
@@ -53,43 +61,57 @@ const kmBetween = (a, b) => {
 function drawPlacePins(o, cb) {
   o.pp.selectAll("*").remove();
   const K = o.K, sc = (p) => [o.T.x + K * p.x, o.T.y + K * p.y];
-  const label = (g, text, color) => g.append("text").attr("x", 13).attr("y", -9).text(text).attr("fill", color).attr("stroke", "#0b1220")
-    .attr("paint-order", "stroke").attr("stroke-linejoin", "round").attr("pointer-events", "none").style("font-weight", 700).style("font-size", "11px").style("stroke-width", "3px");
   const boxes = [];
-  const place = (g, p, text) => {
-    const [sx, sy] = sc(p), w = String(text).length * 6.8 + 16;
-    const box = [sx + 12, sy - 24, sx + 12 + w, sy - 6];
-    const clash = boxes.some(b => box[0] < b[2] && box[2] > b[0] && box[1] < b[3] && box[3] > b[1]);
-    if (clash) g.select("text").style("display", "none"); else boxes.push(box);
-  };
-  // หมุด "อยากไป" (เส้นประ)
-  for (const w of o.wishPts || []) {
-    const g = o.pp.append("g").attr("data-pin", "1").attr("transform", `translate(${w.x},${w.y}) scale(${1 / K})`).style("cursor", "pointer")
-      .on("click", (e) => { e.stopPropagation(); cb.openWish(w.w); });
-    g.append("path").attr("d", DROP).attr("fill", "rgba(255,209,102,.18)").attr("stroke", "#ffd166").attr("stroke-width", 2).attr("stroke-dasharray", "3 2");
-    label(g, w.name, "#ffe29a"); place(g, w, w.name);
+  const free = (box) => o.showAll || !boxes.some(b => box[0] < b[2] && box[2] > b[0] && box[1] < b[3] && box[3] > b[1]);
+  const tw = (t) => String(t).length * 6.6;
+  // ป้ายชื่อตำบลที่ปลดล็อกแล้ว + จำนวนสถานที่ที่เช็คอินในตำบลนั้น
+  for (const c of o.subChips || []) {
+    const [sx, sy] = sc(c), w = tw(c.name) + 18 + (c.n ? 22 : 0), box = [sx - w / 2, sy - 12, sx + w / 2, sy + 12];
+    if (!free(box)) continue;
+    boxes.push(box);
+    const g = o.pp.append("g").attr("data-chip", "1").attr("transform", `translate(${c.x},${c.y}) scale(${1 / K})`).style("cursor", "pointer")
+      .on("click", (e) => { e.stopPropagation(); cb.openSub(c.d); });
+    g.append("rect").attr("x", -w / 2).attr("y", -11).attr("width", w).attr("height", 22).attr("rx", 11).attr("fill", "#f6f1e3").attr("opacity", 0.95);
+    g.append("text").attr("x", -w / 2 + 9).attr("y", 4).text(c.name).attr("fill", "#0b1220").attr("pointer-events", "none").style("font-weight", 700).style("font-size", "11px");
+    if (c.n) {
+      g.append("circle").attr("cx", w / 2 - 12).attr("cy", 0).attr("r", 8).attr("fill", LEVEL_COLOR.sub);
+      g.append("text").attr("x", w / 2 - 12).attr("y", 3.5).attr("text-anchor", "middle").text(c.n).attr("fill", "#fff").attr("pointer-events", "none").style("font-weight", 800).style("font-size", "10px");
+    }
   }
+  // หมุดวงกลม: ไอคอนประเภทอยู่ในวง ปลายแหลมชี้ตำแหน่งจริง ชื่ออยู่ข้างหมุด
+  const pin = (p, color, icon, text, dashed, onClick) => {
+    const g = o.pp.append("g").attr("data-pin", "1").attr("transform", `translate(${p.x},${p.y}) scale(${1 / K})`).style("cursor", "pointer")
+      .on("click", (e) => { e.stopPropagation(); onClick(); });
+    g.append("path").attr("d", "M-6,-10 L6,-10 L0,0Z").attr("fill", color);
+    const c = g.append("circle").attr("cx", 0).attr("cy", -24).attr("r", 15).attr("fill", dashed ? "#16203a" : "#f6f1e3").attr("stroke", color).attr("stroke-width", 3);
+    if (dashed) c.attr("stroke-dasharray", "4 3");
+    g.append("path").attr("d", icon).attr("transform", "translate(-9,-33) scale(0.75)").attr("fill", "none").attr("stroke", dashed ? color : "#0b1220")
+      .attr("stroke-width", 2).attr("stroke-linecap", "round").attr("stroke-linejoin", "round").attr("pointer-events", "none");
+    const [sx, sy] = sc(p), box = [sx + 17, sy - 33, sx + 23 + tw(text), sy - 15];
+    if (free(box)) {
+      boxes.push(box);
+      g.append("text").attr("x", 20).attr("y", -20).text(text).attr("fill", dashed ? "#ffe29a" : "#f6f1e3").attr("stroke", "#0b1220").attr("paint-order", "stroke")
+        .attr("stroke-linejoin", "round").attr("pointer-events", "none").style("font-weight", 700).style("font-size", "11px").style("stroke-width", "3px");
+    }
+  };
+  for (const w of o.wishPts || []) pin(w, "#ffd166", CAT_ICON.wish, w.name, true, () => cb.openWish(w.w));
   // รวมกลุ่มหมุดที่อยู่ชิดกันบนหน้าจอ
   const cl = [];
   for (const p of o.placePts || []) {
     const [sx, sy] = sc(p);
-    const c = cl.find(c => Math.hypot(c.sx - sx, c.sy - sy) < 46);
+    const c = cl.find(c => Math.hypot(c.sx - sx, c.sy - sy) < 40);
     if (c) c.items.push(p); else cl.push({ sx, sy, items: [p] });
   }
   for (const c of cl) {
     if (c.items.length === 1) {
       const p = c.items[0];
-      const g = o.pp.append("g").attr("data-pin", "1").attr("transform", `translate(${p.x},${p.y}) scale(${1 / K})`).style("cursor", "pointer")
-        .on("click", (e) => { e.stopPropagation(); cb.open(p.v); });
-      g.append("path").attr("d", DROP).attr("fill", p.color).attr("stroke", "#fff").attr("stroke-width", 1.8);
-      g.append("circle").attr("cx", 0).attr("cy", -19).attr("r", 3.5).attr("fill", "#fff");
-      label(g, p.name, "#f6f1e3"); place(g, p, p.name);
+      pin(p, p.color, CAT_ICON[p.cat], p.name, false, () => cb.open(p.v));
     } else {
       const x = c.items.reduce((a, p) => a + p.x, 0) / c.items.length, y = c.items.reduce((a, p) => a + p.y, 0) / c.items.length;
       const g = o.pp.append("g").attr("data-pin", "1").attr("transform", `translate(${x},${y}) scale(${1 / K})`).style("cursor", "pointer")
         .on("click", (e) => { e.stopPropagation(); cb.zoomTo(c.items); });
-      g.append("circle").attr("r", 16).attr("fill", "#111a2e").attr("stroke", "#ffd166").attr("stroke-width", 2.5);
-      g.append("text").attr("text-anchor", "middle").attr("dy", "0.35em").attr("fill", "#fff").attr("pointer-events", "none").style("font-weight", 800).style("font-size", "13px").text(c.items.length);
+      g.append("circle").attr("r", 17).attr("fill", "#f6f1e3").attr("stroke", LEVEL_COLOR.sub).attr("stroke-width", 3);
+      g.append("text").attr("text-anchor", "middle").attr("dy", "0.35em").attr("fill", "#0b1220").attr("pointer-events", "none").style("font-weight", 800).style("font-size", "13px").text(c.items.length);
     }
   }
 }
@@ -107,6 +129,9 @@ function FogCanvas({ unlocked, onInfo, rest }) {
   const [vils, setVils] = useState([]);
   const [litList, setLitList] = useState([]);
   const [wishes, setWishes] = useState([]);
+  const [cats, setCats] = useState({}); // ประเภทของสถานที่ที่เช็คอิน (ดึงจากตาราง places ซึ่งอ่านได้ทุกคน)
+  const [pinFilter, setPinFilter] = useState("all");
+  const [showAll, setShowAll] = useState(false);
   const [wishOk, setWishOk] = useState(false);
   const [sheet, setSheet] = useState(null); // { mode: "add"|"view", ... }
   const loadWishes = useCallback(() => {
@@ -164,12 +189,24 @@ function FogCanvas({ unlocked, onInfo, rest }) {
     return () => { live = false; };
   }, [rest, unlocked]);
   useEffect(() => { setVils(myPins.filter(r => String(r.province) === String(subProv))); }, [myPins, subProv]);
+  useEffect(() => {
+    const ids = myPins.filter(r => !r.category && /^\d+$/.test(String(r.id))).map(r => r.id).slice(0, 300);
+    if (!rest || !ids.length) return;
+    let live = true;
+    rest(`/rest/v1/places?select=id,category&id=in.(${ids.join(",")})`).then(r => {
+      if (!live || !Array.isArray(r)) return;
+      const mp = {}; r.forEach(x => { if (x && x.category) mp[x.id] = x.category; }); setCats(mp);
+    }).catch(() => {});
+    return () => { live = false; };
+  }, [rest, myPins]);
+  const catOf = useCallback((v) => catKey(v.category || cats[v.id]), [cats]);
+  const presentCats = useMemo(() => Object.keys(CAT_TH).filter(c => vils.some(v => catOf(v) === c)), [vils, catOf]);
 
   // สร้าง svg + zoom ครั้งเดียว
   useEffect(() => {
     const svg = select(svgEl.current);
     const g = svg.append("g");
-    const o = { svg, g, shapes: g.append("g"), pins: g.append("g"), labels: g.append("g"), pp: g.append("g"), placePts: null, wishPts: [], mode: "", cb: null, K: 1, T: zoomIdentity, lab: [], proj: geoNaturalEarth1(), W: 0, H: 0 };
+    const o = { svg, g, shapes: g.append("g"), pins: g.append("g"), labels: g.append("g"), pp: g.append("g"), placePts: null, wishPts: [], subChips: [], showAll: false, mode: "", cb: null, K: 1, T: zoomIdentity, lab: [], proj: geoNaturalEarth1(), W: 0, H: 0 };
     o.path = geoPath(o.proj);
     o.zoom = d3zoom().scaleExtent([1, MAXZ]).on("zoom", e => {
       o.K = e.transform.k; o.T = e.transform; g.attr("transform", e.transform);
@@ -207,7 +244,7 @@ function FogCanvas({ unlocked, onInfo, rest }) {
     if (!ready || !base || !o.W) return;
     const k = active;
     o.shapes.selectAll("*").remove(); o.labels.selectAll("*").remove(); o.pins.selectAll("*").remove();
-    o.pp.selectAll("*").remove(); o.placePts = null; o.wishPts = []; o.mode = k;
+    o.pp.selectAll("*").remove(); o.placePts = null; o.wishPts = []; o.subChips = []; o.mode = k;
     const C = LEVEL_COLOR[k];
     if (k === "vil") {
       setLitList([]);
@@ -262,13 +299,19 @@ function FogCanvas({ unlocked, onInfo, rest }) {
       const extra = Object.entries(areaPins).filter(([key, a]) => a.place && !seen.has(a.place) && a.lat != null && a.lng != null && seen.add(a.place))
         .map(([key, a]) => ({ id: "a:" + key, name: a.place, lat: a.lat, lng: a.lng }));
       const all = vils.concat(extra).map(v => ({ v, lat: v.lat, lng: v.lng, xy: o.proj([v.lng, v.lat]) })).filter(d => d.xy && isFinite(d.xy[0]));
-      o.placePts = all.map(d => ({ x: d.xy[0], y: d.xy[1], v: d.v, name: String(d.v.name), color: pinColor(d.v.category || d.v.cat) }));
+      o.showAll = showAll;
+      o.placePts = all.map(d => ({ x: d.xy[0], y: d.xy[1], v: d.v, name: String(d.v.name), cat: catOf(d.v) })).map(p => ({ ...p, color: CAT_COLOR[p.cat] }))
+        .filter(p => pinFilter === "all" || pinFilter === p.cat);
+      // ป้ายชื่อตำบล: อยู่กลางตำบล พร้อมจำนวนสถานที่ที่เช็คอินในตำบลนั้น
+      o.subChips = lit.map(d => { const [x, y] = o.path.centroid(d.f); return { x, y, d, name: d.name, n: all.filter(q => geoContains(d.f, [q.lng, q.lat])).length }; })
+        .filter(c => isFinite(c.x) && isFinite(c.y));
       // หมุดอยากไป: ซ่อนอันที่ไปเช็คอินจริงแล้ว (ห่างไม่เกิน 150 ม.)
-      o.wishPts = wishes.filter(w => !all.some(d => kmBetween(w, d) < 0.15)).map(w => ({ w, name: String(w.name), xy: o.proj([w.lng, w.lat]) }))
+      o.wishPts = (pinFilter === "all" || pinFilter === "wish" ? wishes : []).filter(w => !all.some(d => kmBetween(w, d) < 0.15)).map(w => ({ w, name: String(w.name), xy: o.proj([w.lng, w.lat]) }))
         .filter(d => d.xy && isFinite(d.xy[0])).map(d => ({ x: d.xy[0], y: d.xy[1], w: d.w, name: d.name }));
       o.cb = {
         open: (v) => { if (/^\d+$/.test(String(v.id))) infoRef.current({ k: "vil", id: String(v.id), name: v.name, on: true, props: {} }); },
         openWish: (w) => setSheet({ mode: "view", wish: w }),
+        openSub: (d) => open(d),
         zoomTo: (items) => {
           const xs = items.map(p => p.x), ys = items.map(p => p.y);
           const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
@@ -290,7 +333,7 @@ function FogCanvas({ unlocked, onInfo, rest }) {
       .style("font-size", 11 / o.K + "px").style("stroke-width", 3 / o.K + "px");
     o.lab = lit.map((d, i) => ({ el: tx.nodes()[i], cx: d.cx, cy: d.cy, w: Math.max(24, d.name.length * 6.8) }));
     declutter(o);
-  }, [ready, sizeTick, base, dis, sub, vils, active, unlocked, subProv, feats, areaPins, wishes]);
+  }, [ready, sizeTick, base, dis, sub, vils, active, unlocked, subProv, feats, areaPins, wishes, catOf, pinFilter, showAll]);
 
   // กดค้างบนแผนที่ (ระดับตำบล) = ปักหมุด "อยากไป"
   useEffect(() => {
@@ -360,6 +403,15 @@ function FogCanvas({ unlocked, onInfo, rest }) {
           {openProvs.map(f => <option key={f.properties.c} value={f.properties.c}>{unlocked.pro.has(f.properties.c) ? "✓ " : ""}{f.properties.th}</option>)}
         </select>
       )}
+      {active === "sub" && (presentCats.length > 1 || wishes.length > 0) && (
+        <div className="flex gap-1.5 overflow-x-auto pb-2" data-testid="pin-filter">
+          {[["all", "ทั้งหมด", "#e8ecf5"]].concat(presentCats.map(c => [c, CAT_TH[c], CAT_COLOR[c]])).concat(wishes.length ? [["wish", "อยากไป", "#ffd166"]] : []).map(([key, label, color]) => (
+            <button key={key} onClick={() => setPinFilter(key)} aria-pressed={pinFilter === key}
+              className={`text-xs font-semibold px-3 py-2 rounded-full whitespace-nowrap border ${pinFilter === key ? "text-[#0b1220]" : "bg-[#111a2e]"}`}
+              style={pinFilter === key ? { background: color, borderColor: color } : { color, borderColor: "#263456" }}>{label}</button>
+          ))}
+        </div>
+      )}
       <div ref={wrap} className="relative rounded-2xl overflow-hidden border border-[#263456]" style={{ background: "#0b1220", height: "52vh", minHeight: 320, touchAction: "none" }}>
         <svg ref={svgEl} className="absolute inset-0 w-full h-full" role="img" aria-label="แผนที่เส้นแบ่งเขตที่ปลดล็อกได้ด้วยการเช็คอิน" />
         {!base && !err && <div className="absolute inset-0 flex items-center justify-center text-[#8b97b3]"><Loader2 className="animate-spin" size={22} /></div>}
@@ -389,6 +441,11 @@ function FogCanvas({ unlocked, onInfo, rest }) {
             </>)}
           </div>
         )}
+        {active === "sub" && (
+          <button onClick={() => setShowAll(v => !v)} aria-pressed={showAll} data-testid="show-all-names"
+            className="absolute left-2 top-2 text-[11px] font-semibold px-3 py-2 rounded-full border"
+            style={showAll ? { background: "#f6f1e3", color: "#0b1220", borderColor: "#f6f1e3" } : { background: "#111a2e", color: "#e8ecf5", borderColor: "#263456" }}>{showAll ? "✓ " : ""}แสดงชื่อทั้งหมด</button>
+        )}
         <div className="absolute right-2 top-2 flex flex-col gap-1.5">
           <button aria-label="ซูมเข้า" onClick={() => m.current.svg.transition().duration(250).call(m.current.zoom.scaleBy, 2.5)} className="w-9 h-9 text-lg leading-none bg-[#111a2e] text-[#e8ecf5] border border-[#263456] rounded-lg">+</button>
           <button aria-label="ซูมออก" onClick={() => m.current.svg.transition().duration(250).call(m.current.zoom.scaleBy, 0.4)} className="w-9 h-9 text-lg leading-none bg-[#111a2e] text-[#e8ecf5] border border-[#263456] rounded-lg">−</button>
@@ -398,7 +455,7 @@ function FogCanvas({ unlocked, onInfo, rest }) {
       </div>
       {litList.length > 0 && (
         <div className="mt-2.5" data-testid="lit-list">
-          <p className="text-[11px] text-[#8b97b3] mb-1.5">ตำบลที่ปลดล็อกแล้ว {litList.length} แห่ง · แตะชื่อเพื่อซูมไปดู · หมุดทึบ = ที่ที่ไปเช็คอินจริง{wishOk ? " · กดค้างบนแผนที่เพื่อปักหมุดที่อยากไป (เส้นประ)" : ""}</p>
+          <p className="text-[11px] text-[#8b97b3] mb-1.5">ตำบลที่ปลดล็อกแล้ว {litList.length} แห่ง · แตะชื่อเพื่อซูมไปดู · หมุดวงกลม = ที่ที่ไปเช็คอินจริง · เลขข้างชื่อตำบล = จำนวนสถานที่{wishOk ? " · กดค้างบนแผนที่เพื่อปักหมุดที่อยากไป (เส้นประ)" : ""}</p>
           <div className="flex flex-wrap gap-1.5">
             {litList.map(x => (
               <button key={x.name + idOf(active, x.f)} onClick={() => { fitTo([x.f], 0.45); infoRef.current({ k: active, id: idOf(active, x.f), name: x.name, on: true, props: x.f.properties }); }}
