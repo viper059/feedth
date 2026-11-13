@@ -1,12 +1,12 @@
-// แผนที่เกมเต็มจอ (ซูมได้): ตำบลทั้งจังหวัด ปลดล็อกแล้วมีสี ที่ยังไม่ไปเป็นหมอก
-// ใช้ Leaflet ซึ่งซูมลื่นบนมือถือ ไม่มีแผนที่ถนนพื้นหลัง (ไม่พึ่งผู้ให้บริการภายนอก)
-import { useEffect, useRef, useState } from "react";
+// แผนที่ในกรอบของกระดานด่าน (ซูมได้ ไม่ต้องเปิดหน้าใหม่)
+// ใช้ Leaflet ซึ่งบีบนิ้วซูมลื่นบนมือถือ ไม่มีแผนที่ถนนพื้นหลัง (ไม่พึ่งผู้ให้บริการภายนอก)
+// นิ้วเดียว = เลื่อนหน้าตามปกติ · สองนิ้ว = ซูม/เลื่อนแผนที่ (ไม่ดักการเลื่อนหน้า)
+import { useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { geoCentroid, geoDistance } from "d3-geo";
+import { geoCentroid } from "d3-geo";
 
-const P = { accent: "#6C5CE7", soft: "#C9C1FF", text: "#1F2430", muted: "#6B7280", line: "#E4E6EF", bg: "#F3F5FA" };
-// ไอคอนตามประเภท: ใช้ประเภทย่อย (วัด อุทยาน ชายหาด น้ำตก พิพิธภัณฑ์) ก่อน ถ้าไม่มีใช้หมวดหลัก
+const P = { accent: "#6C5CE7", soft: "#C9C1FF", text: "#1F2430", line: "#E4E6EF", fog: "#DFE3EC" };
 const ICON = {
   temple: "M12 3l3 4h-6l3-4zM6 21V11h12v10M3 21h18M10 21v-5h4v5",
   park: "M12 3l5 8h-3l4 6H6l4-6H7l5-8zM12 17v4",
@@ -18,205 +18,137 @@ const ICON = {
   hotel: "M3 11l9-7 9 7M5 10v10h14V10M10 20v-6h4v6",
   attraction: "M12 21s-6-5.5-6-10a6 6 0 0 1 12 0c0 4.5-6 10-6 10zM12 13a2 2 0 1 0 0-4 2 2 0 0 0 0 4z",
 };
-const KIND_TH = { temple: "วัด", park: "อุทยาน / สวน", beach: "ชายหาด", waterfall: "น้ำตก", museum: "พิพิธภัณฑ์", cafe: "คาเฟ่", restaurant: "ร้านอาหาร", hotel: "ที่พัก", attraction: "ที่เที่ยว", other: "อื่นๆ" };
-const keyOf = (p) => (p.kind && ICON[p.kind] ? p.kind : ICON[p.category] ? p.category : "attraction");
-const svgIcon = (k, size, color) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${ICON[k]}"/></svg>`;
-const kmText = (km) => (km < 1 ? `${Math.round(km * 1000)} ม.` : `${km.toFixed(1)} กม.`);
-const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch { /* ignore */ } } };
+export const KIND_TH = { temple: "วัด", park: "อุทยาน / สวน", beach: "ชายหาด", waterfall: "น้ำตก", museum: "พิพิธภัณฑ์", cafe: "คาเฟ่", restaurant: "ร้านอาหาร", hotel: "ที่พัก", attraction: "ที่เที่ยว" };
+export const keyOf = (p) => (p.kind && ICON[p.kind] ? p.kind : ICON[p.category] ? p.category : "attraction");
+export const svgIcon = (k, size, color) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${ICON[k]}"/></svg>`;
+const esc = (t) => String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const CSS = `
-.gm .leaflet-container{background:#ffffff;font-family:'IBM Plex Sans Thai',sans-serif}
-.gm path.leaflet-interactive{transition:fill .9s ease, fill-opacity .9s ease}
-.gm .gm-label{background:#fff;color:${P.text};border-radius:10px;padding:1px 8px;font-size:12px;font-weight:700;white-space:nowrap;box-shadow:0 1px 3px rgba(31,36,48,.18);transform:translate(-50%,-50%);display:inline-block;transition:opacity .2s}
-.gm .gm-label.here{background:${P.accent};color:#fff}
-.gm .gm-pin{width:36px;height:36px;border-radius:50%;background:#fff;border:3px solid ${P.accent};display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(31,36,48,.25);transform:translate(-50%,-100%);position:relative}
-.gm .gm-pin:after{content:"";position:absolute;bottom:-9px;left:50%;margin-left:-6px;border:6px solid transparent;border-top:7px solid ${P.accent}}
-.gm .gm-pin.sel{width:46px;height:46px;background:${P.accent}}
-.gm .gm-clu{width:38px;height:38px;border-radius:50%;background:${P.accent};color:#fff;border:3px solid #fff;font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:center;transform:translate(-50%,-50%);box-shadow:0 0 0 6px rgba(108,92,231,.22)}
-.gm .gm-me{width:18px;height:18px;border-radius:50%;background:${P.accent};border:3px solid #fff;transform:translate(-50%,-50%);box-shadow:0 0 0 0 rgba(108,92,231,.5);animation:gmpulse 1.8s infinite}
-@keyframes gmpulse{0%{box-shadow:0 0 0 0 rgba(108,92,231,.5)}100%{box-shadow:0 0 0 18px rgba(108,92,231,0)}}
-.gm .leaflet-div-icon{background:none;border:0}
+.qm .leaflet-container{background:transparent;font-family:'IBM Plex Sans Thai',sans-serif;outline:none}
+.qm path.leaflet-interactive{transition:fill .5s ease}
+.qm .qm-label{background:rgba(255,255,255,.95);color:${P.text};border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:700;white-space:nowrap;box-shadow:0 2px 6px rgba(76,61,184,.18);transform:translate(-50%,-50%);display:inline-block}
+.qm .qm-label.here{background:${P.accent};color:#fff}
+.qm .qm-pin{width:32px;height:32px;border-radius:50%;background:#fff;border:2.5px solid ${P.accent};display:flex;align-items:center;justify-content:center;box-shadow:0 3px 8px rgba(76,61,184,.28);transform:translate(-50%,-100%);position:relative}
+.qm .qm-pin:after{content:"";position:absolute;bottom:-8px;left:50%;margin-left:-5px;border:5px solid transparent;border-top:6px solid ${P.accent}}
+.qm .qm-pin.sel{background:${P.accent}}
+.qm .qm-clu{width:34px;height:34px;border-radius:50%;background:${P.accent};color:#fff;border:3px solid #fff;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;transform:translate(-50%,-50%);box-shadow:0 0 0 5px rgba(108,92,231,.2)}
+.qm .qm-me{width:16px;height:16px;border-radius:50%;background:#2F80FF;border:3px solid #fff;transform:translate(-50%,-50%);animation:qmpulse 1.8s infinite}
+@keyframes qmpulse{0%{box-shadow:0 0 0 0 rgba(47,128,255,.45)}100%{box-shadow:0 0 0 16px rgba(47,128,255,0)}}
+.qm .leaflet-control-attribution{background:rgba(255,255,255,.7);font-size:9px;border-radius:6px 0 0 0}
 `;
 
-export default function GameMap({ feats, unlocked, pins, here, pos, title, onClose, onOpenPlace, showToast = () => {} }) {
+export default function QuestMap({ items, pins = [], pos, sel, onSelect, onPin, tall }) {
   const box = useRef(null);
   const m = useRef(null);
-  const [sel, setSel] = useState(null); // { type: "pin", p } | { type: "area", f, on }
-  const [target, setTarget] = useState(null); // ตำบลที่ยังไม่ปลดล็อกที่ใกล้ที่สุด
-  const done = feats.filter(f => unlocked.has(String(f.properties.c))).length;
+  const cb = useRef({});
+  cb.current = { onSelect, onPin };
 
+  // สร้างแผนที่ครั้งเดียว
   useEffect(() => {
-    const map = L.map(box.current, { zoomControl: false, attributionControl: true, zoomSnap: 0.25, wheelPxPerZoomLevel: 90 });
-    map.attributionControl.setPrefix(false).addAttribution("ขอบเขต: OpenGISData-Thailand (CC BY 4.0)");
-    const o = { map, labels: L.layerGroup().addTo(map), pinLayer: L.layerGroup().addTo(map) };
-    m.current = o;
-
-
-    // ตำบลที่เพิ่งปลดล็อกตั้งแต่เปิดครั้งก่อน → เล่นแอนิเมชันหมอกจาง
-    const seenKey = "gm_seen_" + (feats[0]?.properties.c || "").slice(0, 2);
-    const seenRaw = store.get(seenKey);
-    const seen = seenRaw ? new Set(JSON.parse(seenRaw)) : null;
-    const fresh = seen ? feats.filter(f => unlocked.has(String(f.properties.c)) && !seen.has(String(f.properties.c))) : [];
-    store.set(seenKey, JSON.stringify([...unlocked].filter(c => feats.some(f => String(f.properties.c) === c))));
-
-    const styleOf = (f, lockedNow) => {
-      const c = String(f.properties.c), on = unlocked.has(c) && !lockedNow, isHere = here?.sub === c;
-      if (isHere) return { fillColor: P.accent, fillOpacity: 1, color: "#ffffff", weight: 2.5 };
-      if (on) return { fillColor: P.soft, fillOpacity: 1, color: P.accent, weight: 1.5 };
-      return { fillColor: "#DADFEA", fillOpacity: 1, color: "#ffffff", weight: 1.2 };
-    };
-    const freshSet = new Set(fresh.map(f => String(f.properties.c)));
-    const layer = L.geoJSON({ type: "FeatureCollection", features: feats }, {
-      style: (f) => styleOf(f, freshSet.has(String(f.properties.c))),
-      onEachFeature: (f, lyr) => lyr.on("click", () => setSel({ type: "area", f, on: unlocked.has(String(f.properties.c)) })),
-    }).addTo(map);
-    o.layer = layer;
-    const bounds = layer.getBounds();
-    map.fitBounds(bounds, { padding: [20, 20] });
-    const z0 = map.getZoom();
-    map.setMinZoom(z0 - 0.5); map.setMaxZoom(z0 + 6);
-    map.setMaxBounds(bounds.pad(0.4));
-
-    if (fresh.length) {
-      setTimeout(() => {
-        layer.eachLayer(l => { if (freshSet.has(String(l.feature.properties.c))) l.setStyle(styleOf(l.feature, false)); });
-        const f = fresh[0];
-        showToast(`ปลดล็อก ต.${f.properties.th}${fresh.length > 1 ? ` และอีก ${fresh.length - 1} ตำบล` : ""} แล้ว!`);
-      }, 700);
-    }
-
-    // ป้ายชื่อตำบลที่ปลดล็อก + หมุดสถานที่: วาดใหม่หลังซูมเสร็จ (ไม่คำนวณระหว่างซูม จึงไม่หน่วง)
-    const draw = () => {
-      o.labels.clearLayers(); o.pinLayer.clearLayers();
-      const boxes = [];
-      const free = (b) => !boxes.some(x => b[0] < x[2] && b[2] > x[0] && b[1] < x[3] && b[3] > x[1]);
-      // หมุด (รวมกลุ่มที่ชิดกัน)
-      const groups = [];
-      for (const p of pins) {
-        const pt = map.latLngToContainerPoint([p.lat, p.lng]);
-        const g = groups.find(g => Math.hypot(g.pt.x - pt.x, g.pt.y - pt.y) < 42);
-        if (g) g.items.push(p); else groups.push({ pt, items: [p] });
-      }
-      for (const g of groups) {
-        boxes.push([g.pt.x - 20, g.pt.y - 46, g.pt.x + 20, g.pt.y]);
-        if (g.items.length === 1) {
-          const p = g.items[0], k = keyOf(p);
-          const mk = L.marker([p.lat, p.lng], { icon: L.divIcon({ className: "", html: `<div class="gm-pin" data-pin="${p.id}">${svgIcon(k, 18, P.accent)}</div>`, iconSize: [0, 0] }), keyboard: true, title: p.name });
-          mk.on("click", () => setSel({ type: "pin", p })).addTo(o.pinLayer);
-        } else {
-          const lat = g.items.reduce((a, p) => a + p.lat, 0) / g.items.length, lng = g.items.reduce((a, p) => a + p.lng, 0) / g.items.length;
-          const mk = L.marker([lat, lng], { icon: L.divIcon({ className: "", html: `<div class="gm-clu">${g.items.length}</div>`, iconSize: [0, 0] }), title: `${g.items.length} สถานที่` });
-          mk.on("click", () => map.flyToBounds(L.latLngBounds(g.items.map(p => [p.lat, p.lng])), { padding: [80, 80], maxZoom: map.getMaxZoom(), duration: 0.6 })).addTo(o.pinLayer);
-        }
-      }
-      // ชื่อตำบล (เฉพาะที่ปลดล็อก) ซ่อนอันที่ชนกัน
-      const lab = feats.filter(f => unlocked.has(String(f.properties.c)) || here?.sub === String(f.properties.c))
-        .map(f => { const [x, y] = geoCentroid(f); return { f, ll: [y, x], pt: map.latLngToContainerPoint([y, x]), isHere: here?.sub === String(f.properties.c) }; })
-        .sort((a, b) => b.isHere - a.isHere);
-      for (const l of lab) {
-        const name = (l.isHere ? "คุณอยู่ที่นี่ · " : "") + l.f.properties.th, w = name.length * 7 + 18;
-        const b = [l.pt.x - w / 2, l.pt.y - 11, l.pt.x + w / 2, l.pt.y + 11];
-        if (!l.isHere && !free(b)) continue;
-        boxes.push(b);
-        L.marker(l.ll, { icon: L.divIcon({ className: "", html: `<span class="gm-label${l.isHere ? " here" : ""}">${name.replace(/</g, "&lt;")}</span>`, iconSize: [0, 0] }), interactive: false, keyboard: false }).addTo(o.labels);
-      }
-    };
-    o.draw = draw;
-    map.on("zoomend", draw);
-    draw();
-
+    const touch = L.Browser.touch && L.Browser.mobile;
+    const map = L.map(box.current, { zoomControl: false, attributionControl: true, zoomSnap: 0.25, dragging: !touch, tap: false, scrollWheelZoom: false, touchZoom: true, bounceAtZoomLimits: false });
+    map.attributionControl.setPrefix(false).addAttribution("ขอบเขต: OpenGISData-Thailand (CC BY 4.0) · Natural Earth");
+    m.current = { map, area: null, marks: L.layerGroup().addTo(map), me: null };
+    // สองนิ้ว: ระหว่างบีบซูม Leaflet เลื่อนแผนที่ตามให้อยู่แล้ว
     return () => { map.remove(); m.current = null; };
   }, []);
 
-  // ตัวฉัน + เส้นประไปตำบลถัดไปที่ใกล้ที่สุด
+  // พื้นที่ + ป้าย + หมุด: วาดใหม่เมื่อเปลี่ยนระดับ/ข้อมูล และหลังซูมเสร็จ (ไม่คำนวณระหว่างซูม)
+  useEffect(() => {
+    const o = m.current; if (!o || !items) return;
+    const map = o.map;
+    if (o.area) o.area.remove();
+    const styleOf = (t) => t.here ? { fillColor: P.accent, fillOpacity: 1, color: "#ffffff", weight: 2.2 }
+      : t.on ? { fillColor: P.soft, fillOpacity: 1, color: "#ffffff", weight: 1.4 }
+      : { fillColor: P.fog, fillOpacity: 1, color: "#ffffff", weight: 1 };
+    const byCode = new Map(items.map(t => [t.code, t]));
+    o.area = L.geoJSON({ type: "FeatureCollection", features: items.map(t => ({ ...t.f, properties: { ...t.f.properties, __code: t.code } })) }, {
+      style: (f) => styleOf(byCode.get(f.properties.__code)),
+      onEachFeature: (f, lyr) => lyr.on("click", () => cb.current.onSelect && cb.current.onSelect(f.properties.__code)),
+    }).addTo(map);
+    o.styleOf = styleOf; o.byCode = byCode;
+    const b = o.area.getBounds();
+    if (b.isValid()) {
+      map.invalidateSize();
+      map.fitBounds(b, { padding: [14, 14] });
+      const z0 = map.getZoom();
+      map.setMinZoom(z0 - 0.5); map.setMaxZoom(z0 + 6);
+      map.setMaxBounds(b.pad(0.5));
+    }
+    const draw = () => {
+      o.marks.clearLayers();
+      const boxes = [];
+      const free = (bx) => !boxes.some(x => bx[0] < x[2] && bx[2] > x[0] && bx[1] < x[3] && bx[3] > x[1]);
+      // หมุดสถานที่ (รวมกลุ่มที่ชิดกัน)
+      const groups = [];
+      for (const p of pins) {
+        const pt = map.latLngToContainerPoint([p.lat, p.lng]);
+        const g = groups.find(g => Math.hypot(g.pt.x - pt.x, g.pt.y - pt.y) < 40);
+        if (g) g.items.push(p); else groups.push({ pt, items: [p] });
+      }
+      for (const g of groups) {
+        boxes.push([g.pt.x - 18, g.pt.y - 42, g.pt.x + 18, g.pt.y]);
+        if (g.items.length === 1) {
+          const p = g.items[0];
+          L.marker([p.lat, p.lng], { icon: L.divIcon({ className: "", html: `<div class="qm-pin" data-pin="${esc(p.id)}">${svgIcon(keyOf(p), 16, P.accent)}</div>`, iconSize: [0, 0] }), title: p.name })
+            .on("click", () => cb.current.onPin && cb.current.onPin(p)).addTo(o.marks);
+        } else {
+          const lat = g.items.reduce((a, p) => a + p.lat, 0) / g.items.length, lng = g.items.reduce((a, p) => a + p.lng, 0) / g.items.length;
+          L.marker([lat, lng], { icon: L.divIcon({ className: "", html: `<div class="qm-clu">${g.items.length}</div>`, iconSize: [0, 0] }), title: `${g.items.length} สถานที่` })
+            .on("click", () => map.flyToBounds(L.latLngBounds(g.items.map(p => [p.lat, p.lng])), { padding: [60, 60], maxZoom: map.getMaxZoom(), duration: 0.5 })).addTo(o.marks);
+        }
+      }
+      // ป้ายชื่อพื้นที่ที่ปลดล็อก (ชนกันก็ซ่อน) — ที่อยู่ตอนนี้ขึ้นก่อนเสมอ
+      const lab = items.filter(t => t.on || t.here).map(t => { const [x, y] = geoCentroid(t.f); return { t, ll: [y, x], pt: map.latLngToContainerPoint([y, x]) }; })
+        .sort((a, b) => b.t.here - a.t.here);
+      const size = map.getSize();
+      for (const l of lab) {
+        const w = l.t.name.length * 6.6 + 18, bx = [l.pt.x - w / 2, l.pt.y - 10, l.pt.x + w / 2, l.pt.y + 10];
+        if (bx[2] < 0 || bx[0] > size.x || bx[3] < 0 || bx[1] > size.y) continue;
+        if (!l.t.here && !free(bx)) continue;
+        boxes.push(bx);
+        L.marker(l.ll, { icon: L.divIcon({ className: "", html: `<span class="qm-label${l.t.here ? " here" : ""}">${esc(l.t.name)}</span>`, iconSize: [0, 0] }), interactive: false, keyboard: false }).addTo(o.marks);
+      }
+    };
+    o.draw = draw;
+    map.off("zoomend moveend").on("zoomend moveend", draw);
+    draw();
+  }, [items, pins]);
+
+  // พื้นที่ที่เลือก: ขอบเข้ม
+  useEffect(() => {
+    const o = m.current; if (!o || !o.area) return;
+    o.area.eachLayer(l => {
+      const t = o.byCode.get(l.feature.properties.__code);
+      l.setStyle(t && t.code === sel ? { ...o.styleOf(t), color: P.text, weight: 2.5 } : o.styleOf(t));
+      if (t && t.code === sel) l.bringToFront();
+    });
+  }, [sel, items]);
+
+  // ตัวฉัน
   useEffect(() => {
     const o = m.current; if (!o) return;
     if (o.me) { o.me.remove(); o.me = null; }
-    if (o.line) { o.line.remove(); o.line = null; }
-    if (!pos) { setTarget(null); return; }
-    o.me = L.marker([pos.lat, pos.lng], { icon: L.divIcon({ className: "", html: `<div class="gm-me"></div>`, iconSize: [0, 0] }), interactive: false, keyboard: false }).addTo(o.map);
-    let best = null;
-    for (const f of feats) {
-      if (unlocked.has(String(f.properties.c)) || here?.sub === String(f.properties.c)) continue;
-      const c = geoCentroid(f), km = geoDistance([pos.lng, pos.lat], c) * 6371;
-      if (!best || km < best.km) best = { f, km, ll: [c[1], c[0]] };
-    }
-    setTarget(best);
-    if (best) o.line = L.polyline([[pos.lat, pos.lng], best.ll], { color: P.accent, weight: 3, dashArray: "2 10", lineCap: "round", interactive: false }).addTo(o.map);
+    if (pos) o.me = L.marker([pos.lat, pos.lng], { icon: L.divIcon({ className: "", html: `<div class="qm-me"></div>`, iconSize: [0, 0] }), interactive: false, keyboard: false }).addTo(o.map);
   }, [pos && pos.lat, pos && pos.lng]);
 
+  // ขยาย/ย่อกรอบ
+  useEffect(() => { const o = m.current; if (o) setTimeout(() => { o.map.invalidateSize(); if (o.area) o.map.fitBounds(o.area.getBounds(), { padding: [14, 14] }); }, 260); }, [tall]);
+
   const zoom = (d) => m.current && m.current.map.zoomIn(d);
-  const toMe = () => { if (m.current && pos) m.current.map.flyTo([pos.lat, pos.lng], Math.max(m.current.map.getZoom(), m.current.map.getMinZoom() + 2.5), { duration: 0.6 }); else showToast("ยังไม่มีตำแหน่งของคุณ"); };
-  const navUrl = (ll) => `https://www.google.com/maps/dir/?api=1&destination=${ll[0]},${ll[1]}`;
-
-  const selPin = sel?.type === "pin" ? sel.p : null;
-  const selArea = sel?.type === "area" ? sel : null;
-  const areaKm = selArea && pos ? geoDistance([pos.lng, pos.lat], geoCentroid(selArea.f)) * 6371 : null;
-  const areaLL = selArea ? (() => { const c = geoCentroid(selArea.f); return [c[1], c[0]]; })() : null;
-
-  const btn = "w-11 h-11 rounded-2xl bg-white flex items-center justify-center shadow-sm";
+  const fit = () => { const o = m.current; if (o && o.area) o.map.flyToBounds(o.area.getBounds(), { padding: [14, 14], duration: 0.5 }); };
+  const btn = "w-9 h-9 rounded-xl bg-white/95 flex items-center justify-center text-[18px] shadow-sm";
   return (
-    <div className="gm fixed inset-0 z-[60] bg-[#F3F5FA]" role="dialog" aria-label="แผนที่สำรวจ" data-testid="game-map">
+    <div className="qm relative rounded-2xl overflow-hidden" style={{ height: tall ? "62vh" : 250, transition: "height .25s ease", background: "radial-gradient(120% 90% at 50% 0%, #F4F1FF 0%, #FFFFFF 70%)", border: `1px solid ${P.line}` }} data-testid="qb-map">
       <style>{CSS}</style>
-      <div ref={box} className="absolute inset-0" />
-
-      <div className="absolute left-3 right-3 top-3 flex items-center gap-2 z-[1000]">
-        <button onClick={onClose} aria-label="ปิดแผนที่" className={btn} style={{ border: `1px solid ${P.line}` }}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={P.text} strokeWidth="2.5" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
-        </button>
-        <div className="flex-1 min-w-0 bg-white rounded-2xl px-3 py-1.5 shadow-sm" style={{ border: `1px solid ${P.line}` }}>
-          <p className="text-[15px] font-semibold leading-tight truncate" style={{ fontFamily: "'Kanit', sans-serif", color: P.text }}>{title}</p>
-          <div className="flex items-center gap-2 mt-1">
-            <div className="flex-1 h-1.5 rounded overflow-hidden" style={{ background: P.line }}><div className="h-full" style={{ width: (feats.length ? (done / feats.length) * 100 : 0) + "%", background: P.accent }} /></div>
-            <span className="text-[11px] tabular-nums" style={{ color: P.muted }} data-testid="gm-progress">ตำบล {done}/{feats.length}</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="absolute right-3 top-1/3 flex flex-col gap-2 z-[1000]">
-        <button onClick={() => zoom(1)} aria-label="ซูมเข้า" className={btn + " text-xl"} style={{ border: `1px solid ${P.line}`, color: P.text }}>+</button>
-        <button onClick={() => zoom(-1)} aria-label="ซูมออก" className={btn + " text-xl"} style={{ border: `1px solid ${P.line}`, color: P.text }}>−</button>
-        <button onClick={toMe} aria-label="กลับมาที่ตำแหน่งของฉัน" className={btn} style={{ border: `1px solid ${P.line}` }}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={P.accent} strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /><path d="M12 2v4M12 18v4M2 12h4M18 12h4" /></svg>
+      <div ref={box} className="absolute inset-0" role="img" aria-label="แผนที่ พื้นที่ที่ปลดล็อกแล้วมีสี" />
+      <div className="absolute right-2 top-2 flex flex-col gap-1.5 z-[500]">
+        <button onClick={() => zoom(1)} aria-label="ซูมเข้า" className={btn} style={{ color: P.text, border: `1px solid ${P.line}` }}>+</button>
+        <button onClick={() => zoom(-1)} aria-label="ซูมออก" className={btn} style={{ color: P.text, border: `1px solid ${P.line}` }}>−</button>
+        <button onClick={fit} aria-label="ดูทั้งหมด" className={btn} style={{ border: `1px solid ${P.line}` }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={P.accent} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /></svg>
         </button>
       </div>
-
-      <div className="absolute left-3 right-3 bottom-4 z-[1000] bg-white rounded-3xl p-4 space-y-3 shadow-lg" style={{ border: `1px solid ${P.line}` }} data-testid="gm-card">
-        {selPin ? (<>
-          <div className="flex items-center gap-3">
-            <span className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: "#EFECFF" }} dangerouslySetInnerHTML={{ __html: svgIcon(keyOf(selPin), 24, P.accent) }} />
-            <div className="min-w-0 flex-1">
-              <p className="text-[16px] font-bold truncate" style={{ color: P.text }}>{selPin.name}</p>
-              <p className="text-[12px]" style={{ color: P.muted }}>{KIND_TH[keyOf(selPin)]}{selPin.visits ? ` · เช็คอิน ${selPin.visits} ครั้ง` : ""}{selPin.last_at ? ` · ล่าสุด ${new Date(selPin.last_at).toLocaleDateString("th-TH", { day: "numeric", month: "short" })}` : ""}</p>
-            </div>
-          </div>
-          <div className="flex gap-2">
-            {/^\d+$/.test(String(selPin.id)) && <button onClick={() => onOpenPlace(selPin.id)} className="flex-1 min-h-[46px] rounded-2xl text-white text-sm font-bold" style={{ background: P.accent }}>ดูหน้าสถานที่</button>}
-            <button onClick={() => setSel(null)} className="min-h-[46px] px-4 rounded-2xl text-sm font-semibold" style={{ border: `1px solid ${P.line}`, color: P.text }}>ปิด</button>
-          </div>
-        </>) : selArea ? (<>
-          <div>
-            <p className="text-[16px] font-bold" style={{ color: P.text, fontFamily: "'Kanit', sans-serif" }}>{selArea.on || here?.sub === String(selArea.f.properties.c) ? "ต." + selArea.f.properties.th : "ตำบลที่ยังไม่ปลดล็อก"}</p>
-            <p className="text-[12px]" style={{ color: P.muted }}>{selArea.on ? "ปลดล็อกแล้ว" : `${areaKm != null ? `ห่างราว ${kmText(areaKm)} · ` : ""}ไปเช็คอินในพื้นที่นี้เพื่อเปิดชื่อ`}</p>
-          </div>
-          <div className="flex gap-2">
-            {!selArea.on && <a href={navUrl(areaLL)} target="_blank" rel="noopener noreferrer" className="flex-1 min-h-[46px] rounded-2xl text-white text-sm font-bold flex items-center justify-center" style={{ background: P.accent }}>นำทางด้วย Google Maps</a>}
-            <button onClick={() => setSel(null)} className={(selArea.on ? "flex-1 " : "") + "min-h-[46px] px-4 rounded-2xl text-sm font-semibold"} style={{ border: `1px solid ${P.line}`, color: P.text }}>ปิด</button>
-          </div>
-        </>) : target ? (<>
-          <div className="flex items-center gap-3">
-            <span className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0" style={{ background: "#EFECFF" }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={P.accent} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M7 11V8a5 5 0 0 1 10 0v3M5 11h14v10H5z" /></svg>
-            </span>
-            <div>
-              <p className="text-[12px]" style={{ color: P.muted }}>เป้าถัดไป · ตำบลที่ยังไม่ปลดล็อก</p>
-              <p className="text-[17px] font-semibold" style={{ color: P.text, fontFamily: "'Kanit', sans-serif" }}>ห่างราว {kmText(target.km)}</p>
-            </div>
-          </div>
-          <a href={navUrl(target.ll)} target="_blank" rel="noopener noreferrer" className="w-full min-h-[46px] rounded-2xl text-white text-sm font-bold flex items-center justify-center" style={{ background: P.accent }}>นำทางด้วย Google Maps</a>
-        </>) : (
-          <p className="text-[13px]" style={{ color: P.muted }}>{done === feats.length && feats.length ? "ปลดล็อกครบทุกตำบลในจังหวัดนี้แล้ว" : "แตะพื้นที่หรือหมุดเพื่อดูรายละเอียด · บีบนิ้วเพื่อซูม"}</p>
-        )}
-      </div>
+      {L.Browser.mobile && <p className="absolute left-2 bottom-2 z-[500] text-[10px] font-semibold rounded-full px-2 py-0.5 pointer-events-none" style={{ background: "rgba(255,255,255,.85)", color: "#6B7280" }}>ใช้สองนิ้วเพื่อซูม/เลื่อนแผนที่</p>}
     </div>
   );
 }

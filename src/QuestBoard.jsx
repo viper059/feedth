@@ -1,12 +1,12 @@
 // กระดานด่าน (หน้าเช็คอิน): แทนแผนที่หมอกแบบซูม
 // แผนที่ย่อพอดีกรอบ ไม่มีชื่อ ไม่ซูม + ช่องด่านที่มีชื่อเสมอ เรียงจากที่อยู่ตอนนี้ → ปลดล็อกแล้ว → ใกล้ตัวที่สุด
 import { useState, useEffect, useMemo, useCallback, lazy, Suspense, Component } from "react";
-import { createPortal } from "react-dom";
-import { geoMercator, geoPath, geoContains, geoCentroid, geoDistance } from "d3-geo";
+import { geoContains, geoCentroid, geoDistance } from "d3-geo";
 import { loadBase, loadDis, loadSub, locateAt, RANKS, CONTINENT_TH } from "./geo.js";
 
 // สีเดียวโทนขาวเหมือนหน้าหลัก: ม่วงของแอปเป็นสีเน้นสีเดียว
-const GameMap = lazy(() => import("./GameMap.jsx"));
+const QuestMap = lazy(() => import("./GameMap.jsx"));
+const KIND_TH = { temple: "วัด", park: "อุทยาน / สวน", beach: "ชายหาด", waterfall: "น้ำตก", museum: "พิพิธภัณฑ์", cafe: "คาเฟ่", restaurant: "ร้านอาหาร", hotel: "ที่พัก", attraction: "ที่เที่ยว" };
 // ถ้าแผนที่เต็มจอพัง ให้แสดงข้อความพร้อมปุ่มปิด แทนที่จะทำให้ทั้งแอปเป็นจอขาว
 class MapGuard extends Component {
   constructor(p) { super(p); this.state = { err: null }; }
@@ -14,10 +14,9 @@ class MapGuard extends Component {
   render() {
     if (!this.state.err) return this.props.children;
     return (
-      <div className="fixed inset-0 z-[60] bg-[#F3F5FA] flex flex-col items-center justify-center gap-3 p-6 text-center">
-        <p className="text-sm font-semibold text-[#1F2430]">เปิดแผนที่ไม่สำเร็จ</p>
+      <div className="rounded-2xl bg-white border border-[#E4E6EF] flex flex-col items-center justify-center gap-1 p-6 text-center" style={{ height: 250 }}>
+        <p className="text-sm font-semibold text-[#1F2430]">โหลดแผนที่ไม่สำเร็จ</p>
         <p className="text-xs text-[#6B7280] break-all">{String(this.state.err?.message || this.state.err)}</p>
-        <button onClick={this.props.onClose} className="min-h-[44px] px-5 rounded-full bg-[#6C5CE7] text-white text-sm font-semibold">ปิด</button>
       </div>
     );
   }
@@ -44,7 +43,8 @@ export default function QuestBoard({ rest, pos, nearest, onCheckin, onLocate, on
   const [all, setAll] = useState(false);
   const [mapOpen, setMapOpen] = useState(store.get("qb_map") !== "0");
   const [claiming, setClaiming] = useState("");
-  const [gameOpen, setGameOpen] = useState(false);
+  const [tall, setTall] = useState(false);
+  const [pinSel, setPinSel] = useState(null);
 
   const refresh = useCallback(() => {
     rest("/rest/v1/rpc/my_explore", { method: "POST", body: {} }).then(setData)
@@ -76,12 +76,7 @@ export default function QuestBoard({ rest, pos, nearest, onCheckin, onLocate, on
   // ตำแหน่งมาทีหลัง: ย้ายไปอำเภอที่อยู่ตอนนี้ ถ้ายังดูมุมกว้างอยู่
   useEffect(() => { if (here?.dis && view && view.lvl === "cty") setView({ lvl: "dis", code: here.dis }); }, [here]);
 
-  const pcRaw = view && (view.lvl === "pro" ? view.code : view.lvl === "dis" ? geo?.dis.features.find(f => f.properties.c === view.code)?.properties.pc : null);
-  // จังหวัดที่ใช้กับแผนที่เกม: จังหวัดที่กำลังดู → ที่อยู่ตอนนี้ → ที่ปลดล็อกตำบลไว้มากที่สุด
-  const mainPro = useMemo(() => { const cnt = {}; un.sub.forEach(c => { const k = String(c).slice(0, 2); cnt[k] = (cnt[k] || 0) + 1; }); return Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a])[0] || null; }, [un]);
-  const pc = pcRaw;
-  const mapPc = pcRaw || here?.pro || mainPro;
-  useEffect(() => { if (mapPc && !subs[mapPc]) loadSub(mapPc).then(j => setSubs(s => ({ ...s, [mapPc]: j }))).catch(() => {}); }, [mapPc]);
+  const pc = view && (view.lvl === "pro" ? view.code : view.lvl === "dis" ? geo?.dis.features.find(f => f.properties.c === view.code)?.properties.pc : null);
   useEffect(() => { if (pc && !subs[pc]) loadSub(pc).then(j => setSubs(s => ({ ...s, [pc]: j }))).catch(() => {}); }, [pc]);
 
   // ลูกของพื้นที่ที่กำลังดู → ช่องด่าน
@@ -126,16 +121,6 @@ export default function QuestBoard({ rest, pos, nearest, onCheckin, onLocate, on
     return c;
   }, [view, geo, pc]);
 
-  // แผนที่ย่อ: พอดีกรอบเสมอ ไม่มีชื่อ ไม่ซูม
-  const W = 340, H = 150;
-  const shapes = useMemo(() => {
-    if (!tiles || !tiles.length) return null;
-    const fc = { type: "FeatureCollection", features: tiles.map(t => t.f) };
-    const proj = geoMercator().fitExtent([[6, 6], [W - 6, H - 6]], fc);
-    const path = geoPath(proj);
-    const me = pos ? proj([pos.lng, pos.lat]) : null;
-    return { list: tiles.map(t => ({ t, d: path(t.f) })), me: me && me[0] >= 0 && me[0] <= W && me[1] >= 0 && me[1] <= H ? me : null };
-  }, [tiles, pos]);
 
   const go = (v) => { setView(v); setSel(null); setAll(false); };
   const tap = (t) => {
@@ -215,16 +200,30 @@ export default function QuestBoard({ rest, pos, nearest, onCheckin, onLocate, on
         <div className="rounded-2xl p-3 space-y-2" style={{ background: C.card, border: `1px solid ${C.line}` }}>
           <div className="flex items-center justify-between">
             <span className="text-[16px] font-semibold" style={{ fontFamily: "'Kanit', sans-serif" }} data-testid="qb-progress">ด่าน{lvName} {done}/{total}</span>
-            <button onClick={toggleMap} className="min-h-[40px] px-2 -mr-2 text-[12px] font-semibold" style={{ color: C.muted }}>{mapOpen ? "ย่อแผนที่" : "ดูแผนที่"}</button>
+            <div className="flex items-center -mr-2">
+              {mapOpen && <button onClick={() => setTall(v => !v)} data-testid="qb-map-tall" className="min-h-[40px] px-2 text-[12px] font-semibold" style={{ color: C.mint }}>{tall ? "ย่อกรอบ" : "ขยายกรอบ"}</button>}
+              <button onClick={toggleMap} className="min-h-[40px] px-2 text-[12px] font-semibold" style={{ color: C.muted }}>{mapOpen ? "ซ่อนแผนที่" : "ดูแผนที่"}</button>
+            </div>
           </div>
-          {mapOpen && shapes && (
-            <svg viewBox={`0 0 ${W} ${H}`} className="w-full block rounded-xl" style={{ background: C.bg }} role="img" aria-label={`แผนที่ย่อ ${lvName}ที่ปลดล็อกแล้วมีสี`} data-testid="qb-map">
-              {shapes.list.map(({ t, d }) => (
-                <path key={t.code} d={d} onClick={() => tap(t)} style={{ cursor: "pointer" }}
-                  fill={t.here ? C.gold : t.on ? C.map : C.lock} stroke={sel === t.code ? C.text : C.bg} strokeWidth={sel === t.code ? 2.5 : t.here ? 2 : 1} />
-              ))}
-              {shapes.me && <circle cx={shapes.me[0]} cy={shapes.me[1]} r="5" fill={C.bg} stroke={C.gold} strokeWidth="3" pointerEvents="none" />}
-            </svg>
+          {mapOpen && (
+            <MapGuard>
+              <Suspense fallback={<div className="rounded-2xl" style={{ height: 250, background: "radial-gradient(120% 90% at 50% 0%, #F4F1FF 0%, #FFFFFF 70%)", border: `1px solid ${C.line}` }} />}>
+                <QuestMap items={tiles} pos={pos} sel={sel} tall={tall}
+                  pins={view.lvl === "dis" ? pins.filter(q => q.lat != null && tiles.some(t => t.on && geoContains(t.f, [q.lng, q.lat]))) : []}
+                  onSelect={(code) => { const t = tiles.find(x => x.code === code); if (t) { setPinSel(null); tap(t); } }}
+                  onPin={(p) => { setSel(null); setPinSel(p); }} />
+              </Suspense>
+            </MapGuard>
+          )}
+          {pinSel && (
+            <div className="flex items-center gap-3 rounded-2xl p-3" style={{ background: C.bg, border: `1px solid ${C.line}` }} data-testid="qb-pin-card">
+              <div className="flex-1 min-w-0">
+                <p className="text-[15px] font-bold truncate">{pinSel.name}</p>
+                <p className="text-[12px]" style={{ color: C.muted }}>{KIND_TH[pinSel.kind] || KIND_TH[pinSel.category] || "สถานที่"}{pinSel.visits ? ` · เช็คอิน ${pinSel.visits} ครั้ง` : ""}</p>
+              </div>
+              {/^\d+$/.test(String(pinSel.id)) && <button onClick={() => onOpenPlace(pinSel.id)} className="min-h-[40px] px-3 rounded-xl text-[13px] font-bold text-white" style={{ background: C.mint }}>ดูหน้าสถานที่</button>}
+              <button onClick={() => setPinSel(null)} aria-label="ปิด" className="min-w-[40px] min-h-[40px] rounded-xl text-[16px]" style={{ border: `1px solid ${C.line}`, color: C.muted }}>×</button>
+            </div>
           )}
           {mapOpen && (
             <div className="flex items-center gap-3 text-[11px]" style={{ color: C.muted }}>
@@ -235,12 +234,6 @@ export default function QuestBoard({ rest, pos, nearest, onCheckin, onLocate, on
             </div>
           )}
           <div className="h-2 rounded overflow-hidden" style={{ background: C.bg }}><div className="h-full" style={{ width: (total ? (done / total) * 100 : 0) + "%", background: C.gold }} /></div>
-          {mapPc && subs[mapPc] && (
-            <button onClick={() => setGameOpen(true)} data-testid="qb-open-game" className="w-full min-h-[44px] rounded-xl text-[13px] font-bold flex items-center justify-center gap-2" style={{ background: C.soft, color: C.mint }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.mint} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14" /></svg>
-              เปิดแผนที่ (ซูมได้)
-            </button>
-          )}
         </div>
 
         {/* ช่องด่าน */}
@@ -300,15 +293,6 @@ export default function QuestBoard({ rest, pos, nearest, onCheckin, onLocate, on
           ความท้าทายธรรมชาติ · เส้นทาง 9 บท · ร้านค้า
         </button>
       )}
-      {gameOpen && mapPc && subs[mapPc] && createPortal(
-        <MapGuard onClose={() => setGameOpen(false)}>
-          <Suspense fallback={<div className="fixed inset-0 z-[60] bg-[#F3F5FA] flex items-center justify-center text-sm" style={{ color: C.muted }}>กำลังเปิดแผนที่...</div>}>
-          <GameMap feats={subs[mapPc].features} unlocked={un.sub} here={here} pos={pos} showToast={showToast}
-            pins={pins.filter(q => q.lat != null && String(q.province) === String(mapPc))}
-            title={"จ." + (geo?.base.pro.features.find(f => f.properties.c === mapPc)?.properties.th || "")}
-            onClose={() => setGameOpen(false)} onOpenPlace={(id) => { setGameOpen(false); onOpenPlace(id); }} />
-        </Suspense>
-        </MapGuard>, document.body)}
     </section>
   );
 }
