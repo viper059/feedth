@@ -506,6 +506,31 @@ export default function FogMapPanel({ rest, showToast }) {
     setClaiming("");
   };
 
+  // เป้าใกล้ตัว: อำเภอที่ใกล้ครบที่สุดในจังหวัดที่ผู้ใช้ปลดล็อกตำบลไว้มากที่สุด (ตัวเลขทั้งประเทศใหญ่เกินจนไม่รู้สึกว่าคืบหน้า)
+  const [near, setNear] = useState(null);
+  useEffect(() => {
+    if (!disData || !baseData || !unlocked.sub.size) { setNear(null); return; }
+    let live = true;
+    (async () => {
+      // หาจังหวัดของแต่ละตำบลที่ปลดล็อกผ่านรหัสอำเภอ (รหัสตำบลขึ้นต้นด้วยรหัสอำเภอ)
+      const disList = disData.features.map(f => f.properties);
+      const cnt = {};
+      for (const c of unlocked.sub) { const d = disList.find(x => String(c).startsWith(x.c)); if (d) cnt[d.pc] = (cnt[d.pc] || 0) + 1; }
+      const pc = Object.keys(cnt).sort((x, y) => cnt[y] - cnt[x])[0];
+      if (!pc) { if (live) setNear(null); return; }
+      const subs = (await loadSub(pc)).features.map(f => f.properties);
+      const per = {};
+      for (const sp of subs) { const o = per[sp.dc] || (per[sp.dc] = { total: 0, done: 0 }); o.total++; if (unlocked.sub.has(sp.c)) o.done++; }
+      const cand = Object.entries(per).filter(([, v]) => v.done > 0 && v.done < v.total).sort((x, y) => y[1].done / y[1].total - x[1].done / x[1].total || y[1].done - x[1].done)[0];
+      const proName = baseData.pro.features.find(f => f.properties.c === pc)?.properties.th || "";
+      const disInPro = disList.filter(x => x.pc === pc);
+      const out = { proName, disDone: disInPro.filter(x => unlocked.dis.has(x.c)).length, disTotal: disInPro.length, subDone: subs.filter(sp => unlocked.sub.has(sp.c)).length, subTotal: subs.length };
+      if (cand) { out.dis = { name: disList.find(x => x.c === cand[0])?.th || "", done: cand[1].done, total: cand[1].total }; }
+      if (live) setNear(out);
+    })().catch(() => { if (live) setNear(null); });
+    return () => { live = false; };
+  }, [disData, baseData, unlocked]);
+
   if (!data) return <p className="text-center text-xs text-[#9199A8] py-10">กำลังโหลด...</p>;
   const rk = rankOf(data.score);
   const tot = { con: baseData?.con.features.length, cty: baseData?.cty.features.length, reg: baseData?.reg.features.length, ...data.totals };
@@ -536,8 +561,19 @@ export default function FogMapPanel({ rest, showToast }) {
           </div>
         </div>
         <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11.5px] text-[#8b97b3] mt-2.5 tabular-nums">
-          {LEVELS.slice().reverse().map(l => <span key={l.k} className="whitespace-nowrap"><i className="inline-block w-2 h-2 rounded-full mr-1 align-baseline" style={{ background: LEVEL_COLOR[l.k] }} />{l.name} <b className="text-[#e8ecf5]">{unlocked[l.k].size}</b>{tot[l.k] ? `/${tot[l.k]}` : ""}</span>)}
+          {LEVELS.slice().reverse().map(l => <span key={l.k} className="whitespace-nowrap"><i className="inline-block w-2 h-2 rounded-full mr-1 align-baseline" style={{ background: LEVEL_COLOR[l.k] }} />{l.name} <b className="text-[#e8ecf5]">{unlocked[l.k].size}</b>{l.k !== "vil" && tot[l.k] ? `/${tot[l.k]}` : ""}</span>)}
         </div>
+        {near && (
+          <div className="mt-3 rounded-xl p-3" style={{ background: "#111a2e", border: "1px solid #263456" }} data-testid="near-goal">
+            <p className="text-[11px] text-[#8b97b3]">เป้าใกล้ตัว</p>
+            {near.dis ? (<>
+              <p className="text-[13px] font-semibold mt-0.5">อ.{near.dis.name} · ตำบล <span style={{ color: LEVEL_COLOR.sub }}>{near.dis.done}/{near.dis.total}</span></p>
+              <div className="h-2 rounded bg-[#1d2946] overflow-hidden mt-1.5"><div className="h-full" style={{ width: (near.dis.done / near.dis.total) * 100 + "%", background: LEVEL_COLOR.sub }} /></div>
+              <p className="text-[11px] text-[#8b97b3] mt-1.5">อีก {near.dis.total - near.dis.done} ตำบลจะครบอำเภอนี้</p>
+            </>) : <p className="text-[13px] font-semibold mt-0.5">ครบทุกตำบลในอำเภอที่ไปแล้ว ลองไปอำเภอใหม่ดู</p>}
+            <p className="text-[11px] text-[#8b97b3] mt-1.5 tabular-nums">จ.{near.proName} · อำเภอ <b className="text-[#e8ecf5]">{near.disDone}/{near.disTotal}</b> · ตำบล <b className="text-[#e8ecf5]">{near.subDone}/{near.subTotal}</b></p>
+          </div>
+        )}
         {!data.streak.today && <p className="text-[11px] mt-2" style={{ color: "#FF8A3D" }}>{data.streak.current > 0 ? "วันนี้ยังไม่ได้เช็คอิน — เช็คอินวันนี้เพื่อรักษาสตรีค" : "เช็คอินวันนี้เพื่อเริ่มสตรีค"}</p>}
       </div>
 
