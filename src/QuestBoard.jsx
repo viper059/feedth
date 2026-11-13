@@ -15,7 +15,7 @@ const Star = ({ c = C.mint, s = 16 }) => <svg width={s} height={s} viewBox="0 0 
 const LockIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M7 11V8a5 5 0 0 1 10 0v3M5 11h14v10H5z" /></svg>;
 const Chevron = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2.5" strokeLinecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>;
 
-export default function QuestBoard({ rest, pos, nearest, onCheckin, onLocate, onAdd, busy, refreshKey, showToast = () => {} }) {
+export default function QuestBoard({ rest, pos, nearest, onCheckin, onLocate, onAdd, busy, refreshKey, onMore, showToast = () => {} }) {
   const [data, setData] = useState(null);
   const [pins, setPins] = useState([]);
   const [geo, setGeo] = useState(null); // { base, dis }
@@ -248,6 +248,11 @@ export default function QuestBoard({ rest, pos, nearest, onCheckin, onLocate, on
             );
           })}
         </div>
+      )}
+      {onMore && (
+        <button onClick={onMore} data-testid="qb-more-challenges" className="w-full min-h-[44px] rounded-xl text-[13px] font-semibold" style={{ border: `1px solid ${C.line}`, color: C.text }}>
+          ความท้าทายธรรมชาติ · เส้นทาง 9 บท · ร้านค้า
+        </button>
       )}
     </section>
   );

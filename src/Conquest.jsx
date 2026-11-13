@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { MapPin, Flame, Zap, Lock, Check, Compass, Users, X, BookOpen } from "lucide-react";
+import { MapPin, Flame, Zap, Lock, Check, Compass, Users, X, BookOpen, ArrowLeft } from "lucide-react";
 import { StoryReader } from "./Guide.jsx";
 import FamilyView from "./Family.jsx";
 import { REGION_TH } from "./geo.js";
@@ -24,7 +24,7 @@ const NATURE = {
   region: { t: "อุทยานครบทุกภาค", d: "ไปอุทยานให้ครบ 6 ภาค (ภาคละ 1 แห่งขึ้นไป)", icon: "🧭" },
 };
 
-export default function ConquestTab({ rest, onCheckin, onMap, onShops, showToast }) {
+export default function ConquestTab({ rest, onCheckin, onMap, onShops, onBack, showToast }) {
   const [data, setData] = useState(null);
   const [me, setMe] = useState(null);
   const [sheet, setSheet] = useState(false);
@@ -47,7 +47,10 @@ export default function ConquestTab({ rest, onCheckin, onMap, onShops, showToast
   return (
     <div style={{ fontFamily: "'IBM Plex Sans Thai', sans-serif", background: "#0B1020", color: "#F1F3FA" }} className="min-h-screen pb-24">
       <header className="max-w-xl mx-auto flex items-center justify-between px-5 pt-5">
-        <h1 style={{ fontFamily: "'Kanit', sans-serif" }} className="text-xl font-semibold" >พิชิตโลก</h1>
+        <div className="flex items-center gap-2">
+          {onBack && <button onClick={onBack} aria-label="กลับ" className="min-w-[44px] min-h-[44px] -ml-3 flex items-center justify-center"><ArrowLeft size={18} /></button>}
+          <h1 style={{ fontFamily: "'Kanit', sans-serif" }} className="text-xl font-semibold" >พิชิตโลก</h1>
+        </div>
         <div className="flex gap-2">
           <span className="flex items-center gap-1 rounded-full px-2.5 py-1.5 text-[13px] font-semibold" style={{ background: "#151C33" }}><Flame size={15} color="#FF8A4B" />{me?.streak?.current ?? 0} วัน</span>
           <span className="flex items-center gap-1 rounded-full px-2.5 py-1.5 text-[13px] font-semibold" style={{ background: "#151C33" }}><Zap size={15} color={G} />{me?.score ?? 0}</span>

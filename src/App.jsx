@@ -206,7 +206,7 @@ function LegalModal({ onClose, initial = "terms" }) {
 
 const CAT_COLOR = { attraction: "#17B890", hotel: "#4A90E2", restaurant: "#EF4565", cafe: "#FFB020", other: "#9199A8" };
 
-function CheckinTab({ rest, getToken, userId, onBack, showToast, onOpenPlace, onOpenMap }) {
+function CheckinTab({ rest, getToken, userId, onBack, showToast, onOpenPlace, onOpenMap, onMore }) {
   const [pos, setPos] = useState(null);
   const [places, setPlaces] = useState([]);
   const [cat, setCat] = useState("all");
@@ -309,7 +309,7 @@ function CheckinTab({ rest, getToken, userId, onBack, showToast, onOpenPlace, on
         </div>
       </header>
       <main className="max-w-xl mx-auto px-4 pt-3 space-y-3">
-        <QuestBoard rest={rest} pos={pos} busy={busy} onLocate={locate} refreshKey={result ? 1 : 0} showToast={showToast}
+        <QuestBoard rest={rest} pos={pos} busy={busy} onLocate={locate} refreshKey={result ? 1 : 0} showToast={showToast} onMore={onMore}
           nearest={places.filter(pl => pl.distance_m <= CHECKIN_RADIUS_M).sort((a, b) => a.distance_m - b.distance_m)[0] || null}
           onCheckin={(pl) => setTarget(pl)}
           onAdd={(k) => { const el = document.getElementById(k === "add" ? "ci-add-form" : "ci-list"); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); }} />
@@ -728,14 +728,14 @@ function ExploreTab({ rest, prov, setProv, onOpenPlace, showToast }) {
 }
 
 function TabBar({ tab, setTab, badge = 0 }) {
-  const items = [["feed", "ฟีด", Home], ["conquest", "พิชิต", Compass], ["checkin", "เช็คอิน", MapPin], ["rank", "อันดับ", Trophy], ["profile", "โปรไฟล์", User]];
+  const items = [["feed", "ฟีด", Home], ["checkin", "เช็คอิน", MapPin], ["rank", "อันดับ", Trophy], ["profile", "โปรไฟล์", User]];
   return (
     <>
       <FeedbackStrip tab={tab} />
       <div className="pw-spacer" />
       <nav className="pw-nav z-30 bg-white border-t border-black/5 flex">
         {items.map(([k, label, Icon]) => (
-          <button key={k} onClick={() => setTab(k)} className={`flex-1 flex flex-col items-center gap-0.5 py-2 text-[11px] ${(tab === k || (k === "conquest" && tab === "explore")) ? "text-[#6C5CE7] font-semibold" : "text-[#9199A8]"}`}>
+          <button key={k} onClick={() => setTab(k)} className={`flex-1 flex flex-col items-center gap-0.5 py-2 text-[11px] ${(tab === k || (k === "checkin" && (tab === "explore" || tab === "conquest"))) ? "text-[#6C5CE7] font-semibold" : "text-[#9199A8]"}`}>
             <span className="relative"><Icon size={20} />{k === "profile" && badge > 0 && <span className="absolute -top-1 -right-2 min-w-[14px] h-[14px] rounded-full bg-[#EF4565] text-white text-[9px] leading-[14px] text-center px-0.5">{badge}</span>}</span>{label}
           </button>
         ))}
@@ -1859,9 +1859,9 @@ export default function FeedApp() {
   if (tab === "checkin" || tab === "profile" || tab === "rank" || tab === "explore" || tab === "conquest") return (
     <>
       {tab === "checkin"
-        ? <CheckinTab rest={rest} getToken={getToken} userId={session.user_id} onBack={() => setTab("feed")} showToast={showToast} onOpenPlace={openPlace} onOpenMap={() => setTab("checkin")} />
+        ? <CheckinTab rest={rest} getToken={getToken} userId={session.user_id} onBack={() => setTab("feed")} showToast={showToast} onOpenPlace={openPlace} onOpenMap={() => setTab("checkin")} onMore={() => setTab("conquest")} />
         : tab === "conquest"
-        ? <ConquestTab rest={rest} onShops={() => setShopsView(true)} onCheckin={() => setTab("checkin")} onMap={() => { setExploreProv(null); setTab("explore"); }} showToast={showToast} />
+        ? <ConquestTab rest={rest} onBack={() => setTab("checkin")} onShops={() => setShopsView(true)} onCheckin={() => setTab("checkin")} onMap={() => { setExploreProv(null); setTab("explore"); }} showToast={showToast} />
         : tab === "explore"
         ? <ExploreTab rest={rest} prov={exploreProv} setProv={setExploreProv} onOpenPlace={openPlace} showToast={showToast} />
         : tab === "rank"
