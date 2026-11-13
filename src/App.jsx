@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import FogMapPanel from "./FogMap.jsx";
+import QuestBoard from "./QuestBoard.jsx";
 import ConquestTab from "./Conquest.jsx";
 import InstallPrompt from "./InstallPrompt.jsx";
 import WelcomeCard, { AppIntro } from "./Welcome.jsx";
@@ -309,7 +309,11 @@ function CheckinTab({ rest, getToken, userId, onBack, showToast, onOpenPlace, on
         </div>
       </header>
       <main className="max-w-xl mx-auto px-4 pt-3 space-y-3">
-        {pos && <p className="text-[11px] text-[#9199A8]">เช็คอินได้เมื่ออยู่ในรัศมี {CHECKIN_RADIUS_M} ม. จากสถานที่ · เช็คอินเพื่อปลดล็อกตำบล/อำเภอ/จังหวัดบนแผนที่สำรวจ</p>}
+        <QuestBoard rest={rest} pos={pos} busy={busy} onLocate={locate} refreshKey={result ? 1 : 0} showToast={showToast}
+          nearest={places.filter(pl => pl.distance_m <= CHECKIN_RADIUS_M).sort((a, b) => a.distance_m - b.distance_m)[0] || null}
+          onCheckin={(pl) => setTarget(pl)}
+          onAdd={(k) => { const el = document.getElementById(k === "add" ? "ci-add-form" : "ci-list"); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); }} />
+        {pos && <p id="ci-list" className="text-[11px] text-[#9199A8]">เช็คอินได้เมื่ออยู่ในรัศมี {CHECKIN_RADIUS_M} ม. จากสถานที่ · เช็คอินเพื่อปลดล็อกตำบล/อำเภอ/จังหวัดบนแผนที่สำรวจ</p>}
         <div className="flex gap-2 overflow-x-auto">
           {["all", ...Object.keys(CATEGORY_TH)].map(c => (
             <button key={c} onClick={() => setCat(c)} className={`text-xs px-3 py-1.5 rounded-full whitespace-nowrap ${cat === c ? "bg-[#6C5CE7] text-white" : "bg-white border border-black/10"}`}>
@@ -333,7 +337,7 @@ function CheckinTab({ rest, getToken, userId, onBack, showToast, onOpenPlace, on
         })}
         {pos && shown.length === 0 && <p className="text-center text-xs text-[#9199A8] py-4">ยังไม่มีสถานที่ใกล้คุณ เพิ่มสถานที่แรกได้เลย</p>}
 
-        <div className="bg-white rounded-2xl p-3 shadow-sm space-y-2">
+        <div id="ci-add-form" className="bg-white rounded-2xl p-3 shadow-sm space-y-2">
           <p className="text-sm font-medium">เพิ่มสถานที่ตรงตำแหน่งที่คุณอยู่</p>
           <div className="flex gap-2">
             <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="ชื่อสถานที่" className="flex-1 min-w-0 text-sm bg-[#F3F5FA] rounded-lg px-3 py-2 outline-none" />
@@ -375,7 +379,7 @@ function CheckinTab({ rest, getToken, userId, onBack, showToast, onOpenPlace, on
                 <li key={u.level + u.code} className="flex justify-between"><span>ปลดล็อก{LEVELS.find(l => l.k === u.level).name} {u.name || (u.level === "reg" ? REGION_TH[u.code] : u.level === "con" ? CONTINENT_TH[u.code] : COUNTRY_TH[u.code]) || u.code}</span><span className="text-[#178A5D]">+{u.points}</span></li>
               ))}
             </ul>
-            <button onClick={() => { setResult(null); onOpenMap(); }} className="w-full bg-[#6C5CE7] text-white text-sm font-semibold py-2.5 rounded-full">ดูแผนที่สำรวจ</button>
+            <button onClick={() => { setResult(null); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="w-full bg-[#6C5CE7] text-white text-sm font-semibold py-2.5 rounded-full">ดูด่านของฉัน</button>
           </div>
         </div>
       )}
@@ -529,7 +533,7 @@ function GuestPreview({ rest, showToast, onSignup, onLogin }) {
           <p className="text-xs opacity-90 mt-1">เช็คอินสถานที่จริงเพื่อเปิดตำบล อำเภอ และจังหวัดบนแผนที่ของคุณ ด้านล่างเป็นแผนที่ตัวอย่าง ลองซูมและแตะดูได้</p>
         </div>
         <p className="text-[11px] text-[#6B7280]">แผนที่ตัวอย่าง (ข้อมูลสมมุติ ไม่ใช่ของผู้ใช้จริง)</p>
-        <FogMapPanel rest={demoRest} showToast={showToast} />
+        <QuestBoard rest={demoRest} pos={null} nearest={null} onCheckin={onSignup} onLocate={onSignup} onAdd={onSignup} showToast={showToast} />
         <h2 className="text-sm font-semibold pt-1" style={{ fontFamily: "'Kanit', sans-serif" }}>โพสต์ล่าสุดจากนักเที่ยว</h2>
         {posts === null && <p className="text-xs text-[#9199A8]">กำลังโหลด...</p>}
         {posts && posts.length === 0 && <p className="text-xs text-[#9199A8]">ยังไม่มีโพสต์ให้ดู</p>}
@@ -659,7 +663,7 @@ function ExploreTab({ rest, prov, setProv, onOpenPlace, showToast }) {
   const [provs, setProvs] = useState(null);
   const [places, setPlaces] = useState(null);
   const [cat, setCat] = useState("all");
-  const [view, setView] = useState("map");
+  const view = "list"; // แผนที่ย้ายไปอยู่หน้าเช็คอินแล้ว
   useEffect(() => {
     if (prov || view !== "list") return;
     rest("/rest/v1/rpc/explore_provinces", { method: "POST", body: {} }).then(setProvs).catch(e => { showToast("โหลดจังหวัดไม่สำเร็จ: " + e.message); setProvs([]); });
@@ -676,16 +680,12 @@ function ExploreTab({ rest, prov, setProv, onOpenPlace, showToast }) {
       <header className="sticky top-0 z-20 bg-[#F3F5FA]/90 backdrop-blur border-b border-black/5">
         <div className="max-w-xl mx-auto flex items-center gap-3 px-4 py-3">
           {prov && <button onClick={() => { setProv(null); setCat("all"); }} aria-label="กลับ" className="text-[#6B7280]"><ArrowLeft size={18} /></button>}
-          <h1 style={{ fontFamily: "'Kanit', sans-serif" }} className="text-xl font-semibold text-[#6C5CE7]">{prov ? prov : view === "map" ? "สำรวจ" : "สำรวจจังหวัด"}</h1>
-          {!prov && (
-            <div className="ml-auto flex bg-white rounded-full border border-black/10 p-0.5 text-xs">
-              {[["map", "แผนที่"], ["list", "รายการจังหวัด"]].map(([k, l]) => <button key={k} onClick={() => setView(k)} className={`px-3 py-1 rounded-full ${view === k ? "bg-[#6C5CE7] text-white" : "text-[#6B7280]"}`}>{l}</button>)}
-            </div>
-          )}
+          <h1 style={{ fontFamily: "'Kanit', sans-serif" }} className="text-xl font-semibold text-[#6C5CE7]">{prov ? prov : "สำรวจจังหวัด"}</h1>
+
         </div>
       </header>
       <main className="max-w-xl mx-auto px-4 pt-3 space-y-2">
-        {!prov && view === "map" && <FogMapPanel rest={rest} showToast={showToast} />}
+
         {!prov && view === "list" && provs === null && <p className="text-center text-xs text-[#9199A8] py-6">กำลังโหลด...</p>}
         {!prov && view === "list" && provs && provs.length === 0 && <p className="text-center text-xs text-[#9199A8] py-6">ยังไม่มีสถานที่ในระบบ</p>}
         {!prov && view === "list" && provs && provs.map(pv => {
@@ -1424,7 +1424,7 @@ export default function FeedApp() {
             const loc = (await locateAt(pl.lat, pl.lng).catch(() => null)) || {};
             const r = await rest("/rest/v1/rpc/check_in_v4", { method: "POST", body: { p_place_id: pl.id, p_lat: p.lat, p_lng: p.lng, p_rating: 5, p_caption: "", p_cty: loc.cty || null, p_pro: loc.pro || null, p_dis: loc.dis || null, p_sub: loc.sub || null } });
             showToast(`เช็คอินที่ ${pl.name} สำเร็จ +${r.points} ดูแผนที่ของคุณเปิดออกได้เลย`);
-            setFirstPin(false); loadFeed(); setExploreProv(null); setTab("explore");
+            setFirstPin(false); loadFeed(); setTab("checkin");
           }
         } catch (e) {
           const m = e.message || "";
@@ -1859,7 +1859,7 @@ export default function FeedApp() {
   if (tab === "checkin" || tab === "profile" || tab === "rank" || tab === "explore" || tab === "conquest") return (
     <>
       {tab === "checkin"
-        ? <CheckinTab rest={rest} getToken={getToken} userId={session.user_id} onBack={() => setTab("feed")} showToast={showToast} onOpenPlace={openPlace} onOpenMap={() => { setExploreProv(null); setTab("explore"); }} />
+        ? <CheckinTab rest={rest} getToken={getToken} userId={session.user_id} onBack={() => setTab("feed")} showToast={showToast} onOpenPlace={openPlace} onOpenMap={() => setTab("checkin")} />
         : tab === "conquest"
         ? <ConquestTab rest={rest} onShops={() => setShopsView(true)} onCheckin={() => setTab("checkin")} onMap={() => { setExploreProv(null); setTab("explore"); }} showToast={showToast} />
         : tab === "explore"

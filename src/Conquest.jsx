@@ -73,7 +73,7 @@ export default function ConquestTab({ rest, onCheckin, onMap, onShops, showToast
             <button onClick={onCheckin} className="mt-4 w-full min-h-[52px] rounded-2xl flex items-center justify-center gap-2 text-lg font-semibold" style={{ background: G, color: "#1A1305", fontFamily: "'Kanit', sans-serif" }}><MapPin size={21} />ปักหมุดที่นี่</button>
             <div className="flex justify-between mt-3">
               <button onClick={() => setSheet(true)} className="text-[13px] underline" style={{ color: "#B7ABFF" }}>ดูเส้นทางพิชิตทั้ง 9 บท</button>
-              <button onClick={onMap} className="text-[13px] underline flex items-center gap-1" style={{ color: "#B7ABFF" }}><Compass size={14} />แผนที่สำรวจ</button>
+              <button onClick={onMap} className="text-[13px] underline flex items-center gap-1" style={{ color: "#B7ABFF" }}><Compass size={14} />สำรวจจังหวัด</button>
             </div>
           </section>
         )}
