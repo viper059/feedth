@@ -1,10 +1,11 @@
 // กระดานด่าน (หน้าเช็คอิน): แทนแผนที่หมอกแบบซูม
 // แผนที่ย่อพอดีกรอบ ไม่มีชื่อ ไม่ซูม + ช่องด่านที่มีชื่อเสมอ เรียงจากที่อยู่ตอนนี้ → ปลดล็อกแล้ว → ใกล้ตัวที่สุด
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from "react";
 import { geoMercator, geoPath, geoContains, geoCentroid, geoDistance } from "d3-geo";
 import { loadBase, loadDis, loadSub, locateAt, RANKS } from "./geo.js";
 
 // สีเดียวโทนขาวเหมือนหน้าหลัก: ม่วงของแอปเป็นสีเน้นสีเดียว
+const GameMap = lazy(() => import("./GameMap.jsx"));
 const C = { bg: "#ffffff", card: "#F6F7FB", line: "#E4E6EF", text: "#1F2430", muted: "#6B7280", mint: "#6C5CE7", gold: "#6C5CE7", lock: "#E9EBF2", ember: "#6C5CE7", soft: "#EFECFF", map: "#C9C1FF" };
 const LV = { cty: { name: "จังหวัด", child: "pro" }, pro: { name: "อำเภอ", child: "dis" }, dis: { name: "ตำบล", child: "sub" } };
 const PREFIX = { pro: "จ.", dis: "อ.", sub: "ต." };
@@ -16,7 +17,7 @@ const Star = ({ c = C.mint, s = 16 }) => <svg width={s} height={s} viewBox="0 0 
 const LockIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M7 11V8a5 5 0 0 1 10 0v3M5 11h14v10H5z" /></svg>;
 const Chevron = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2.5" strokeLinecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>;
 
-export default function QuestBoard({ rest, pos, nearest, onCheckin, onLocate, onAdd, busy, refreshKey, onMore, showToast = () => {} }) {
+export default function QuestBoard({ rest, pos, nearest, onCheckin, onLocate, onAdd, busy, refreshKey, onMore, onOpenPlace = () => {}, showToast = () => {} }) {
   const [data, setData] = useState(null);
   const [pins, setPins] = useState([]);
   const [geo, setGeo] = useState(null); // { base, dis }
@@ -27,11 +28,14 @@ export default function QuestBoard({ rest, pos, nearest, onCheckin, onLocate, on
   const [all, setAll] = useState(false);
   const [mapOpen, setMapOpen] = useState(store.get("qb_map") !== "0");
   const [claiming, setClaiming] = useState("");
+  const [gameOpen, setGameOpen] = useState(false);
 
   const refresh = useCallback(() => {
     rest("/rest/v1/rpc/my_explore", { method: "POST", body: {} }).then(setData)
       .catch(() => setData({ score: 0, checkins: 0, streak: { current: 0, best: 0, today: false }, missions: [], unlocks: [] }));
-    rest("/rest/v1/rpc/my_place_pins", { method: "POST", body: {} }).then(r => setPins(Array.isArray(r) ? r : [])).catch(() => setPins([]));
+    rest("/rest/v1/rpc/my_place_pins_v2", { method: "POST", body: {} })
+      .catch(() => rest("/rest/v1/rpc/my_place_pins", { method: "POST", body: {} }))
+      .then(r => setPins(Array.isArray(r) ? r : [])).catch(() => setPins([]));
   }, [rest]);
   useEffect(() => { refresh(); }, [refresh, refreshKey]);
   useEffect(() => { Promise.all([loadBase(), loadDis()]).then(([base, dis]) => setGeo({ base, dis })).catch(() => {}); }, []);
@@ -56,7 +60,12 @@ export default function QuestBoard({ rest, pos, nearest, onCheckin, onLocate, on
   // ตำแหน่งมาทีหลัง: ย้ายไปอำเภอที่อยู่ตอนนี้ ถ้ายังดูมุมกว้างอยู่
   useEffect(() => { if (here?.dis && view && view.lvl === "cty") setView({ lvl: "dis", code: here.dis }); }, [here]);
 
-  const pc = view && (view.lvl === "pro" ? view.code : view.lvl === "dis" ? geo?.dis.features.find(f => f.properties.c === view.code)?.properties.pc : null);
+  const pcRaw = view && (view.lvl === "pro" ? view.code : view.lvl === "dis" ? geo?.dis.features.find(f => f.properties.c === view.code)?.properties.pc : null);
+  // จังหวัดที่ใช้กับแผนที่เกม: จังหวัดที่กำลังดู → ที่อยู่ตอนนี้ → ที่ปลดล็อกตำบลไว้มากที่สุด
+  const mainPro = useMemo(() => { const cnt = {}; un.sub.forEach(c => { const k = String(c).slice(0, 2); cnt[k] = (cnt[k] || 0) + 1; }); return Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a])[0] || null; }, [un]);
+  const pc = pcRaw;
+  const mapPc = pcRaw || here?.pro || mainPro;
+  useEffect(() => { if (mapPc && !subs[mapPc]) loadSub(mapPc).then(j => setSubs(s => ({ ...s, [mapPc]: j }))).catch(() => {}); }, [mapPc]);
   useEffect(() => { if (pc && !subs[pc]) loadSub(pc).then(j => setSubs(s => ({ ...s, [pc]: j }))).catch(() => {}); }, [pc]);
 
   // ลูกของพื้นที่ที่กำลังดู → ช่องด่าน
@@ -196,6 +205,12 @@ export default function QuestBoard({ rest, pos, nearest, onCheckin, onLocate, on
             </div>
           )}
           <div className="h-2 rounded overflow-hidden" style={{ background: C.bg }}><div className="h-full" style={{ width: (total ? (done / total) * 100 : 0) + "%", background: C.gold }} /></div>
+          {mapPc && subs[mapPc] && (
+            <button onClick={() => setGameOpen(true)} data-testid="qb-open-game" className="w-full min-h-[44px] rounded-xl text-[13px] font-bold flex items-center justify-center gap-2" style={{ background: C.soft, color: C.mint }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.mint} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14" /></svg>
+              เปิดแผนที่ (ซูมได้)
+            </button>
+          )}
         </div>
 
         {/* ช่องด่าน */}
@@ -254,6 +269,14 @@ export default function QuestBoard({ rest, pos, nearest, onCheckin, onLocate, on
         <button onClick={onMore} data-testid="qb-more-challenges" className="w-full min-h-[44px] rounded-xl text-[13px] font-semibold" style={{ border: `1px solid ${C.line}`, color: C.text }}>
           ความท้าทายธรรมชาติ · เส้นทาง 9 บท · ร้านค้า
         </button>
+      )}
+      {gameOpen && mapPc && subs[mapPc] && (
+        <Suspense fallback={<div className="fixed inset-0 z-[60] bg-[#F3F5FA] flex items-center justify-center text-sm" style={{ color: C.muted }}>กำลังเปิดแผนที่...</div>}>
+          <GameMap feats={subs[mapPc].features} unlocked={un.sub} here={here} pos={pos} showToast={showToast}
+            pins={pins.filter(q => q.lat != null && String(q.province) === String(mapPc))}
+            title={"จ." + (geo?.base.pro.features.find(f => f.properties.c === mapPc)?.properties.th || "")}
+            onClose={() => setGameOpen(false)} onOpenPlace={(id) => { setGameOpen(false); onOpenPlace(id); }} />
+        </Suspense>
       )}
     </section>
   );

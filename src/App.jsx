@@ -309,7 +309,7 @@ function CheckinTab({ rest, getToken, userId, onBack, showToast, onOpenPlace, on
         </div>
       </header>
       <main className="max-w-xl mx-auto px-4 pt-3 space-y-3">
-        <QuestBoard rest={rest} pos={pos} busy={busy} onLocate={locate} refreshKey={result ? 1 : 0} showToast={showToast} onMore={onMore}
+        <QuestBoard rest={rest} pos={pos} busy={busy} onLocate={locate} refreshKey={result ? 1 : 0} showToast={showToast} onMore={onMore} onOpenPlace={onOpenPlace}
           nearest={places.filter(pl => pl.distance_m <= CHECKIN_RADIUS_M).sort((a, b) => a.distance_m - b.distance_m)[0] || null}
           onCheckin={(pl) => setTarget(pl)}
           onAdd={(k) => { const el = document.getElementById(k === "add" ? "ci-add-form" : "ci-list"); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); }} />
@@ -510,7 +510,7 @@ const DEMO_PINS = [
 ];
 const demoRest = async (path) => {
   if (path.endsWith("/my_explore")) return DEMO_EXPLORE;
-  if (path.endsWith("/my_place_pins")) return DEMO_PINS;
+  if (path.endsWith("/my_place_pins") || path.endsWith("/my_place_pins_v2")) return DEMO_PINS;
   if (path.endsWith("/my_wish_pins")) throw new Error("demo");
   return [];
 };
