@@ -4,7 +4,8 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { geoMercator, geoPath, geoContains, geoCentroid, geoDistance } from "d3-geo";
 import { loadBase, loadDis, loadSub, locateAt, RANKS } from "./geo.js";
 
-const C = { bg: "#0d1b2a", card: "#14263b", line: "#24405c", text: "#eef4f8", muted: "#8ea3b8", mint: "#3ddc97", gold: "#ffd23f", lock: "#1b3350", ember: "#ff9f6b" };
+// สีเดียวโทนขาวเหมือนหน้าหลัก: ม่วงของแอปเป็นสีเน้นสีเดียว
+const C = { bg: "#ffffff", card: "#F6F7FB", line: "#E4E6EF", text: "#1F2430", muted: "#6B7280", mint: "#6C5CE7", gold: "#6C5CE7", lock: "#E9EBF2", ember: "#6C5CE7", soft: "#EFECFF", map: "#C9C1FF" };
 const LV = { cty: { name: "จังหวัด", child: "pro" }, pro: { name: "อำเภอ", child: "dis" }, dis: { name: "ตำบล", child: "sub" } };
 const PREFIX = { pro: "จ.", dis: "อ.", sub: "ต." };
 const kmText = (km) => (km < 1 ? `${Math.round(km * 1000)} ม.` : `${km.toFixed(1)} กม.`);
@@ -122,7 +123,7 @@ export default function QuestBoard({ rest, pos, nearest, onCheckin, onLocate, on
   const hereName = here?.sub && subs[here.pro] ? subs[here.pro].features.find(f => f.properties.c === here.sub)?.properties.th : null;
 
   return (
-    <section className="rounded-3xl p-4 space-y-3" style={{ background: C.bg, color: C.text }} data-testid="quest-board">
+    <section className="rounded-3xl p-4 space-y-3 shadow-sm" style={{ background: C.bg, color: C.text, border: `1px solid ${C.line}` }} data-testid="quest-board">
       {/* คะแนน + สตรีค */}
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
@@ -140,17 +141,17 @@ export default function QuestBoard({ rest, pos, nearest, onCheckin, onLocate, on
       <div className="rounded-2xl p-3.5 space-y-2" style={{ background: C.mint, color: C.bg }} data-testid="qb-checkin">
         {!pos ? (<>
           <p className="text-[12px] font-semibold">เปิดตำแหน่งเพื่อดูว่าคุณอยู่ตำบลไหน</p>
-          <button onClick={onLocate} className="w-full min-h-[46px] rounded-xl text-[15px] font-bold" style={{ background: C.bg, color: C.text }}>{busy ? "กำลังหาตำแหน่ง..." : "หาตำแหน่งของฉัน"}</button>
+          <button onClick={onLocate} className="w-full min-h-[46px] rounded-xl text-[15px] font-bold" style={{ background: C.bg, color: C.mint }}>{busy ? "กำลังหาตำแหน่ง..." : "หาตำแหน่งของฉัน"}</button>
         </>) : nearest ? (<>
           <p className="text-[12px] font-semibold">{hereName ? `คุณอยู่ใน ต.${hereName} · ` : ""}ใกล้สุด {Math.round(nearest.distance_m)} ม.</p>
           <p className="text-[19px] font-semibold leading-tight" style={{ fontFamily: "'Kanit', sans-serif" }}>{nearest.name}</p>
           <div className="flex gap-2">
-            <button onClick={() => onCheckin(nearest)} data-testid="qb-checkin-btn" className="flex-1 min-h-[46px] rounded-xl text-[15px] font-bold" style={{ background: C.bg, color: C.text }}>เช็คอินที่นี่</button>
+            <button onClick={() => onCheckin(nearest)} data-testid="qb-checkin-btn" className="flex-1 min-h-[46px] rounded-xl text-[15px] font-bold" style={{ background: C.bg, color: C.mint }}>เช็คอินที่นี่</button>
             <button onClick={() => onAdd("list")} className="min-h-[46px] px-3.5 rounded-xl text-[13px] font-bold" style={{ border: `2px solid ${C.bg}` }}>ที่อื่น</button>
           </div>
         </>) : (<>
           <p className="text-[12px] font-semibold">{hereName ? `คุณอยู่ใน ต.${hereName} · ` : ""}ยังไม่มีสถานที่ในรัศมี 150 ม.</p>
-          <button onClick={() => onAdd("add")} className="w-full min-h-[46px] rounded-xl text-[15px] font-bold" style={{ background: C.bg, color: C.text }}>เพิ่มสถานที่ตรงนี้</button>
+          <button onClick={() => onAdd("add")} className="w-full min-h-[46px] rounded-xl text-[15px] font-bold" style={{ background: C.bg, color: C.mint }}>เพิ่มสถานที่ตรงนี้</button>
         </>)}
       </div>
 
@@ -181,16 +182,16 @@ export default function QuestBoard({ rest, pos, nearest, onCheckin, onLocate, on
             <svg viewBox={`0 0 ${W} ${H}`} className="w-full block rounded-xl" style={{ background: C.bg }} role="img" aria-label={`แผนที่ย่อ ${lvName}ที่ปลดล็อกแล้วมีสี`} data-testid="qb-map">
               {shapes.list.map(({ t, d }) => (
                 <path key={t.code} d={d} onClick={() => tap(t)} style={{ cursor: "pointer" }}
-                  fill={t.here ? C.gold : t.on ? C.mint : C.lock} stroke={sel === t.code ? "#ffffff" : t.here ? "#ffffff" : C.bg} strokeWidth={sel === t.code ? 2.5 : t.here ? 2 : 1} />
+                  fill={t.here ? C.gold : t.on ? C.map : C.lock} stroke={sel === t.code ? C.text : C.bg} strokeWidth={sel === t.code ? 2.5 : t.here ? 2 : 1} />
               ))}
-              {shapes.me && <circle cx={shapes.me[0]} cy={shapes.me[1]} r="5" fill={C.bg} stroke="#ffffff" strokeWidth="2.5" pointerEvents="none" />}
+              {shapes.me && <circle cx={shapes.me[0]} cy={shapes.me[1]} r="5" fill={C.bg} stroke={C.gold} strokeWidth="3" pointerEvents="none" />}
             </svg>
           )}
           {mapOpen && (
-            <div className="flex items-center gap-3 text-[11px]" style={{ color: "#c3d0dc" }}>
-              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: C.mint }} />ปลดล็อกแล้ว</span>
+            <div className="flex items-center gap-3 text-[11px]" style={{ color: C.muted }}>
+              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: C.map }} />ปลดล็อกแล้ว</span>
               <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: C.gold }} />คุณอยู่ที่นี่</span>
-              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: C.lock, border: "1px solid #5d7896" }} />ยังล็อก</span>
+              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: C.lock, border: `1px solid ${C.line}` }} />ยังล็อก</span>
               <span className="ml-auto" style={{ color: C.muted }}>{total - done > 0 ? `อีก ${total - done} ด่าน` : "ครบแล้ว"}</span>
             </div>
           )}
@@ -202,10 +203,10 @@ export default function QuestBoard({ rest, pos, nearest, onCheckin, onLocate, on
           {shown.map(t => (
             <button key={t.code} onClick={() => tap(t)} data-testid="qb-tile" aria-pressed={sel === t.code}
               className="min-h-[84px] rounded-2xl p-2 flex flex-col items-start gap-0.5 text-left"
-              style={t.here ? { border: `2px solid ${C.gold}`, background: "#3a3413" } : t.on ? { border: `2px solid ${sel === t.code ? "#ffffff" : C.mint}`, background: "#16382f" } : { border: `2px ${t.km != null && t === tiles.find(x => !x.on) ? "dashed" : "solid"} ${sel === t.code ? "#ffffff" : C.line}`, background: C.card }}>
-              {t.here ? <span className="text-[10px] font-bold rounded px-1.5" style={{ background: C.gold, color: C.bg }}>อยู่ที่นี่</span> : t.on ? <Star /> : <LockIcon />}
+              style={t.here ? { border: `2px solid ${C.gold}`, background: C.gold, color: "#ffffff" } : t.on ? { border: `2px solid ${sel === t.code ? C.text : C.mint}`, background: C.soft } : { border: `2px ${t.km != null && t === tiles.find(x => !x.on) ? "dashed" : "solid"} ${sel === t.code ? C.text : C.line}`, background: C.card }}>
+              {t.here ? <span className="text-[10px] font-bold rounded px-1.5" style={{ background: "#ffffff", color: C.gold }}>อยู่ที่นี่</span> : t.on ? <Star /> : <LockIcon />}
               <span className="text-[14px] font-bold leading-tight break-words w-full">{t.on || t.here ? t.name : "???"}</span>
-              <span className="text-[11px]" style={{ color: t.here ? "#ffe58a" : t.on ? "#9fe8c8" : C.muted }}>{t.on ? t.sub : t.km != null ? (t === tiles.find(x => !x.on) ? `ใกล้สุด ${kmText(t.km)}` : kmText(t.km)) : "ยังไม่ปลดล็อก"}</span>
+              <span className="text-[11px]" style={{ color: t.here ? "#ffffff" : t.on ? C.mint : C.muted }}>{t.on ? t.sub : t.km != null ? (t === tiles.find(x => !x.on) ? `ใกล้สุด ${kmText(t.km)}` : kmText(t.km)) : "ยังไม่ปลดล็อก"}</span>
             </button>
           ))}
         </div>
@@ -242,7 +243,7 @@ export default function QuestBoard({ rest, pos, nearest, onCheckin, onLocate, on
                   <div className="h-1.5 rounded overflow-hidden mt-1" style={{ background: C.bg }}><div className="h-full" style={{ width: Math.min(100, (ms.progress / ms.goal) * 100) + "%", background: C.gold }} /></div>
                   <p className="text-[11px] mt-0.5" style={{ color: C.muted }}>{ms.progress}/{ms.goal} · รางวัล +{ms.points}</p>
                 </div>
-                {ms.claimed ? <span className="text-[11px] rounded-full px-2.5 py-1" style={{ background: "#16382f", color: "#9fe8c8" }}>รับแล้ว</span>
+                {ms.claimed ? <span className="text-[11px] rounded-full px-2.5 py-1" style={{ background: C.soft, color: C.mint }}>รับแล้ว</span>
                   : <button disabled={!ok || claiming === ms.id} onClick={() => claim(ms.id)} className="text-xs font-semibold px-3 py-2 rounded-full disabled:opacity-40" style={{ background: C.gold, color: C.bg }}>รับรางวัล</button>}
               </div>
             );
