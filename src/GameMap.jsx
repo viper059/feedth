@@ -66,21 +66,35 @@ export default function QuestMap({ items, pins = [], pos, sel, onSelect, onPin, 
       onEachFeature: (f, lyr) => lyr.on("click", () => cb.current.onSelect && cb.current.onSelect(f.properties.__code)),
     }).addTo(map);
     o.styleOf = styleOf; o.byCode = byCode;
+    o.layerOf = new Map(); o.area.eachLayer(l => o.layerOf.set(l.feature.properties.__code, l));
     const b = o.area.getBounds();
-    if (b.isValid()) {
+    // จัดให้พอดีกรอบ: ต้องรอให้กรอบมีขนาดจริงก่อน (บน iPhone บางครั้งกรอบยังกว้าง 0 ตอนสร้าง → ซูมเป็น NaN)
+    const fitNow = (tries = 0) => {
+      if (!m.current || m.current !== o || !b.isValid()) return;
       map.invalidateSize();
-      map.fitBounds(b, { padding: [14, 14] });
-      const z0 = map.getZoom();
-      map.setMinZoom(z0 - 0.5); map.setMaxZoom(z0 + 6);
-      map.setMaxBounds(b.pad(0.5));
-    }
-    const draw = () => {
+      const sz = map.getSize();
+      if ((!sz.x || !sz.y) && tries < 30) { requestAnimationFrame(() => fitNow(tries + 1)); return; }
+      try {
+        map.setMinZoom(0); map.setMaxZoom(18); map.setMaxBounds(null);
+        const z = map.getBoundsZoom(b, false, L.point(28, 28));
+        const z0 = isFinite(z) ? z : 5;
+        map.setView(b.getCenter(), z0, { animate: false });
+        map.setMinZoom(z0 - 0.5); map.setMaxZoom(z0 + 6);
+        map.setMaxBounds(b.pad(0.5));
+      } catch { /* ignore */ }
+      draw();
+    };
+    o.fitNow = () => fitNow(0);
+    const draw = () => { try { drawInner(); } catch (e) { /* ไม่ให้แผนที่พังทั้งกรอบเพราะป้าย/หมุดชิ้นเดียว */ } };
+    const drawInner = () => {
+      if (!isFinite(map.getZoom())) return;
       o.marks.clearLayers();
       const boxes = [];
       const free = (bx) => !boxes.some(x => bx[0] < x[2] && bx[2] > x[0] && bx[1] < x[3] && bx[3] > x[1]);
       // หมุดสถานที่ (รวมกลุ่มที่ชิดกัน)
       const groups = [];
       for (const p of pins) {
+        if (!isFinite(p.lat) || !isFinite(p.lng)) continue;
         const pt = map.latLngToContainerPoint([p.lat, p.lng]);
         const g = groups.find(g => Math.hypot(g.pt.x - pt.x, g.pt.y - pt.y) < 40);
         if (g) g.items.push(p); else groups.push({ pt, items: [p] });
@@ -98,8 +112,17 @@ export default function QuestMap({ items, pins = [], pos, sel, onSelect, onPin, 
         }
       }
       // ป้ายชื่อพื้นที่ที่ปลดล็อก (ชนกันก็ซ่อน) — ที่อยู่ตอนนี้ขึ้นก่อนเสมอ
-      const lab = items.filter(t => t.on || t.here).map(t => { const [x, y] = geoCentroid(t.f); return { t, ll: [y, x], pt: map.latLngToContainerPoint([y, x]) }; })
-        .sort((a, b) => b.t.here - a.t.here);
+      // จุดวางป้าย: กลางพื้นที่จาก Leaflet (กันค่า NaN ของพื้นที่ที่มีหลายชิ้น/รูปทรงแปลก)
+      const centerOf = (t) => {
+        const lyr = o.layerOf.get(t.code);
+        let c = null;
+        try { c = lyr && lyr.getCenter(); } catch { c = null; }
+        if (!c || !isFinite(c.lat) || !isFinite(c.lng)) { try { c = lyr && lyr.getBounds().getCenter(); } catch { c = null; } }
+        if (!c || !isFinite(c.lat) || !isFinite(c.lng)) { const [x, y] = geoCentroid(t.f); c = isFinite(x) && isFinite(y) ? L.latLng(y, x) : null; }
+        return c;
+      };
+      const lab = items.filter(t => t.on || t.here).map(t => { const ll = centerOf(t); return ll ? { t, ll, pt: map.latLngToContainerPoint(ll) } : null; })
+        .filter(Boolean).sort((a, b) => b.t.here - a.t.here);
       const size = map.getSize();
       for (const l of lab) {
         const w = l.t.name.length * 6.6 + 18, bx = [l.pt.x - w / 2, l.pt.y - 10, l.pt.x + w / 2, l.pt.y + 10];
@@ -111,7 +134,7 @@ export default function QuestMap({ items, pins = [], pos, sel, onSelect, onPin, 
     };
     o.draw = draw;
     map.off("zoomend moveend").on("zoomend moveend", draw);
-    draw();
+    fitNow(0);
   }, [items, pins]);
 
   // พื้นที่ที่เลือก: ขอบเข้ม
@@ -128,14 +151,14 @@ export default function QuestMap({ items, pins = [], pos, sel, onSelect, onPin, 
   useEffect(() => {
     const o = m.current; if (!o) return;
     if (o.me) { o.me.remove(); o.me = null; }
-    if (pos) o.me = L.marker([pos.lat, pos.lng], { icon: L.divIcon({ className: "", html: `<div class="qm-me"></div>`, iconSize: [0, 0] }), interactive: false, keyboard: false }).addTo(o.map);
+    if (pos && isFinite(pos.lat) && isFinite(pos.lng)) o.me = L.marker([pos.lat, pos.lng], { icon: L.divIcon({ className: "", html: `<div class="qm-me"></div>`, iconSize: [0, 0] }), interactive: false, keyboard: false }).addTo(o.map);
   }, [pos && pos.lat, pos && pos.lng]);
 
   // ขยาย/ย่อกรอบ
-  useEffect(() => { const o = m.current; if (o) setTimeout(() => { o.map.invalidateSize(); if (o.area) o.map.fitBounds(o.area.getBounds(), { padding: [14, 14] }); }, 260); }, [tall]);
+  useEffect(() => { const o = m.current; if (o) setTimeout(() => { if (m.current === o && o.fitNow) o.fitNow(); }, 280); }, [tall]);
 
   const zoom = (d) => m.current && m.current.map.zoomIn(d);
-  const fit = () => { const o = m.current; if (o && o.area) o.map.flyToBounds(o.area.getBounds(), { padding: [14, 14], duration: 0.5 }); };
+  const fit = () => { const o = m.current; if (o && o.fitNow) o.fitNow(); };
   const btn = "w-9 h-9 rounded-xl bg-white/95 flex items-center justify-center text-[18px] shadow-sm";
   return (
     <div className="qm relative rounded-2xl overflow-hidden" style={{ height: tall ? "62vh" : 250, transition: "height .25s ease", background: "radial-gradient(120% 90% at 50% 0%, #F4F1FF 0%, #FFFFFF 70%)", border: `1px solid ${P.line}` }} data-testid="qb-map">
