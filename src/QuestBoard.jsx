@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback, lazy, Suspense, Component } from "react";
 import { createPortal } from "react-dom";
 import { geoMercator, geoPath, geoContains, geoCentroid, geoDistance } from "d3-geo";
-import { loadBase, loadDis, loadSub, locateAt, RANKS } from "./geo.js";
+import { loadBase, loadDis, loadSub, locateAt, RANKS, CONTINENT_TH } from "./geo.js";
 
 // สีเดียวโทนขาวเหมือนหน้าหลัก: ม่วงของแอปเป็นสีเน้นสีเดียว
 const GameMap = lazy(() => import("./GameMap.jsx"));
@@ -23,7 +23,7 @@ class MapGuard extends Component {
   }
 }
 const C = { bg: "#ffffff", card: "#F6F7FB", line: "#E4E6EF", text: "#1F2430", muted: "#6B7280", mint: "#6C5CE7", gold: "#6C5CE7", lock: "#E9EBF2", ember: "#6C5CE7", soft: "#EFECFF", map: "#C9C1FF" };
-const LV = { cty: { name: "จังหวัด", child: "pro" }, pro: { name: "อำเภอ", child: "dis" }, dis: { name: "ตำบล", child: "sub" } };
+const LV = { world: { name: "ทวีป", child: "con" }, con: { name: "ประเทศ", child: "cty" }, cty: { name: "จังหวัด", child: "pro" }, pro: { name: "อำเภอ", child: "dis" }, dis: { name: "ตำบล", child: "sub" } };
 const PREFIX = { pro: "จ.", dis: "อ.", sub: "ต." };
 const kmText = (km) => (km < 1 ? `${Math.round(km * 1000)} ม.` : `${km.toFixed(1)} กม.`);
 const rankOf = (score) => { let r = RANKS[0], next = null; for (let i = 0; i < RANKS.length; i++) { if (score >= RANKS[i][0]) { r = RANKS[i]; next = RANKS[i + 1] || null; } } return { name: r[1], next }; };
@@ -58,7 +58,7 @@ export default function QuestBoard({ rest, pos, nearest, onCheckin, onLocate, on
   useEffect(() => { if (pos) locateAt(pos.lat, pos.lng).then(setHere).catch(() => setHere(null)); }, [pos && pos.lat, pos && pos.lng]);
 
   const un = useMemo(() => {
-    const s = { pro: new Set(), dis: new Set(), sub: new Set() };
+    const s = { con: new Set(), cty: new Set(), pro: new Set(), dis: new Set(), sub: new Set() };
     (data?.unlocks || []).forEach(u => s[u.level] && s[u.level].add(String(u.code)));
     return s;
   }, [data]);
@@ -88,17 +88,25 @@ export default function QuestBoard({ rest, pos, nearest, onCheckin, onLocate, on
   const tiles = useMemo(() => {
     if (!view || !geo) return null;
     let feats, kind;
-    if (view.lvl === "cty") { feats = geo.base.pro.features; kind = "pro"; }
+    if (view.lvl === "world") { feats = geo.base.con.features.filter(f => f.properties.CONTINENT !== "Antarctica"); kind = "con"; }
+    else if (view.lvl === "con") { feats = geo.base.cty.features.filter(f => f.properties.k === view.code); kind = "cty"; }
+    else if (view.lvl === "cty") { feats = geo.base.pro.features; kind = "pro"; }
     else if (view.lvl === "pro") { feats = geo.dis.features.filter(f => f.properties.pc === view.code); kind = "dis"; }
     else { if (!subs[pc]) return null; feats = subs[pc].features.filter(f => f.properties.dc === view.code); kind = "sub"; }
     const subsOf = (code) => [...un.sub].filter(c => String(c).startsWith(code)).length;
     const out = feats.map(f => {
-      const p = f.properties, code = String(p.c), on = un[kind].has(code);
+      const p = f.properties;
+      const code = kind === "con" ? p.CONTINENT : kind === "cty" ? p.a : String(p.c);
+      const name = kind === "con" ? (CONTINENT_TH[p.CONTINENT] || p.CONTINENT) : kind === "cty" ? (p.a === "THA" ? "ประเทศไทย" : p.n) : p.th;
+      const on = un[kind].has(code);
       const n = kind === "sub" ? pins.filter(q => q.lat != null && geoContains(f, [q.lng, q.lat])).length : 0;
-      const isHere = here && (kind === "pro" ? here.pro === code : kind === "dis" ? here.dis === code : here.sub === code);
+      const hereCon = here?.cty ? geo.base.cty.features.find(x => x.properties.a === here.cty)?.properties.k : null;
+      const isHere = here && (kind === "con" ? hereCon === code : kind === "cty" ? here.cty === code : kind === "pro" ? here.pro === code : kind === "dis" ? here.dis === code : here.sub === code);
       const km = pos ? geoDistance([pos.lng, pos.lat], geoCentroid(f)) * 6371 : null;
-      const sub = kind === "sub" ? (n ? `${n} สถานที่` : "ปลดล็อกแล้ว") : kind === "dis" ? `${subsOf(code)} ตำบล` : `${[...un.dis].filter(c => c.startsWith(code)).length} อำเภอ`;
-      return { f, code, name: p.th, on, n, here: !!isHere, km, sub, kind };
+      const sub = kind === "con" ? `${geo.base.cty.features.filter(x => x.properties.k === code && un.cty.has(x.properties.a)).length} ประเทศ`
+        : kind === "cty" ? (code === "THA" ? `${un.pro.size} จังหวัด` : "ไปแล้ว")
+        : kind === "sub" ? (n ? `${n} สถานที่` : "ปลดล็อกแล้ว") : kind === "dis" ? `${subsOf(code)} ตำบล` : `${[...un.dis].filter(c => c.startsWith(code)).length} อำเภอ`;
+      return { f, code, name, on, n, here: !!isHere, km, sub, kind };
     });
     out.sort((a, b) => (b.here - a.here) || (b.on - a.on) || (a.on ? (b.n - a.n) || a.name.localeCompare(b.name, "th") : (a.km ?? 1e9) - (b.km ?? 1e9) || a.name.localeCompare(b.name, "th")));
     return out;
@@ -106,7 +114,12 @@ export default function QuestBoard({ rest, pos, nearest, onCheckin, onLocate, on
 
   const crumbs = useMemo(() => {
     if (!view || !geo) return [];
-    const c = [{ lvl: "cty", code: "THA", name: "ไทย" }];
+    const c = [{ lvl: "world", code: "world", name: "โลก" }];
+    if (view.lvl === "world") return c;
+    const conCode = view.lvl === "con" ? view.code : "Asia";
+    c.push({ lvl: "con", code: conCode, name: CONTINENT_TH[conCode] || conCode });
+    if (view.lvl === "con") return c;
+    c.push({ lvl: "cty", code: "THA", name: "ไทย" });
     const proCode = view.lvl === "pro" ? view.code : pc;
     if (proCode) c.push({ lvl: "pro", code: proCode, name: geo.base.pro.features.find(f => f.properties.c === proCode)?.properties.th || "" });
     if (view.lvl === "dis") c.push({ lvl: "dis", code: view.code, name: "อ." + (geo.dis.features.find(f => f.properties.c === view.code)?.properties.th || "") });
@@ -126,7 +139,8 @@ export default function QuestBoard({ rest, pos, nearest, onCheckin, onLocate, on
 
   const go = (v) => { setView(v); setSel(null); setAll(false); };
   const tap = (t) => {
-    if (t.on && t.kind !== "sub") { go({ lvl: t.kind, code: t.code }); return; }
+    if (t.on && (t.kind === "con" || t.kind === "pro" || t.kind === "dis" || (t.kind === "cty" && t.code === "THA"))) { go({ lvl: t.kind, code: t.code }); return; }
+    if (t.kind === "con" || t.kind === "cty") { if (!t.on) showToast("ยังไม่เคยเช็คอินที่นี่ ไปเช็คอินเพื่อปลดล็อก"); else showToast(`เคยไป${t.name}แล้ว`); return; }
     setSel(s => (s === t.code ? null : t.code));
     if (!t.on) showToast(t.km != null ? `ยังไม่ปลดล็อก · ห่างราว ${kmText(t.km)} ไปเช็คอินในพื้นที่นี้เพื่อเปิดชื่อ` : "ยังไม่ปลดล็อก ไปเช็คอินในพื้นที่นี้เพื่อเปิดชื่อ");
   };
@@ -236,7 +250,7 @@ export default function QuestBoard({ rest, pos, nearest, onCheckin, onLocate, on
               className="min-h-[84px] rounded-2xl p-2 flex flex-col items-start gap-0.5 text-left"
               style={t.here ? { border: `2px solid ${C.gold}`, background: C.gold, color: "#ffffff" } : t.on ? { border: `2px solid ${sel === t.code ? C.text : C.mint}`, background: C.soft } : { border: `2px ${t.km != null && t === tiles.find(x => !x.on) ? "dashed" : "solid"} ${sel === t.code ? C.text : C.line}`, background: C.card }}>
               {t.here ? <span className="text-[10px] font-bold rounded px-1.5" style={{ background: "#ffffff", color: C.gold }}>อยู่ที่นี่</span> : t.on ? <Star /> : <LockIcon />}
-              <span className="text-[14px] font-bold leading-tight break-words w-full">{t.on || t.here ? t.name : "???"}</span>
+              <span className="text-[14px] font-bold leading-tight break-words w-full">{t.on || t.here || t.kind === "con" || t.kind === "cty" ? t.name : "???"}</span>
               <span className="text-[11px]" style={{ color: t.here ? "#ffffff" : t.on ? C.mint : C.muted }}>{t.on ? t.sub : t.km != null ? (t === tiles.find(x => !x.on) ? `ใกล้สุด ${kmText(t.km)}` : kmText(t.km)) : "ยังไม่ปลดล็อก"}</span>
             </button>
           ))}
