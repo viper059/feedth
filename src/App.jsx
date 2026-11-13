@@ -493,6 +493,64 @@ function PlaceDetail({ salesOn, placeId, rest, posts, userId, wallet, onBoosted,
 
 const NATURE_TH = { park: "อุทยาน/เขตรักษาพันธุ์", peak: "ภูเขา", falls: "น้ำตก", island: "เกาะ" };
 // ข้อความความท้าทายธรรมชาติหลังเช็คอิน (ต้องอยู่ห่างจุดไม่เกิน 100 ม.)
+// ---------- โหมดลองดูก่อนสมัคร ----------
+// แผนที่ตัวอย่างใช้ข้อมูลสมมุติ (ไม่เรียกฐานข้อมูล) ส่วนฟีดอ่านโพสต์ล่าสุดที่เปิดสาธารณะอยู่แล้ว กดทำอะไรไม่ได้จนกว่าจะสมัคร
+const DEMO_EXPLORE = {
+  score: 320, checkins: 9, streak: { current: 2, best: 4, today: true }, missions: [], villages: ["d1", "d2", "d3"], totals: { pro: 77, dis: 928, sub: 7366 },
+  unlocks: [["con", "Asia"], ["cty", "THA"], ["reg", "Central"], ["pro", "14"], ["dis", "1401"], ["sub", "140101"], ["sub", "140102"], ["sub", "140104"]].map(([level, code]) => ({ level, code })),
+};
+const DEMO_PINS = [
+  { id: "d1", name: "วัดตัวอย่าง", lat: 14.357, lng: 100.568, province: "14", category: "attraction" },
+  { id: "d2", name: "ร้านก๋วยเตี๋ยวตัวอย่าง", lat: 14.351, lng: 100.577, province: "14", category: "restaurant" },
+  { id: "d3", name: "คาเฟ่ตัวอย่าง", lat: 14.362, lng: 100.556, province: "14", category: "cafe" },
+];
+const demoRest = async (path) => {
+  if (path.endsWith("/my_explore")) return DEMO_EXPLORE;
+  if (path.endsWith("/my_place_pins")) return DEMO_PINS;
+  if (path.endsWith("/my_wish_pins")) throw new Error("demo");
+  return [];
+};
+function GuestPreview({ rest, showToast, onSignup, onLogin }) {
+  const [posts, setPosts] = useState(null);
+  useEffect(() => {
+    rest("/rest/v1/posts?select=id,content,media_urls,created_at,place:places(name),author:profiles!posts_user_id_fkey(username:display_name)&order=created_at.desc&limit=8", { auth: false })
+      .then(r => setPosts(Array.isArray(r) ? r : [])).catch(() => setPosts([]));
+  }, []);
+  return (
+    <div style={{ fontFamily: "'IBM Plex Sans Thai', sans-serif" }} className="min-h-screen bg-[#F3F5FA] pb-28" data-testid="guest-preview">
+      <style>{FONT_IMPORT}</style>
+      <div className="max-w-md mx-auto px-4 pt-5 space-y-3">
+        <div className="flex items-center justify-between">
+          <h1 style={{ fontFamily: "'Kanit', sans-serif" }} className="text-xl font-semibold text-[#6C5CE7]">ปักหมุด <span className="text-sm font-medium text-[#9199A8]">Pinworld</span></h1>
+          <button onClick={onLogin} className="text-sm text-[#6C5CE7] font-medium px-2 py-1">เข้าสู่ระบบ</button>
+        </div>
+        <div className="rounded-2xl p-4 text-white" style={{ background: "linear-gradient(135deg,#7B61FF,#FF5C8A)" }}>
+          <p className="font-semibold" style={{ fontFamily: "'Kanit', sans-serif" }}>เที่ยวที่ไหน แผนที่ก็สว่างที่นั่น</p>
+          <p className="text-xs opacity-90 mt-1">เช็คอินสถานที่จริงเพื่อเปิดตำบล อำเภอ และจังหวัดบนแผนที่ของคุณ ด้านล่างเป็นแผนที่ตัวอย่าง ลองซูมและแตะดูได้</p>
+        </div>
+        <p className="text-[11px] text-[#6B7280]">แผนที่ตัวอย่าง (ข้อมูลสมมุติ ไม่ใช่ของผู้ใช้จริง)</p>
+        <FogMapPanel rest={demoRest} showToast={showToast} />
+        <h2 className="text-sm font-semibold pt-1" style={{ fontFamily: "'Kanit', sans-serif" }}>โพสต์ล่าสุดจากนักเที่ยว</h2>
+        {posts === null && <p className="text-xs text-[#9199A8]">กำลังโหลด...</p>}
+        {posts && posts.length === 0 && <p className="text-xs text-[#9199A8]">ยังไม่มีโพสต์ให้ดู</p>}
+        {(posts || []).map(p => (
+          <div key={p.id} className="bg-white rounded-2xl border border-black/5 p-3 shadow-sm" data-testid="guest-post">
+            <p className="text-sm font-medium">{p.author?.username || "นักเที่ยว"}{p.place?.name ? <span className="text-xs text-[#178A5D] font-normal"> · เช็คอินที่ {p.place.name}</span> : null}</p>
+            {p.content && <p className="text-sm mt-1 whitespace-pre-wrap break-words">{p.content}</p>}
+            {Array.isArray(p.media_urls) && p.media_urls[0] && <img src={p.media_urls[0]} alt="" loading="lazy" className="mt-2 w-full max-h-72 object-cover rounded-xl" />}
+          </div>
+        ))}
+      </div>
+      <div className="fixed bottom-0 inset-x-0 bg-white border-t border-black/10 px-4 py-3">
+        <div className="max-w-md mx-auto flex items-center gap-3">
+          <p className="flex-1 text-xs text-[#6B7280]">สมัครฟรี เพื่อเริ่มเปิดแผนที่ของคุณเอง</p>
+          <button onClick={onSignup} data-testid="guest-signup" className="bg-[#6C5CE7] text-white text-sm font-semibold px-5 py-2.5 rounded-full">สมัครเลย</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const natureMsg = (n) => !n ? null
   : n.far ? `${n.name}: อยู่ไกลเกิน 100 ม. ไม่นับความท้าทาย`
   : n.new ? `ความท้าทาย${NATURE_TH[n.kind] || ""}: ได้จุดใหม่ ${n.name} +${n.points}${n.tier > 0 ? " · ปลดล็อกขั้นใหม่!" : ""} (รวม ${n.count} แห่ง)${n.pending_photo > 0 ? " · แนบรูปถ่ายที่จุดนี้เพื่อรับโบนัสขั้นสูง" : ""}`
@@ -956,6 +1014,7 @@ export default function FeedApp() {
   const [session, setSession] = useState(null); // { access_token, user_id, email }
   const [booting, setBooting] = useState(true);
   const [authMode, setAuthMode] = useState("login");
+  const [guest, setGuest] = useState(false); // ลองดูก่อนสมัคร: แผนที่ตัวอย่าง + ฟีดล่าสุดแบบอ่านอย่างเดียว
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
@@ -1344,6 +1403,40 @@ export default function FeedApp() {
     );
   };
 
+  // เช็คอินแรกแบบกดครั้งเดียว: หาสถานที่ที่ใกล้ที่สุดแล้วเช็คอินทันที จากนั้นพาไปดูแผนที่ที่เปิดออก
+  const [quickBusy, setQuickBusy] = useState(false);
+  const quickFirstCheckin = () => {
+    if (quickBusy) return;
+    if (!navigator.geolocation) { showToast("อุปกรณ์นี้ไม่รองรับตำแหน่ง"); return; }
+    setQuickBusy(true);
+    navigator.geolocation.getCurrentPosition(
+      async (g) => {
+        const p = { lat: g.coords.latitude, lng: g.coords.longitude };
+        try {
+          const rows = ((await rest("/rest/v1/rpc/nearby_places_v2", { method: "POST", body: { p_lat: p.lat, p_lng: p.lng, p_radius_m: CHECKIN_RADIUS_M } })) || [])
+            .filter(x => x.distance_m <= CHECKIN_RADIUS_M).sort((x, y) => x.distance_m - y.distance_m);
+          if (!rows.length) {
+            // ไม่มีสถานที่ใกล้ตัว → เปิดตัวเลือกพร้อมช่องเพิ่มสถานที่ใหม่
+            setCiPos(p); setCiList([]); window.scrollTo({ top: 0, behavior: "smooth" });
+            showToast("ยังไม่มีสถานที่ใกล้คุณ เพิ่มที่แรกได้เลย");
+          } else {
+            const pl = rows[0];
+            const loc = (await locateAt(pl.lat, pl.lng).catch(() => null)) || {};
+            const r = await rest("/rest/v1/rpc/check_in_v4", { method: "POST", body: { p_place_id: pl.id, p_lat: p.lat, p_lng: p.lng, p_rating: 5, p_caption: "", p_cty: loc.cty || null, p_pro: loc.pro || null, p_dis: loc.dis || null, p_sub: loc.sub || null } });
+            showToast(`เช็คอินที่ ${pl.name} สำเร็จ +${r.points} ดูแผนที่ของคุณเปิดออกได้เลย`);
+            setFirstPin(false); loadFeed(); setExploreProv(null); setTab("explore");
+          }
+        } catch (e) {
+          const m = e.message || "";
+          showToast(m.includes("own shop") ? "เจ้าของร้านเช็คอินร้านตัวเองไม่ได้ ลองเลือกสถานที่อื่น" : m.includes("too far") ? "ไกลเกินไป ต้องอยู่ในรัศมี 150 ม." : "เช็คอินไม่สำเร็จ: " + m);
+        }
+        setQuickBusy(false);
+      },
+      () => { showToast("เปิดสิทธิ์ตำแหน่งก่อนนะ"); setQuickBusy(false); },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
   // เพิ่มสถานที่ใหม่ ณ ตำแหน่งปัจจุบัน จากตัวเลือกในฟีด แล้วเลือกเป็นที่เช็คอินทันที
   const addCiPlace = async () => {
     const name = ciNew.name.trim();
@@ -1627,6 +1720,9 @@ export default function FeedApp() {
   }
 
   // ---------- หน้าจอ: ล็อกอิน / สมัครสมาชิก / ลืมรหัสผ่าน / ตั้งรหัสผ่านใหม่ ----------
+  if (!session && guest) {
+    return <GuestPreview rest={rest} showToast={showToast} onSignup={() => { setGuest(false); setAuthMode("signup"); }} onLogin={() => { setGuest(false); setAuthMode("login"); }} />;
+  }
   if (!session) {
     const titles = { login: "เข้าสู่ระบบ", signup: "สมัครสมาชิก", forgot: "ลืมรหัสผ่าน", reset: "ตั้งรหัสผ่านใหม่" };
     const canSubmit = !authBusy && (authMode === "reset" ? authPassword.length >= 6
@@ -1636,6 +1732,9 @@ export default function FeedApp() {
       <div style={{ fontFamily: "'IBM Plex Sans Thai', sans-serif" }} className="min-h-screen bg-[#F3F5FA] flex flex-col items-center justify-center px-6 py-8">
         <style>{FONT_IMPORT}</style>
         {(authMode === "login" || authMode === "signup") && <AppIntro />}
+        {(authMode === "login" || authMode === "signup") && (
+          <button onClick={() => setGuest(true)} data-testid="guest-btn" className="w-full max-w-sm mb-3 bg-white border border-[#6C5CE7] text-[#6C5CE7] text-sm font-semibold py-2.5 rounded-full">ลองดูก่อน ไม่ต้องสมัคร</button>
+        )}
         <div className="bg-white rounded-2xl shadow-sm border border-black/5 p-6 w-full max-w-sm">
           <h1 style={{ fontFamily: "'Kanit', sans-serif" }} className="text-xl font-semibold text-[#6C5CE7] mb-1">ปักหมุด <span className="text-sm font-medium text-[#9199A8]">Pinworld</span></h1>
           <p className="text-xs text-[#9199A8] mb-4">{titles[authMode]}</p>
@@ -1808,7 +1907,10 @@ export default function FeedApp() {
             <p className="font-semibold" style={{ fontFamily: "'Kanit', sans-serif" }}>ปักหมุดแรกของคุณ 📍</p>
             <p className="text-xs opacity-90 mt-1">เปิดตำแหน่ง เลือกสถานที่ใกล้ตัว แล้วกดเช็คอินได้เลย ไม่ต้องรอไปเที่ยวไกล ร้านกาแฟหรือที่ทำงานก็นับ</p>
             {visitedHint > 0 && <p className="text-xs mt-1 font-medium">คุณบอกไว้ว่าเคยไป {visitedHint} จังหวัด ปักหมุดจริงเพื่อให้แผนที่ของคุณเริ่มเปิดออก</p>}
-            <button onClick={() => { window.scrollTo({ top: 0, behavior: "smooth" }); openCiPicker(); }} data-testid="first-pin-btn" className="mt-3 bg-white text-[#6C5CE7] text-sm font-medium px-4 py-1.5 rounded-full">เลือกสถานที่ใกล้ตัว</button>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button onClick={quickFirstCheckin} disabled={quickBusy} data-testid="first-pin-quick" className="bg-white text-[#6C5CE7] text-sm font-semibold px-4 py-2 rounded-full disabled:opacity-60">{quickBusy ? "กำลังหาตำแหน่ง..." : "เช็คอินที่ใกล้ที่สุดเลย"}</button>
+              <button onClick={() => { window.scrollTo({ top: 0, behavior: "smooth" }); openCiPicker(); }} data-testid="first-pin-btn" className="border border-white/70 text-white text-sm font-medium px-4 py-2 rounded-full">เลือกสถานที่เอง</button>
+            </div>
           </div>
         )}
         <div className="bg-white rounded-2xl border border-black/5 p-3 shadow-sm">

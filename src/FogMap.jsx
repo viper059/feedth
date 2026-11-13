@@ -117,7 +117,7 @@ function drawPlacePins(o, cb) {
 }
 
 // แผนที่หมอก: เห็นแต่เส้นแบ่งเขต ชื่อพื้นที่จะเปิดเมื่อเช็คอินในพื้นที่นั้น
-function FogCanvas({ unlocked, onInfo, rest }) {
+function FogCanvas({ unlocked, onInfo, rest, drill }) {
   const wrap = useRef(null);
   const svgEl = useRef(null);
   const m = useRef({});
@@ -161,6 +161,20 @@ function FogCanvas({ unlocked, onInfo, rest }) {
   useEffect(() => {
     if (!subProv && openProvs.length) setSubProv(openProvs[0].properties.c);
   }, [openProvs, subProv]);
+  // เปิดมาที่จังหวัดที่ผู้ใช้ไปมากที่สุด ในระดับตำบล (ครั้งเดียวต่อการเปิดหน้า) — คนที่ยังไม่เคยเช็คอินเห็นระดับจังหวัด
+  const autoDone = useRef(false);
+  const [showLevels, setShowLevels] = useState(false);
+  useEffect(() => {
+    if (autoDone.current || !unlocked.pro.size) return;
+    autoDone.current = true;
+    const best = [...unlocked.pro].map(pc => [pc, [...unlocked.sub].filter(c => String(c).startsWith(pc)).length]).sort((x, y) => y[1] - x[1])[0];
+    if (best) { setSubProv(best[0]); setActive("sub"); }
+  }, [unlocked]);
+  // เจาะลงไปดูตำบลของจังหวัดที่เลือกจากแผ่นข้อมูล
+  useEffect(() => {
+    if (!drill || !drill.pro) return;
+    setSubProv(drill.pro); setActive("sub"); infoRef.current(null);
+  }, [drill]);
   useEffect(() => {
     setSub(null);
     if (!subProv) return;
@@ -391,12 +405,19 @@ function FogCanvas({ unlocked, onInfo, rest }) {
 
   return (
     <div>
-      <div className="flex gap-1.5 overflow-x-auto pb-2" role="tablist">
+      {showLevels ? (
+        <div className="flex gap-1.5 overflow-x-auto pb-2" role="tablist">
         {LEVELS.filter(l => l.k !== "vil").map(l => (
           <button key={l.k} role="tab" aria-selected={active === l.k} onClick={() => { setActive(l.k); onInfo(null); }}
             className={`text-xs font-semibold px-3 py-1.5 rounded-full whitespace-nowrap border ${active === l.k ? "text-[#0b1220]" : "bg-[#111a2e] border-[#263456]"}`} style={active === l.k ? { background: LEVEL_COLOR[l.k], borderColor: LEVEL_COLOR[l.k] } : { color: LEVEL_COLOR[l.k] }}>{l.name}</button>
         ))}
       </div>
+      ) : (
+        <div className="flex items-center gap-2 pb-2">
+          <span className="text-xs font-semibold px-3 py-1.5 rounded-full text-[#0b1220]" style={{ background: LEVEL_COLOR[active] }}>ระดับ{(LEVELS.find(l => l.k === active) || {}).name}</span>
+          <button onClick={() => setShowLevels(true)} data-testid="level-toggle" className="text-xs font-semibold px-3 py-1.5 rounded-full bg-[#111a2e] text-[#e8ecf5] border border-[#263456]">ดูระดับอื่น</button>
+        </div>
+      )}
       {(active === "sub" || active === "vil") && openProvs.length > 0 && (
         <select value={subProv || ""} onChange={e => { setSubProv(e.target.value); onInfo(null); }} aria-label="เลือกจังหวัดที่จะดูตำบล"
           className="w-full mb-2 text-xs bg-[#111a2e] text-[#e8ecf5] border border-[#263456] rounded-lg px-3 py-2">
@@ -508,6 +529,7 @@ export default function FogMapPanel({ rest, showToast }) {
 
   // เป้าใกล้ตัว: อำเภอที่ใกล้ครบที่สุดในจังหวัดที่ผู้ใช้ปลดล็อกตำบลไว้มากที่สุด (ตัวเลขทั้งประเทศใหญ่เกินจนไม่รู้สึกว่าคืบหน้า)
   const [near, setNear] = useState(null);
+  const [drill, setDrill] = useState(null);
   useEffect(() => {
     if (!disData || !baseData || !unlocked.sub.size) { setNear(null); return; }
     let live = true;
@@ -577,7 +599,7 @@ export default function FogMapPanel({ rest, showToast }) {
         {!data.streak.today && <p className="text-[11px] mt-2" style={{ color: "#FF8A3D" }}>{data.streak.current > 0 ? "วันนี้ยังไม่ได้เช็คอิน — เช็คอินวันนี้เพื่อรักษาสตรีค" : "เช็คอินวันนี้เพื่อเริ่มสตรีค"}</p>}
       </div>
 
-      <FogCanvas unlocked={unlocked} onInfo={setInfo} rest={rest} />
+      <FogCanvas unlocked={unlocked} onInfo={setInfo} rest={rest} drill={drill} />
 
       {info && (
         <div className="rounded-2xl p-3.5 text-[#e8ecf5] relative" style={{ background: "#111a2e", border: "1px solid #263456" }} role="status">
@@ -593,10 +615,14 @@ export default function FogMapPanel({ rest, showToast }) {
               <p className="text-xs text-[#8b97b3] mt-0.5">ไปเช็คอินในพื้นที่นี้เพื่อเปิดชื่อและรับ +{lv.pts} คะแนน</p>
             </>
           )}
+          {(info.k === "pro" || info.k === "dis") && (
+            <button onClick={() => setDrill({ pro: info.k === "pro" ? info.id : info.props.pc, n: Date.now() })} data-testid="drill-sub"
+              className="mt-2.5 text-xs font-semibold px-3 py-2 rounded-full border border-[#263456] text-[#e8ecf5]">ดูตำบลในจังหวัดนี้</button>
+          )}
         </div>
       )}
 
-      <div className="bg-white rounded-2xl p-3.5 shadow-sm">
+      {data.missions.length > 0 && <div className="bg-white rounded-2xl p-3.5 shadow-sm">
         <div className="flex justify-between items-baseline"><h3 className="text-sm font-semibold" style={{ fontFamily: "'Kanit', sans-serif" }}>ภารกิจประจำสัปดาห์</h3><span className="text-[11px] text-[#9199A8]">รีเซ็ตทุกวันจันทร์</span></div>
         <div className="mt-2 space-y-2.5">
           {data.missions.map(ms => {
@@ -614,7 +640,7 @@ export default function FogMapPanel({ rest, showToast }) {
             );
           })}
         </div>
-      </div>
+      </div>}
     </div>
   );
 }
