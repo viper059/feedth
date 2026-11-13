@@ -1,11 +1,27 @@
 // กระดานด่าน (หน้าเช็คอิน): แทนแผนที่หมอกแบบซูม
 // แผนที่ย่อพอดีกรอบ ไม่มีชื่อ ไม่ซูม + ช่องด่านที่มีชื่อเสมอ เรียงจากที่อยู่ตอนนี้ → ปลดล็อกแล้ว → ใกล้ตัวที่สุด
-import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from "react";
+import { useState, useEffect, useMemo, useCallback, lazy, Suspense, Component } from "react";
+import { createPortal } from "react-dom";
 import { geoMercator, geoPath, geoContains, geoCentroid, geoDistance } from "d3-geo";
 import { loadBase, loadDis, loadSub, locateAt, RANKS } from "./geo.js";
 
 // สีเดียวโทนขาวเหมือนหน้าหลัก: ม่วงของแอปเป็นสีเน้นสีเดียว
 const GameMap = lazy(() => import("./GameMap.jsx"));
+// ถ้าแผนที่เต็มจอพัง ให้แสดงข้อความพร้อมปุ่มปิด แทนที่จะทำให้ทั้งแอปเป็นจอขาว
+class MapGuard extends Component {
+  constructor(p) { super(p); this.state = { err: null }; }
+  static getDerivedStateFromError(err) { return { err }; }
+  render() {
+    if (!this.state.err) return this.props.children;
+    return (
+      <div className="fixed inset-0 z-[60] bg-[#F3F5FA] flex flex-col items-center justify-center gap-3 p-6 text-center">
+        <p className="text-sm font-semibold text-[#1F2430]">เปิดแผนที่ไม่สำเร็จ</p>
+        <p className="text-xs text-[#6B7280] break-all">{String(this.state.err?.message || this.state.err)}</p>
+        <button onClick={this.props.onClose} className="min-h-[44px] px-5 rounded-full bg-[#6C5CE7] text-white text-sm font-semibold">ปิด</button>
+      </div>
+    );
+  }
+}
 const C = { bg: "#ffffff", card: "#F6F7FB", line: "#E4E6EF", text: "#1F2430", muted: "#6B7280", mint: "#6C5CE7", gold: "#6C5CE7", lock: "#E9EBF2", ember: "#6C5CE7", soft: "#EFECFF", map: "#C9C1FF" };
 const LV = { cty: { name: "จังหวัด", child: "pro" }, pro: { name: "อำเภอ", child: "dis" }, dis: { name: "ตำบล", child: "sub" } };
 const PREFIX = { pro: "จ.", dis: "อ.", sub: "ต." };
@@ -270,14 +286,15 @@ export default function QuestBoard({ rest, pos, nearest, onCheckin, onLocate, on
           ความท้าทายธรรมชาติ · เส้นทาง 9 บท · ร้านค้า
         </button>
       )}
-      {gameOpen && mapPc && subs[mapPc] && (
-        <Suspense fallback={<div className="fixed inset-0 z-[60] bg-[#F3F5FA] flex items-center justify-center text-sm" style={{ color: C.muted }}>กำลังเปิดแผนที่...</div>}>
+      {gameOpen && mapPc && subs[mapPc] && createPortal(
+        <MapGuard onClose={() => setGameOpen(false)}>
+          <Suspense fallback={<div className="fixed inset-0 z-[60] bg-[#F3F5FA] flex items-center justify-center text-sm" style={{ color: C.muted }}>กำลังเปิดแผนที่...</div>}>
           <GameMap feats={subs[mapPc].features} unlocked={un.sub} here={here} pos={pos} showToast={showToast}
             pins={pins.filter(q => q.lat != null && String(q.province) === String(mapPc))}
             title={"จ." + (geo?.base.pro.features.find(f => f.properties.c === mapPc)?.properties.th || "")}
             onClose={() => setGameOpen(false)} onOpenPlace={(id) => { setGameOpen(false); onOpenPlace(id); }} />
         </Suspense>
-      )}
+        </MapGuard>, document.body)}
     </section>
   );
 }
