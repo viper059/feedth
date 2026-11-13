@@ -986,6 +986,7 @@ export default function FeedApp() {
   const [ciPos, setCiPos] = useState(null);
   const [ciList, setCiList] = useState(null); // null=ปิดตัวเลือก, []=ไม่พบ
   const [ciBusy, setCiBusy] = useState(false);
+  const [ciNew, setCiNew] = useState({ name: "", cat: "cafe", busy: false }); // เพิ่มสถานที่ใหม่จากตัวเลือกในฟีด
   const [openComments, setOpenComments] = useState({});
   const [commentDraft, setCommentDraft] = useState({});
   const [boostTarget, setBoostTarget] = useState(null);
@@ -1341,6 +1342,23 @@ export default function FeedApp() {
       () => { showToast("เปิดสิทธิ์ตำแหน่งก่อนนะ"); setCiBusy(false); },
       { enableHighAccuracy: true, timeout: 10000 }
     );
+  };
+
+  // เพิ่มสถานที่ใหม่ ณ ตำแหน่งปัจจุบัน จากตัวเลือกในฟีด แล้วเลือกเป็นที่เช็คอินทันที
+  const addCiPlace = async () => {
+    const name = ciNew.name.trim();
+    if (!name || !ciPos || ciNew.busy) return;
+    setCiNew(v => ({ ...v, busy: true }));
+    try {
+      const id = await rest("/rest/v1/rpc/add_place", { method: "POST", body: { p_name: name, p_category: ciNew.cat, p_lat: ciPos.lat, p_lng: ciPos.lng } });
+      setCiPlace({ id: Array.isArray(id) ? id[0] : id, name, lat: ciPos.lat, lng: ciPos.lng, category: ciNew.cat });
+      setCiList(null); setCiNew({ name: "", cat: "cafe", busy: false });
+      showToast("เพิ่มสถานที่แล้ว กดโพสต์เพื่อเช็คอิน");
+    } catch (e) {
+      const m = e.message || "";
+      showToast(m.includes("exists") ? "มีสถานที่นี้อยู่แล้วใกล้ๆ เลือกจากรายการได้เลย" : m.includes("limit reached") ? "เพิ่มสถานที่ได้วันละ 5 แห่ง วันนี้ครบแล้ว" : "เพิ่มไม่สำเร็จ: " + m);
+      setCiNew(v => ({ ...v, busy: false }));
+    }
   };
 
   // โพสต์พร้อมเช็คอิน: เช็คอินตามตำแหน่งปัจจุบัน (ตรวจที่เซิร์ฟเวอร์) แล้วแนบรูป/ข้อความลงโพสต์เช็คอินนั้น — รูปจะเป็นรูปเก่าก็ได้
@@ -1816,6 +1834,16 @@ export default function FeedApp() {
               <p className="text-[11px] text-[#6B7280]">สถานที่ในรัศมี {CHECKIN_RADIUS_M} ม. จากคุณตอนนี้ (รูปจะเป็นรูปเก่าก็ได้ ระบบตรวจแค่ตำแหน่งของคุณ)</p>
               {ciList.length === 0 && <p className="text-xs text-[#9199A8] py-1">ไม่พบสถานที่ใกล้ตัว</p>}
               {ciList.map(pl => <button key={pl.id} onClick={() => { setCiPlace(pl); setCiList(null); }} className="w-full text-left text-sm bg-white rounded-lg px-3 py-2 flex justify-between gap-2"><span className="truncate">{pl.name}</span><span className="text-xs text-[#9199A8] shrink-0">{Math.round(pl.distance_m)} ม.</span></button>)}
+              <div className="pt-1 border-t border-black/5" data-testid="ci-add">
+                <p className="text-[11px] text-[#6B7280] mb-1">ไม่มีที่ที่ต้องการ? เพิ่มสถานที่ใหม่ตรงตำแหน่งนี้</p>
+                <div className="flex gap-1.5">
+                  <input value={ciNew.name} onChange={e => setCiNew(v => ({ ...v, name: e.target.value }))} maxLength={80} placeholder="ชื่อสถานที่" aria-label="ชื่อสถานที่ใหม่" className="flex-1 min-w-0 text-sm bg-white rounded-lg px-3 py-2 outline-none" />
+                  <select value={ciNew.cat} onChange={e => setCiNew(v => ({ ...v, cat: e.target.value }))} aria-label="ประเภทสถานที่" className="w-24 shrink-0 text-sm bg-white rounded-lg px-2">
+                    {Object.entries(CATEGORY_TH).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  </select>
+                  <button onClick={addCiPlace} disabled={!ciNew.name.trim() || ciNew.busy} className="shrink-0 bg-[#6C5CE7] disabled:opacity-30 text-white text-sm font-medium px-3 rounded-lg">{ciNew.busy ? "..." : "เพิ่ม"}</button>
+                </div>
+              </div>
             </div>
           )}
           <div className="flex items-center justify-between mt-1">
