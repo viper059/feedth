@@ -30,6 +30,8 @@ const CSS = `
 .qm .qm-pin{width:32px;height:32px;border-radius:50%;background:#fff;border:2.5px solid ${P.accent};display:flex;align-items:center;justify-content:center;box-shadow:0 3px 8px rgba(76,61,184,.28);transform:translate(-50%,-100%);position:relative}
 .qm .qm-pin:after{content:"";position:absolute;bottom:-8px;left:50%;margin-left:-5px;border:5px solid transparent;border-top:6px solid ${P.accent}}
 .qm .qm-pin.sel{background:${P.accent}}
+.qm .qm-pin.dim{border-color:#B9B0F5;width:26px;height:26px;box-shadow:0 2px 5px rgba(76,61,184,.18)}
+.qm .qm-pin.dim:after{border-top-color:#B9B0F5}
 .qm .qm-clu{width:34px;height:34px;border-radius:50%;background:${P.accent};color:#fff;border:3px solid #fff;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;transform:translate(-50%,-50%);box-shadow:0 0 0 5px rgba(108,92,231,.2)}
 .qm .qm-me{width:16px;height:16px;border-radius:50%;background:#2F80FF;border:3px solid #fff;transform:translate(-50%,-50%);animation:qmpulse 1.8s infinite}
 @keyframes qmpulse{0%{box-shadow:0 0 0 0 rgba(47,128,255,.45)}100%{box-shadow:0 0 0 16px rgba(47,128,255,0)}}
@@ -56,6 +58,7 @@ export default function QuestMap({ items, pins = [], pos, sel, onSelect, onPin, 
   useEffect(() => {
     const o = m.current; if (!o || !items) return;
     const map = o.map;
+    o.pins = pins;
     if (o.area) o.area.remove();
     const styleOf = (t) => t.here ? { fillColor: P.accent, fillOpacity: 1, color: "#ffffff", weight: 2.2 }
       : t.on ? { fillColor: P.soft, fillOpacity: 1, color: "#ffffff", weight: 1.4 }
@@ -93,7 +96,7 @@ export default function QuestMap({ items, pins = [], pos, sel, onSelect, onPin, 
       const free = (bx) => !boxes.some(x => bx[0] < x[2] && bx[2] > x[0] && bx[1] < x[3] && bx[3] > x[1]);
       // หมุดสถานที่ (รวมกลุ่มที่ชิดกัน)
       const groups = [];
-      for (const p of pins) {
+      for (const p of (o.pins || [])) {
         if (!isFinite(p.lat) || !isFinite(p.lng)) continue;
         const pt = map.latLngToContainerPoint([p.lat, p.lng]);
         const g = groups.find(g => Math.hypot(g.pt.x - pt.x, g.pt.y - pt.y) < 40);
@@ -103,7 +106,7 @@ export default function QuestMap({ items, pins = [], pos, sel, onSelect, onPin, 
         boxes.push([g.pt.x - 18, g.pt.y - 42, g.pt.x + 18, g.pt.y]);
         if (g.items.length === 1) {
           const p = g.items[0];
-          L.marker([p.lat, p.lng], { icon: L.divIcon({ className: "", html: `<div class="qm-pin" data-pin="${esc(p.id)}">${svgIcon(keyOf(p), 16, P.accent)}</div>`, iconSize: [0, 0] }), title: p.name })
+          L.marker([p.lat, p.lng], { icon: L.divIcon({ className: "", html: `<div class="qm-pin${p.visits === 0 ? " dim" : ""}" data-pin="${esc(p.id)}">${svgIcon(keyOf(p), p.visits === 0 ? 13 : 16, p.visits === 0 ? "#8F84E8" : P.accent)}</div>`, iconSize: [0, 0] }), title: p.name })
             .on("click", () => cb.current.onPin && cb.current.onPin(p)).addTo(o.marks);
         } else {
           const lat = g.items.reduce((a, p) => a + p.lat, 0) / g.items.length, lng = g.items.reduce((a, p) => a + p.lng, 0) / g.items.length;
@@ -135,7 +138,10 @@ export default function QuestMap({ items, pins = [], pos, sel, onSelect, onPin, 
     o.draw = draw;
     map.off("zoomend moveend").on("zoomend moveend", draw);
     fitNow(0);
-  }, [items, pins]);
+  }, [items]);
+
+  // หมุดเปลี่ยน (เช่นแตะตำบล) → วาดหมุดใหม่อย่างเดียว ไม่จัดมุมมองใหม่
+  useEffect(() => { const o = m.current; if (!o) return; o.pins = pins; if (o.draw) o.draw(); }, [pins]);
 
   // พื้นที่ที่เลือก: ขอบเข้ม
   useEffect(() => {
@@ -143,7 +149,7 @@ export default function QuestMap({ items, pins = [], pos, sel, onSelect, onPin, 
     o.area.eachLayer(l => {
       const t = o.byCode.get(l.feature.properties.__code);
       l.setStyle(t && t.code === sel ? { ...o.styleOf(t), color: P.text, weight: 2.5 } : o.styleOf(t));
-      if (t && t.code === sel) l.bringToFront();
+      if (t && t.code === sel) { l.bringToFront(); if (t.kind === "sub") { try { o.map.flyToBounds(l.getBounds(), { padding: [24, 24], duration: 0.5 }); } catch { /* ignore */ } } }
     });
   }, [sel, items]);
 

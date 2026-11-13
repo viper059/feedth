@@ -1,11 +1,12 @@
 // กระดานด่าน (หน้าเช็คอิน): แทนแผนที่หมอกแบบซูม
 // แผนที่ย่อพอดีกรอบ ไม่มีชื่อ ไม่ซูม + ช่องด่านที่มีชื่อเสมอ เรียงจากที่อยู่ตอนนี้ → ปลดล็อกแล้ว → ใกล้ตัวที่สุด
 import { useState, useEffect, useMemo, useCallback, lazy, Suspense, Component } from "react";
-import { geoContains, geoCentroid, geoDistance } from "d3-geo";
+import { geoContains, geoCentroid, geoDistance, geoBounds } from "d3-geo";
 import { loadBase, loadDis, loadSub, locateAt, RANKS, CONTINENT_TH } from "./geo.js";
 
 // สีเดียวโทนขาวเหมือนหน้าหลัก: ม่วงของแอปเป็นสีเน้นสีเดียว
 const QuestMap = lazy(() => import("./GameMap.jsx"));
+const kindOf = (p) => (p.kind && ["temple", "park", "beach", "waterfall", "museum"].includes(p.kind) ? p.kind : ["cafe", "restaurant", "hotel"].includes(p.category) ? p.category : "attraction");
 const KIND_TH = { temple: "วัด", park: "อุทยาน / สวน", beach: "ชายหาด", waterfall: "น้ำตก", museum: "พิพิธภัณฑ์", cafe: "คาเฟ่", restaurant: "ร้านอาหาร", hotel: "ที่พัก", attraction: "ที่เที่ยว" };
 // ถ้าแผนที่เต็มจอพัง ให้แสดงข้อความพร้อมปุ่มปิด แทนที่จะทำให้ทั้งแอปเป็นจอขาว
 class MapGuard extends Component {
@@ -45,6 +46,9 @@ export default function QuestBoard({ rest, pos, nearest, onCheckin, onLocate, on
   const [claiming, setClaiming] = useState("");
   const [tall, setTall] = useState(false);
   const [pinSel, setPinSel] = useState(null);
+  const [areaPlaces, setAreaPlaces] = useState({}); // สถานที่ทั้งหมดในตำบลที่แตะ (โหลดครั้งเดียวต่อตำบล)
+  const [areaCat, setAreaCat] = useState("all");
+  const [areaAll, setAreaAll] = useState(false);
 
   const refresh = useCallback(() => {
     rest("/rest/v1/rpc/my_explore", { method: "POST", body: {} }).then(setData)
@@ -126,6 +130,7 @@ export default function QuestBoard({ rest, pos, nearest, onCheckin, onLocate, on
   const tap = (t) => {
     if (t.on && (t.kind === "con" || t.kind === "pro" || t.kind === "dis" || (t.kind === "cty" && t.code === "THA"))) { go({ lvl: t.kind, code: t.code }); return; }
     if (t.kind === "con" || t.kind === "cty") { if (!t.on) showToast("ยังไม่เคยเช็คอินที่นี่ ไปเช็คอินเพื่อปลดล็อก"); else showToast(`เคยไป${t.name}แล้ว`); return; }
+    setPinSel(null);
     setSel(s => (s === t.code ? null : t.code));
     if (!t.on) showToast(t.km != null ? `ยังไม่ปลดล็อก · ห่างราว ${kmText(t.km)} ไปเช็คอินในพื้นที่นี้เพื่อเปิดชื่อ` : "ยังไม่ปลดล็อก ไปเช็คอินในพื้นที่นี้เพื่อเปิดชื่อ");
   };
@@ -141,7 +146,29 @@ export default function QuestBoard({ rest, pos, nearest, onCheckin, onLocate, on
   const total = tiles ? tiles.length : 0;
   const lvName = view ? LV[view.lvl].name : "";
   const selT = tiles && sel ? tiles.find(t => t.code === sel) : null;
-  const selPins = selT && selT.kind === "sub" && selT.on ? pins.filter(q => q.lat != null && geoContains(selT.f, [q.lng, q.lat])) : [];
+  // แตะตำบล: แยกสถานที่ในตำบลนั้นตามประเภท (ที่ไปแล้วมาก่อน)
+  useEffect(() => {
+    if (!selT || selT.kind !== "sub" || areaPlaces[selT.code]) return;
+    const code = selT.code, f = selT.f;
+    setAreaPlaces(a => ({ ...a, [code]: { loading: true, list: [] } }));
+    const [[w, so], [e, n]] = geoBounds(f);
+    rest(`/rest/v1/places?select=id,name,category,kind,lat,lng&lat=gte.${so}&lat=lte.${n}&lng=gte.${w}&lng=lte.${e}&limit=600`)
+      .then(r => {
+        const seen = new Map(pins.map(q => [String(q.id), q]));
+        const list = (Array.isArray(r) ? r : []).filter(q => q.lat != null && geoContains(f, [q.lng, q.lat]))
+          .map(q => ({ ...q, visits: seen.get(String(q.id))?.visits || 0, last_at: seen.get(String(q.id))?.last_at }));
+        // ที่เคยไปแต่ไม่ได้อยู่ในผลค้น (เช่นเกินจำนวน) ใส่เพิ่ม
+        pins.filter(q => q.lat != null && geoContains(f, [q.lng, q.lat]) && !list.some(x => String(x.id) === String(q.id))).forEach(q => list.push({ ...q }));
+        list.sort((a, b) => (b.visits > 0) - (a.visits > 0) || (b.visits - a.visits) || String(a.name).localeCompare(String(b.name), "th"));
+        setAreaPlaces(a => ({ ...a, [code]: { loading: false, list } }));
+      })
+      .catch(() => setAreaPlaces(a => ({ ...a, [code]: { loading: false, list: pins.filter(q => q.lat != null && geoContains(f, [q.lng, q.lat])), err: true } })));
+  }, [selT && selT.code]);
+  useEffect(() => { setAreaCat("all"); setAreaAll(false); }, [sel]);
+  const area = selT && selT.kind === "sub" ? areaPlaces[selT.code] : null;
+  const areaCats = area ? Object.entries(area.list.reduce((m, q) => { const k = kindOf(q); m[k] = (m[k] || 0) + 1; return m; }, {})).sort((a, b) => b[1] - a[1]) : [];
+  const areaList = area ? area.list.filter(q => areaCat === "all" || kindOf(q) === areaCat) : [];
+  const areaVisited = area ? area.list.filter(q => q.visits > 0).length : 0;
   const shown = tiles ? (all ? tiles : tiles.slice(0, 9)) : [];
   const rk = rankOf(data?.score || 0);
   const hereName = here?.sub && subs[here.pro] ? subs[here.pro].features.find(f => f.properties.c === here.sub)?.properties.th : null;
@@ -209,7 +236,7 @@ export default function QuestBoard({ rest, pos, nearest, onCheckin, onLocate, on
             <MapGuard>
               <Suspense fallback={<div className="rounded-2xl" style={{ height: 250, background: "radial-gradient(120% 90% at 50% 0%, #F4F1FF 0%, #FFFFFF 70%)", border: `1px solid ${C.line}` }} />}>
                 <QuestMap items={tiles} pos={pos} sel={sel} tall={tall}
-                  pins={view.lvl === "dis" ? pins.filter(q => q.lat != null && tiles.some(t => t.on && geoContains(t.f, [q.lng, q.lat]))) : []}
+                  pins={area && !area.loading ? areaList : view.lvl === "dis" ? pins.filter(q => q.lat != null && tiles.some(t => t.on && geoContains(t.f, [q.lng, q.lat]))) : []}
                   onSelect={(code) => { const t = tiles.find(x => x.code === code); if (t) { setPinSel(null); tap(t); } }}
                   onPin={(p) => { setSel(null); setPinSel(p); }} />
               </Suspense>
@@ -236,6 +263,47 @@ export default function QuestBoard({ rest, pos, nearest, onCheckin, onLocate, on
           <div className="h-2 rounded overflow-hidden" style={{ background: C.bg }}><div className="h-full" style={{ width: (total ? (done / total) * 100 : 0) + "%", background: C.gold }} /></div>
         </div>
 
+        {/* รายละเอียดตำบลที่แตะ */}
+        {selT && selT.kind === "sub" && (
+          <div className="rounded-2xl p-3 space-y-2.5" style={{ background: C.bg, border: `1px solid ${C.line}` }} role="region" aria-label="สถานที่ในตำบล" data-testid="qb-detail">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-[16px] font-bold" style={{ fontFamily: "'Kanit', sans-serif" }}>{selT.on || selT.here ? "ต." + selT.name : "ตำบลที่ยังไม่ปลดล็อก"}</p>
+                <p className="text-[12px]" style={{ color: C.muted }}>
+                  {area && !area.loading ? `ไปแล้ว ${areaVisited} · ในตำบลมี ${area.list.length}${area.list.length >= 600 ? "+" : ""} แห่ง` : "กำลังโหลดสถานที่..."}
+                  {!selT.on && !selT.here && selT.km != null ? ` · ห่างราว ${kmText(selT.km)}` : ""}
+                </p>
+              </div>
+              <button onClick={() => setSel(null)} aria-label="ปิด" className="min-w-[40px] min-h-[40px] rounded-xl text-[16px] shrink-0" style={{ border: `1px solid ${C.line}`, color: C.muted }}>×</button>
+            </div>
+            {areaCats.length > 1 && (
+              <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1 pb-0.5" data-testid="qb-area-cats">
+                {[["all", "ทั้งหมด", area.list.length]].concat(areaCats.map(([k, n]) => [k, KIND_TH[k] || k, n])).map(([k, label, n]) => (
+                  <button key={k} onClick={() => { setAreaCat(k); setAreaAll(false); }} aria-pressed={areaCat === k}
+                    className="shrink-0 min-h-[36px] px-3 rounded-full text-[12px] font-semibold"
+                    style={areaCat === k ? { background: C.mint, color: "#fff" } : { background: C.soft, color: C.mint }}>{label} {n}</button>
+                ))}
+              </div>
+            )}
+            {area && !area.loading && areaList.length === 0 && <p className="text-[12px]" style={{ color: C.muted }}>ยังไม่มีสถานที่ในระบบ เพิ่มได้ตอนไปถึง</p>}
+            <div className="divide-y" style={{ borderColor: C.line }}>
+              {(areaAll ? areaList : areaList.slice(0, 12)).map(q => (
+                <button key={q.id} onClick={() => /^\d+$/.test(String(q.id)) && onOpenPlace(q.id)} data-testid="qb-area-place"
+                  className="w-full min-h-[44px] flex items-center gap-2.5 text-left py-1.5">
+                  <span className="w-2 h-2 rounded-full shrink-0" style={{ background: q.visits > 0 ? C.mint : C.map }} />
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-[13px] font-semibold truncate">{q.name}</span>
+                    <span className="block text-[11px]" style={{ color: C.muted }}>{KIND_TH[kindOf(q)]}</span>
+                  </span>
+                  <span className="text-[11px] font-semibold shrink-0" style={{ color: q.visits > 0 ? C.mint : C.muted }}>{q.visits > 0 ? `✓ ไปแล้ว ${q.visits} ครั้ง` : "ยังไม่ไป"}</span>
+                </button>
+              ))}
+            </div>
+            {areaList.length > 12 && (
+              <button onClick={() => setAreaAll(v => !v)} className="w-full min-h-[40px] rounded-xl text-[12px] font-semibold" style={{ border: `1px solid ${C.line}`, color: C.text }}>{areaAll ? "ย่อรายการ" : `ดูอีก ${areaList.length - 12} แห่ง`}</button>
+            )}
+          </div>
+        )}
         {/* ช่องด่าน */}
         <div className="grid grid-cols-3 gap-2" data-testid="qb-tiles">
           {shown.map(t => (
@@ -254,15 +322,6 @@ export default function QuestBoard({ rest, pos, nearest, onCheckin, onLocate, on
           </button>
         )}
 
-        {/* รายละเอียดตำบลที่แตะ */}
-        {selT && selT.kind === "sub" && (
-          <div className="rounded-2xl p-3 space-y-1.5" style={{ background: C.card, border: `1px solid ${C.line}` }} role="status" data-testid="qb-detail">
-            <p className="text-[15px] font-bold" style={{ fontFamily: "'Kanit', sans-serif" }}>{selT.on ? "ต." + selT.name : "ตำบลที่ยังไม่ปลดล็อก"}</p>
-            {selT.on
-              ? (selPins.length ? selPins.map(q => <p key={q.id} className="text-[13px]">· {q.name}</p>) : <p className="text-[12px]" style={{ color: C.muted }}>ปลดล็อกแล้ว</p>)
-              : <p className="text-[12px]" style={{ color: C.muted }}>{selT.km != null ? `ห่างราว ${kmText(selT.km)} · ` : ""}ไปเช็คอินในพื้นที่นี้เพื่อเปิดชื่อ</p>}
-          </div>
-        )}
       </>)}
 
       {data && !data.streak?.today && (
