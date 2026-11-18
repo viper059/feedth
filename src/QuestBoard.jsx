@@ -247,7 +247,7 @@ export default function QuestBoard({ rest, pos, nearest, onCheckin, onLocate, on
             <MapGuard>
               <Suspense fallback={<div className="rounded-2xl" style={{ height: 250, background: "radial-gradient(120% 90% at 50% 0%, #F4F1FF 0%, #FFFFFF 70%)", border: `1px solid ${C.line}` }} />}>
                 <QuestMap items={tiles} pos={pos} sel={sel} tall={tall}
-                  pins={area && !area.loading ? areaList.filter(q => q.visits > 0) : view.lvl === "dis" ? pins.filter(q => q.lat != null && tiles.some(t => t.on && geoContains(t.f, [q.lng, q.lat]))) : []}
+                  pins={area && !area.loading ? areaList.filter(q => q.visits > 0) : pins.filter(q => q.lat != null && q.lng != null)}
                   places={area && !area.loading ? areaList.filter(q => !(q.visits > 0)).concat(viewPlaces) : viewPlaces}
                   onView={onView}
                   onSelect={(code) => { const t = tiles.find(x => x.code === code); if (t) { setPinSel(null); tap(t); } }}
@@ -267,10 +267,9 @@ export default function QuestBoard({ rest, pos, nearest, onCheckin, onLocate, on
             </div>
           )}
           {mapOpen && (
-            <div className="flex items-center gap-3 text-[11px]" style={{ color: C.muted }}>
-              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: C.map }} />ปลดล็อกแล้ว</span>
-              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: C.gold }} />คุณอยู่ที่นี่</span>
-              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: C.lock, border: `1px solid ${C.line}` }} />ยังล็อก</span>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]" style={{ color: C.muted }}>
+              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: C.mint }} />ที่เคยไปเช็คอิน</span>
+              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: "#fff", border: "2px solid #E11D48" }} />ยังไม่เคยไป (ซูมใกล้เพื่อดูชื่อ)</span>
               <span className="ml-auto" style={{ color: C.muted }}>{total - done > 0 ? `อีก ${total - done} ด่าน` : "ครบแล้ว"}</span>
             </div>
           )}

@@ -31,15 +31,13 @@ const PRIORITY = { attraction: 5, temple: 5, park: 5, beach: 5, waterfall: 5, mu
 
 const CSS = `
 .qm .maplibregl-map{font-family:'IBM Plex Sans Thai',sans-serif}
-.qm .qm-label{background:rgba(255,255,255,.95);color:${P.text};border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:700;white-space:nowrap;box-shadow:0 2px 6px rgba(76,61,184,.18);pointer-events:none}
-.qm .qm-label.here{background:${P.accent};color:#fff}
-.qm .qm-label.off{background:rgba(255,255,255,.85);color:#6B7280;font-weight:600}
-.qm .qm-pin{width:32px;height:32px;border-radius:50%;background:#fff;border:2.5px solid ${P.accent};display:flex;align-items:center;justify-content:center;box-shadow:0 3px 8px rgba(76,61,184,.28);position:relative;cursor:pointer}
-.qm .qm-pin:after{content:"";position:absolute;bottom:-8px;left:50%;margin-left:-5px;border:5px solid transparent;border-top:6px solid ${P.accent}}
-.qm .qm-clu{width:34px;height:34px;border-radius:50%;background:${P.accent};color:#fff;border:3px solid #fff;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 5px rgba(108,92,231,.2);cursor:pointer}
-.qm .qm-place{display:flex;align-items:center;gap:4px;cursor:pointer;white-space:nowrap}
-.qm .qm-place i{width:9px;height:9px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 2px rgba(0,0,0,.25);flex-shrink:0}
-.qm .qm-place span{font-size:11px;font-weight:600;color:#374151;text-shadow:0 0 2px #fff,0 0 2px #fff,0 0 3px #fff}
+.qm .qm-p{display:flex;align-items:flex-end;gap:3px;cursor:pointer;white-space:nowrap}
+.qm .qm-p b{width:22px;height:22px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:#fff;border:2px solid var(--c);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 5px rgba(31,36,48,.25);flex-shrink:0}
+.qm .qm-p b svg{transform:rotate(45deg)}
+.qm .qm-p.v b{width:28px;height:28px;background:${P.accent};border-color:#fff;box-shadow:0 0 0 3px rgba(108,92,231,.25),0 3px 8px rgba(76,61,184,.35)}
+.qm .qm-p span{font-size:11px;font-weight:600;color:#374151;margin-bottom:8px;text-shadow:0 0 2px #fff,0 0 2px #fff,0 0 3px #fff,0 0 3px #fff}
+.qm .qm-p.v span{font-weight:800;color:${P.accent}}
+.qm .qm-p em{font-style:normal;font-size:10px;font-weight:800;color:#fff;background:${P.text};border-radius:999px;padding:0 5px;margin-bottom:22px;margin-left:-10px}
 .qm .qm-me{width:16px;height:16px;border-radius:50%;background:#2F80FF;border:3px solid #fff;animation:qmpulse 1.8s infinite}
 @keyframes qmpulse{0%{box-shadow:0 0 0 0 rgba(47,128,255,.45)}100%{box-shadow:0 0 0 16px rgba(47,128,255,0)}}
 .qm .maplibregl-ctrl-attrib{font-size:9px}
@@ -84,18 +82,6 @@ const bboxOf = (features) => {
   features.forEach(f => f.geometry && walk(f.geometry.coordinates));
   return w <= e ? [[w, s], [e, n]] : null;
 };
-// จุดวางป้าย: จุดศูนย์กลางพื้นที่ของวงที่ใหญ่ที่สุด (ป้ายไม่หลุดไปนอกพื้นที่รูปตัว C)
-const labelPoint = (f) => {
-  const polys = f.geometry.type === "Polygon" ? [f.geometry.coordinates] : f.geometry.type === "MultiPolygon" ? f.geometry.coordinates : [];
-  let best = null, bestA = -1;
-  for (const p of polys) {
-    const ring = p[0]; let a = 0, cx = 0, cy = 0;
-    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) { const k = ring[j][0] * ring[i][1] - ring[i][0] * ring[j][1]; a += k; cx += (ring[j][0] + ring[i][0]) * k; cy += (ring[j][1] + ring[i][1]) * k; }
-    if (Math.abs(a) > bestA && a !== 0) { bestA = Math.abs(a); best = [cx / (3 * a), cy / (3 * a)]; }
-  }
-  return best && isFinite(best[0]) && isFinite(best[1]) ? best : null;
-};
-
 export default function QuestMap({ items, pins = [], places = [], pos, sel, onSelect, onPin, onPlace, onView, tall }) {
   const box = useRef(null);
   const m = useRef(null);
@@ -122,19 +108,6 @@ export default function QuestMap({ items, pins = [], places = [], pos, sel, onSe
       o.map = map;
       map.on("load", () => {
         if (dead) return;
-        map.addSource("areas", { type: "geojson", data: { type: "FeatureCollection", features: [] }, promoteId: "code" });
-        map.addLayer({ id: "area-fill", type: "fill", source: "areas", paint: {
-          "fill-color": ["match", ["get", "st"], "here", P.accent, "on", P.accent, "#ADA6CF"],
-          // ซูมใกล้แล้วหมอกจางลง ให้เห็นถนน/ร้านข้างใต้
-          "fill-opacity": ["interpolate", ["linear"], ["zoom"], 11, ["match", ["get", "st"], "here", 0.22, "on", 0.07, 0.55], 15, ["match", ["get", "st"], "here", 0.12, "on", 0.03, 0.3]],
-        } });
-        map.addLayer({ id: "area-line", type: "line", source: "areas", paint: {
-          "line-color": ["case", ["boolean", ["feature-state", "sel"], false], P.text, ["match", ["get", "st"], "off", "#FFFFFF", P.accent]],
-          "line-width": ["case", ["boolean", ["feature-state", "sel"], false], 3, ["match", ["get", "st"], "off", 1, 2]],
-        } });
-        map.on("click", "area-fill", (e) => { const f = e.features && e.features[0]; if (f) cb.current.onSelect && cb.current.onSelect(f.properties.code); });
-        map.on("mouseenter", "area-fill", () => { map.getCanvas().style.cursor = "pointer"; });
-        map.on("mouseleave", "area-fill", () => { map.getCanvas().style.cursor = ""; });
         map.on("moveend", () => { draw(); const b = map.getBounds(); cb.current.onView && cb.current.onView({ w: b.getWest(), s: b.getSouth(), e: b.getEast(), n: b.getNorth(), z: map.getZoom() }); });
         o.ready = true;
         const at = map.getContainer().querySelector(".maplibregl-ctrl-attrib");
@@ -146,67 +119,56 @@ export default function QuestMap({ items, pins = [], places = [], pos, sel, onSe
   }, []);
 
   const clearMarkers = () => { const o = m.current; o.markers.forEach(mk => mk.remove()); o.markers = []; };
-  const add = (lnglat, el, anchor = "center") => { const o = m.current; const mk = new maplibregl.Marker({ element: el, anchor }).setLngLat(lnglat).addTo(o.map); o.markers.push(mk); return mk; };
   const el = (html, cls) => { const d = document.createElement("div"); if (cls) d.className = cls; d.innerHTML = html; return d; };
 
-  // ป้าย/หมุด/ชื่อสถานที่: วาดใหม่หลังเลื่อน/ซูมเสร็จ ชนกันก็ซ่อนอันที่สำคัญน้อยกว่า
+  // หมุดเดียวทั้งระบบ: ปักตรงพิกัดของสถานที่พร้อมชื่อ — ที่เคยไปเป็นหมุดม่วงเด่น ที่ยังไม่เคยไปเป็นหมุดเล็กตามสีประเภท
+  // ชนกันก็ซ่อนอันที่สำคัญน้อยกว่า (ที่เคยไปที่ถูกซ่อนจะนับเป็น +n บนหมุดที่ใกล้สุด แตะเพื่อซูมเข้า)
   const draw = () => {
     const o = m.current; if (!o || !o.ready) return;
-    const map = o.map, { items: its, pins: pns, places: pls } = data.current;
+    const map = o.map, { pins: pns, places: pls } = data.current;
     clearMarkers();
-    const boxes = [[map.getContainer().clientWidth - 52, 0, 99999, 150]], W = map.getContainer().clientWidth, H = map.getContainer().clientHeight;
-    const free = (b) => b[2] > 0 && b[0] < W && b[3] > 0 && b[1] < H && !boxes.some(x => b[0] < x[2] && b[2] > x[0] && b[1] < x[3] && b[3] > x[1]);
-    const proj = (lng, lat) => map.project([lng, lat]);
-    // 1) หมุดที่เคยไป (รวมกลุ่มที่ชิดกัน)
-    const groups = [];
-    for (const p of pns) {
-      if (!isFinite(p.lat) || !isFinite(p.lng)) continue;
-      const pt = proj(p.lng, p.lat);
-      const g = groups.find(g => Math.hypot(g.pt.x - pt.x, g.pt.y - pt.y) < 40);
-      if (g) g.items.push(p); else groups.push({ pt, items: [p] });
-    }
-    for (const g of groups) {
-      boxes.push([g.pt.x - 18, g.pt.y - 42, g.pt.x + 18, g.pt.y]);
-      if (g.items.length === 1) {
-        const p = g.items[0], d = el(svgIcon(keyOf(p), 16, P.accent), "qm-pin");
-        d.dataset.pin = String(p.id); d.title = p.name;
-        d.addEventListener("click", (e) => { e.stopPropagation(); cb.current.onPin && cb.current.onPin(p); });
-        add([p.lng, p.lat], d, "bottom");
-      } else {
-        const lng = g.items.reduce((a, p) => a + p.lng, 0) / g.items.length, lat = g.items.reduce((a, p) => a + p.lat, 0) / g.items.length;
-        const d = el(String(g.items.length), "qm-clu");
-        d.addEventListener("click", (e) => {
-          e.stopPropagation();
-          const b = bboxOf(g.items.map(p => ({ geometry: { coordinates: [p.lng, p.lat] } })));
-          if (b) map.fitBounds(b, { padding: 60, maxZoom: Math.min(18, map.getZoom() + 3), duration: 500 });
-        });
-        add([lng, lat], d);
+    const W = map.getContainer().clientWidth, H = map.getContainer().clientHeight;
+    const boxes = [[W - 52, 0, 99999, 150]];
+    const hit = (b) => boxes.some(x => b[0] < x[2] && b[2] > x[0] && b[1] < x[3] && b[3] > x[1]);
+    const inView = (pt) => pt.x > -10 && pt.x < W + 10 && pt.y > -10 && pt.y < H + 30;
+    const z = map.getZoom();
+    const visited = new Set((pns || []).map(p => String(p.id)));
+    const list = [];
+    for (const p of pns || []) if (isFinite(p.lat) && isFinite(p.lng)) list.push({ p, v: true });
+    for (const p of pls || []) if (isFinite(p.lat) && isFinite(p.lng) && !visited.has(String(p.id))) list.push({ p, v: false });
+    const cand = list.map(x => ({ ...x, k: keyOf(x.p), pt: map.project([x.p.lng, x.p.lat]) })).filter(x => inView(x.pt))
+      .sort((a, b) => (b.v - a.v) || ((PRIORITY[b.k] || 0) - (PRIORITY[a.k] || 0)) || ((b.p.visits || 0) - (a.p.visits || 0)));
+    const shown = [];
+    let others = 0;
+    for (const x of cand) {
+      const showName = true;
+      const raw = String(x.p.name || "");
+      const name = raw.length > 22 ? raw.slice(0, 21) + "…" : raw;
+      const pw = x.v ? 30 : 24, w = pw + (showName ? name.length * 6.2 + 6 : 0), h = x.v ? 34 : 28;
+      const b = [x.pt.x - pw / 2, x.pt.y - h, x.pt.x - pw / 2 + w, x.pt.y];
+      if (hit(b)) {
+        if (x.v) { const near = shown.filter(s => s.v).sort((a, c) => Math.hypot(a.pt.x - x.pt.x, a.pt.y - x.pt.y) - Math.hypot(c.pt.x - x.pt.x, c.pt.y - x.pt.y))[0]; if (near) near.more++; }
+        continue;
       }
-    }
-    // 2) ชื่อพื้นที่ที่ปลดล็อก (ที่อยู่ตอนนี้มาก่อน)
-    const lab = (its || []).filter(t => t.on || t.here).map(t => ({ t, c: labelPoint(t.f) })).filter(x => x.c).sort((a, b) => b.t.here - a.t.here);
-    for (const { t, c } of lab) {
-      const pt = proj(c[0], c[1]), w = t.name.length * 6.6 + 18, b = [pt.x - w / 2, pt.y - 10, pt.x + w / 2, pt.y + 10];
-      if (!t.here && !free(b)) continue;
+      if (!x.v && others >= 60) continue;
+      if (!x.v) others++;
       boxes.push(b);
-      add(c, el(esc(t.name), "qm-label" + (t.here ? " here" : "")));
+      shown.push({ ...x, name: showName ? name : "", more: 0 });
     }
-    // 3) ชื่อสถานที่ (ร้าน ที่เที่ยว ที่พัก อุทยาน ฯลฯ) — ที่เที่ยวสำคัญกว่าร้าน
-    const seen = new Set(pns.map(p => String(p.id)));
-    const cand = (pls || []).filter(p => isFinite(p.lat) && isFinite(p.lng) && !seen.has(String(p.id)))
-      .map(p => ({ p, k: keyOf(p), pt: proj(p.lng, p.lat) })).filter(x => x.pt.x > -20 && x.pt.x < W + 20 && x.pt.y > -20 && x.pt.y < H + 20)
-      .sort((a, b) => (PRIORITY[b.k] || 0) - (PRIORITY[a.k] || 0));
-    let shown = 0;
-    for (const { p, k, pt } of cand) {
-      if (shown >= 60) break;
-      const name = String(p.name).length > 24 ? String(p.name).slice(0, 23) + "…" : String(p.name);
-      const w = name.length * 6.2 + 16, b = [pt.x - 6, pt.y - 9, pt.x + w, pt.y + 9];
-      if (!free(b)) continue;
-      boxes.push(b); shown++;
-      const d = el(`<i style="background:${DOT[k] || DOT.attraction}"></i><span>${esc(name)}</span>`, "qm-place");
-      d.dataset.place = String(p.id); d.title = `${p.name} · ${KIND_TH[k] || ""}`;
-      d.addEventListener("click", (e) => { e.stopPropagation(); cb.current.onPlace && cb.current.onPlace(p); });
-      add([p.lng, p.lat], d, "left");
+    for (const x of shown) {
+      const c = x.v ? P.accent : (DOT[x.k] || DOT.attraction);
+      const d = el(`<b style="--c:${c}">${svgIcon(x.k, x.v ? 14 : 12, x.v ? "#fff" : c)}</b>${x.more ? `<em>+${x.more}</em>` : ""}${x.name ? `<span>${esc(x.name)}</span>` : ""}`, "qm-p" + (x.v ? " v" : ""));
+      d.style.setProperty("--c", c);
+      d.dataset[x.v ? "pin" : "place"] = String(x.p.id);
+      d.title = `${x.p.name} · ${KIND_TH[x.k] || ""}${x.v ? ` · เช็คอิน ${x.p.visits || 1} ครั้ง` : ""}`;
+      d.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (x.more) { map.easeTo({ center: [x.p.lng, x.p.lat], zoom: Math.min(18, z + 2), duration: 400 }); return; }
+        x.v ? cb.current.onPin && cb.current.onPin(x.p) : cb.current.onPlace && cb.current.onPlace(x.p);
+      });
+      // ปลายหมุดอยู่ตรงพิกัดพอดี: ยึดมุมล่างซ้าย แล้วเลื่อนครึ่งความกว้างหัวหมุด
+      const mk = new maplibregl.Marker({ element: d, anchor: "bottom-left", offset: x.v ? [-16, -7] : [-13, -5] }).setLngLat([x.p.lng, x.p.lat]).addTo(map);
+      o.markers.push(mk);
     }
   };
 
@@ -217,14 +179,7 @@ export default function QuestMap({ items, pins = [], places = [], pos, sel, onSe
     o.map.resize();
     o.map.fitBounds(b, { padding: 18, duration: animate ? 500 : 0, maxZoom: 15 });
   };
-  const setItems = () => {
-    const o = m.current; if (!o || !o.ready) return;
-    const fc = { type: "FeatureCollection", features: (data.current.items || []).map(t => ({ type: "Feature", geometry: t.f.geometry, properties: { code: t.code, st: t.here ? "here" : t.on ? "on" : "off" } })) };
-    o.map.getSource("areas").setData(fc);
-    o.sel = null;
-    fit(false);
-    draw();
-  };
+  const setItems = () => { fit(false); draw(); };
   const setMe = () => {
     const o = m.current; if (!o || !o.ready) return;
     if (o.me) { o.me.remove(); o.me = null; }
@@ -234,16 +189,12 @@ export default function QuestMap({ items, pins = [], places = [], pos, sel, onSe
   useEffect(() => { setItems(); }, [items]);
   useEffect(() => { draw(); }, [pins, places]);
   useEffect(() => { setMe(); }, [pos && pos.lat, pos && pos.lng]);
-  // พื้นที่ที่เลือก: ขอบเข้ม + บินไปหา (เฉพาะตำบล)
+  // แตะตำบลในรายการ → บินไปที่ตำบลนั้น
   useEffect(() => {
-    const o = m.current; if (!o || !o.ready) return;
-    if (o.sel) o.map.setFeatureState({ source: "areas", id: o.sel }, { sel: false });
-    o.sel = sel || null;
-    if (!sel) return;
-    o.map.setFeatureState({ source: "areas", id: sel }, { sel: true });
+    const o = m.current; if (!o || !o.ready || !sel) return;
     const t = (data.current.items || []).find(x => x.code === sel);
     if (t && t.kind === "sub") { const b = bboxOf([t.f]); if (b) o.map.fitBounds(b, { padding: 24, duration: 500 }); }
-  }, [sel, items]);
+  }, [sel]);
   useEffect(() => { const id = setTimeout(() => fit(true), 280); return () => clearTimeout(id); }, [tall]);
 
   const zoom = (d) => { const o = m.current; if (o && o.map) o.map.zoomTo(o.map.getZoom() + d, { duration: 300 }); };
