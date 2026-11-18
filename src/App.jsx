@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import QuestBoard from "./QuestBoard.jsx";
 import ConquestTab from "./Conquest.jsx";
 import InstallPrompt from "./InstallPrompt.jsx";
@@ -508,7 +508,9 @@ const DEMO_PINS = [
   { id: "d2", name: "ร้านก๋วยเตี๋ยวตัวอย่าง", lat: 14.351, lng: 100.577, province: "14", category: "restaurant" },
   { id: "d3", name: "คาเฟ่ตัวอย่าง", lat: 14.362, lng: 100.556, province: "14", category: "cafe" },
 ];
-const demoRest = async (path) => {
+// ผู้เยี่ยมชม: ความคืบหน้าเป็นตัวอย่าง แต่ชื่อร้าน/ที่เที่ยวบนแผนที่ดึงของจริง (อ่านอย่างเดียว)
+const makeDemoRest = (realRest) => async (path, opts) => {
+  if (path.startsWith("/rest/v1/places?") && realRest) return realRest(path, opts);
   if (path.endsWith("/my_explore")) return DEMO_EXPLORE;
   if (path.endsWith("/my_place_pins") || path.endsWith("/my_place_pins_v2")) return DEMO_PINS;
   if (path.endsWith("/my_wish_pins")) throw new Error("demo");
@@ -516,6 +518,7 @@ const demoRest = async (path) => {
 };
 function GuestPreview({ rest, showToast, onSignup, onLogin }) {
   const [posts, setPosts] = useState(null);
+  const demoRest = useMemo(() => makeDemoRest((p, o) => rest(p, { ...(o || {}), auth: false })), [rest]);
   useEffect(() => {
     rest("/rest/v1/posts?select=id,content,media_urls,created_at,place:places(name),author:profiles!posts_user_id_fkey(username:display_name)&order=created_at.desc&limit=8", { auth: false })
       .then(r => setPosts(Array.isArray(r) ? r : [])).catch(() => setPosts([]));

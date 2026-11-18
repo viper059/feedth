@@ -1,6 +1,6 @@
 // กระดานด่าน (หน้าเช็คอิน): แทนแผนที่หมอกแบบซูม
 // แผนที่ย่อพอดีกรอบ ไม่มีชื่อ ไม่ซูม + ช่องด่านที่มีชื่อเสมอ เรียงจากที่อยู่ตอนนี้ → ปลดล็อกแล้ว → ใกล้ตัวที่สุด
-import { useState, useEffect, useMemo, useCallback, lazy, Suspense, Component } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense, Component } from "react";
 import { geoContains, geoCentroid, geoDistance, geoBounds } from "d3-geo";
 import { loadBase, loadDis, loadSub, locateAt, RANKS, CONTINENT_TH } from "./geo.js";
 
@@ -49,6 +49,17 @@ export default function QuestBoard({ rest, pos, nearest, onCheckin, onLocate, on
   const [areaPlaces, setAreaPlaces] = useState({}); // สถานที่ทั้งหมดในตำบลที่แตะ (โหลดครั้งเดียวต่อตำบล)
   const [areaCat, setAreaCat] = useState("all");
   const [areaAll, setAreaAll] = useState(false);
+  const [viewPlaces, setViewPlaces] = useState([]); // ชื่อสถานที่ในจอ (เฉพาะซูมใกล้)
+  const vpTimer = useRef(null);
+  const onView = useCallback((b) => {
+    clearTimeout(vpTimer.current);
+    if (b.z < 13) { setViewPlaces([]); return; }
+    vpTimer.current = setTimeout(() => {
+      const f = (x) => x.toFixed(5);
+      rest(`/rest/v1/places?select=id,name,category,kind,lat,lng&category=neq.other&lat=gte.${f(b.s)}&lat=lte.${f(b.n)}&lng=gte.${f(b.w)}&lng=lte.${f(b.e)}&limit=350`)
+        .then(r => setViewPlaces(Array.isArray(r) ? r : [])).catch(() => {});
+    }, 350);
+  }, []);
 
   const refresh = useCallback(() => {
     rest("/rest/v1/rpc/my_explore", { method: "POST", body: {} }).then(setData)
@@ -236,9 +247,12 @@ export default function QuestBoard({ rest, pos, nearest, onCheckin, onLocate, on
             <MapGuard>
               <Suspense fallback={<div className="rounded-2xl" style={{ height: 250, background: "radial-gradient(120% 90% at 50% 0%, #F4F1FF 0%, #FFFFFF 70%)", border: `1px solid ${C.line}` }} />}>
                 <QuestMap items={tiles} pos={pos} sel={sel} tall={tall}
-                  pins={area && !area.loading ? areaList : view.lvl === "dis" ? pins.filter(q => q.lat != null && tiles.some(t => t.on && geoContains(t.f, [q.lng, q.lat]))) : []}
+                  pins={area && !area.loading ? areaList.filter(q => q.visits > 0) : view.lvl === "dis" ? pins.filter(q => q.lat != null && tiles.some(t => t.on && geoContains(t.f, [q.lng, q.lat]))) : []}
+                  places={area && !area.loading ? areaList.filter(q => !(q.visits > 0)).concat(viewPlaces) : viewPlaces}
+                  onView={onView}
                   onSelect={(code) => { const t = tiles.find(x => x.code === code); if (t) { setPinSel(null); tap(t); } }}
-                  onPin={(p) => { setSel(null); setPinSel(p); }} />
+                  onPin={(p) => { setSel(null); setPinSel(p); }}
+                  onPlace={(p) => { setSel(null); setPinSel({ ...p, visits: 0 }); }} />
               </Suspense>
             </MapGuard>
           )}
