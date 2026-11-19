@@ -19,15 +19,17 @@ const ICON = {
   restaurant: "M7 3v7M10 3v7M7 10a1.5 1.5 0 0 0 3 0M8.5 10v11M16 3c-2 2-2 6 0 8v10",
   hotel: "M3 11l9-7 9 7M5 10v10h14V10M10 20v-6h4v6",
   fuel: "M4 20V5a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v15M3 20h11M13 9h2a2 2 0 0 1 2 2v5a1.5 1.5 0 0 0 3 0V8l-3-3M6 8h5",
+  shop: "M5 8h14l-1 12H6L5 8zM9 8V6a3 3 0 0 1 6 0v2",
+  forest: "M12 2l4 6h-2l4 6h-3l3 5H6l3-5H6l4-6H8l4-6zM12 19v3",
   attraction: "M12 21s-6-5.5-6-10a6 6 0 0 1 12 0c0 4.5-6 10-6 10zM12 13a2 2 0 1 0 0-4 2 2 0 0 0 0 4z",
 };
 // สีจุดของแต่ละประเภท (ชื่อที่ยังไม่เคยไป)
-const DOT = { temple: "#A855F7", park: "#22A06B", beach: "#0EA5E9", waterfall: "#0EA5E9", museum: "#8B5CF6", cafe: "#D97706", restaurant: "#E11D48", hotel: "#2563EB", fuel: "#475569", attraction: "#7C3AED" };
-export const KIND_TH = { temple: "วัด", park: "อุทยาน / สวน", beach: "ชายหาด", waterfall: "น้ำตก", museum: "พิพิธภัณฑ์", cafe: "คาเฟ่", restaurant: "ร้านอาหาร", hotel: "ที่พัก", fuel: "ปั๊มน้ำมัน", attraction: "ที่เที่ยว" };
+const DOT = { temple: "#A855F7", park: "#22A06B", beach: "#0EA5E9", waterfall: "#0EA5E9", museum: "#8B5CF6", cafe: "#D97706", restaurant: "#E11D48", hotel: "#2563EB", fuel: "#475569", shop: "#0D9488", forest: "#15803D", attraction: "#7C3AED" };
+export const KIND_TH = { temple: "วัด", park: "อุทยาน / สวน", beach: "ชายหาด", waterfall: "น้ำตก", museum: "พิพิธภัณฑ์", cafe: "คาเฟ่", restaurant: "ร้านอาหาร", hotel: "ที่พัก", fuel: "ปั๊มน้ำมัน", shop: "ร้านค้า", forest: "ป่า / เขตอนุรักษ์", attraction: "ที่เที่ยว" };
 export const keyOf = (p) => (p.kind && ICON[p.kind] ? p.kind : ICON[p.category] ? p.category : "attraction");
 export const svgIcon = (k, size, color) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${ICON[k]}"/></svg>`;
 const esc = (t) => String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-const PRIORITY = { attraction: 5, temple: 5, park: 5, beach: 5, waterfall: 5, museum: 5, hotel: 3, fuel: 3, cafe: 2, restaurant: 1 };
+const PRIORITY = { forest: 5, shop: 2, attraction: 5, temple: 5, park: 5, beach: 5, waterfall: 5, museum: 5, hotel: 3, fuel: 3, cafe: 2, restaurant: 1 };
 
 const CSS = `
 .qm .maplibregl-map{font-family:'IBM Plex Sans Thai',sans-serif}
@@ -82,6 +84,56 @@ const bboxOf = (features) => {
   features.forEach(f => f.geometry && walk(f.geometry.coordinates));
   return w <= e ? [[w, s], [e, n]] : null;
 };
+// ชื่อสถานที่ทั่วโลกจากข้อมูลในแผ่นแผนที่ (OpenStreetMap ผ่าน OpenFreeMap) — ไม่ต้องเก็บในฐานข้อมูลเรา
+// คัดเฉพาะ ร้านค้า ร้านอาหาร คาเฟ่ ปั๊ม ที่พัก ที่เที่ยว วัด อุทยาน/ป่า — ไม่มีบ้านคน สำนักงาน ธนาคาร โรงเรียน
+const POI_KIND = {
+  fuel: "fuel",
+  restaurant: "restaurant", fast_food: "restaurant", food_court: "restaurant", ice_cream: "restaurant", bar: "restaurant", beer: "restaurant", pub: "restaurant",
+  cafe: "cafe", bakery: "cafe",
+  lodging: "hotel", campsite: "park",
+  place_of_worship: "temple",
+  park: "park", garden: "park", nature_reserve: "forest",
+  museum: "museum", art_gallery: "museum",
+  attraction: "attraction", zoo: "attraction", aquarium: "attraction", castle: "attraction", monument: "attraction", theme_park: "attraction", viewpoint: "attraction", information: null, beach: "beach", waterfall: "waterfall",
+  grocery: "shop", shop: "shop", alcohol_shop: "shop", books: "shop", clothing_store: "shop", electronics: "shop", furniture: "shop", gift: "shop", hardware: "shop", jewelry: "shop", mobile_phone: "shop", music: "shop", optician: "shop", pet: "shop", sports: "shop", stationery: "shop", toys: "shop", florist: "shop", car: "shop", bicycle: "shop", motorcycle: "shop", department_store: "shop", marketplace: "shop", hairdresser: "shop", laundry: "shop", cosmetics: "shop", photo: "shop", butcher: "shop", deli: "shop", greengrocer: "shop", convenience: "shop", supermarket: "shop", mall: "shop",
+};
+const PARK_KIND = { national_park: "park", nature_reserve: "forest", protected_area: "forest", forest: "forest", park: "park" };
+const THAI = /[\u0E00-\u0E7F]/;
+const pickName = (pr) => pr["name:th"] || (pr.name && THAI.test(pr.name) ? pr.name : null) || pr.name_en || pr["name:en"] || pr["name:latin"] || pr.name || "";
+const ringPoint = (g) => {
+  const ring = g.type === "Polygon" ? g.coordinates[0] : g.type === "MultiPolygon" ? g.coordinates[0][0] : g.type === "Point" ? [g.coordinates] : null;
+  if (!ring || !ring.length) return null;
+  let w = 180, s = 90, e = -180, n = -90;
+  for (const c of ring) { if (c[0] < w) w = c[0]; if (c[0] > e) e = c[0]; if (c[1] < s) s = c[1]; if (c[1] > n) n = c[1]; }
+  return [(w + e) / 2, (s + n) / 2];
+};
+function tilePlaces(map, src) {
+  if (!src || map.getZoom() < 12.5) return [];
+  const out = [], seen = new Set();
+  const push = (id, name, kind, lng, lat, tag) => {
+    if (!name || !isFinite(lng) || !isFinite(lat)) return;
+    const key = name + "|" + lng.toFixed(3) + "|" + lat.toFixed(3);
+    if (seen.has(key)) return; seen.add(key);
+    out.push({ id: "osm:" + (id ?? key), name, kind, category: kind, lat, lng, src: tag });
+  };
+  try {
+    for (const f of map.querySourceFeatures(src, { sourceLayer: "poi" })) {
+      const pr = f.properties || {};
+      const kind = POI_KIND[pr.subclass] || POI_KIND[pr.class];
+      if (!kind || f.geometry.type !== "Point") continue;
+      push(f.id, pickName(pr), kind, f.geometry.coordinates[0], f.geometry.coordinates[1], "osm");
+    }
+    for (const f of map.querySourceFeatures(src, { sourceLayer: "park" })) {
+      const pr = f.properties || {};
+      const kind = PARK_KIND[pr.class] || "park";
+      const name = pickName(pr); if (!name) continue;
+      if (seen.has("park|" + name)) continue; seen.add("park|" + name);
+      const c = ringPoint(f.geometry); if (c) push(f.id, name, kind, c[0], c[1], "osm");
+    }
+  } catch { /* ยังไม่มีแผ่นแผนที่ */ }
+  return out;
+}
+
 export default function QuestMap({ items, pins = [], places = [], pos, sel, onSelect, onPin, onPlace, onView, tall }) {
   const box = useRef(null);
   const m = useRef(null);
@@ -108,7 +160,16 @@ export default function QuestMap({ items, pins = [], places = [], pos, sel, onSe
       o.map = map;
       map.on("load", () => {
         if (dead) return;
-        map.on("moveend", () => { draw(); const b = map.getBounds(); cb.current.onView && cb.current.onView({ w: b.getWest(), s: b.getSouth(), e: b.getEast(), n: b.getNorth(), z: map.getZoom() }); });
+        map.on("moveend", () => { const b = map.getBounds(); cb.current.onView && cb.current.onView({ w: b.getWest(), s: b.getSouth(), e: b.getEast(), n: b.getNorth(), z: map.getZoom() }); });
+        // ชั้นล่องหนเพื่อให้แผนที่โหลดข้อมูลจุดสถานที่/อุทยาน (เราวาดชื่อเองด้วย HTML)
+        o.src = Object.keys(map.getStyle().sources || {}).find(k => map.getSource(k).type === "vector") || null;
+        if (o.src) {
+          try {
+            map.addLayer({ id: "qm-poi", type: "circle", source: o.src, "source-layer": "poi", minzoom: 12, paint: { "circle-opacity": 0, "circle-radius": 1 } });
+            map.addLayer({ id: "qm-park", type: "fill", source: o.src, "source-layer": "park", minzoom: 8, paint: { "fill-opacity": 0 } });
+          } catch { /* สไตล์ไม่มีชั้นนี้ */ }
+        }
+        map.on("idle", () => { const k = map.getZoom().toFixed(2) + map.getCenter().toArray().join(); if (k !== o.idleKey) { o.idleKey = k; draw(); } });
         o.ready = true;
         const at = map.getContainer().querySelector(".maplibregl-ctrl-attrib");
         if (at) at.classList.remove("maplibregl-compact-show"); // เริ่มแบบย่อ แตะ (i) เพื่อดูเครดิต
@@ -135,7 +196,10 @@ export default function QuestMap({ items, pins = [], places = [], pos, sel, onSe
     const visited = new Set((pns || []).map(p => String(p.id)));
     const list = [];
     for (const p of pns || []) if (isFinite(p.lat) && isFinite(p.lng)) list.push({ p, v: true });
-    for (const p of pls || []) if (isFinite(p.lat) && isFinite(p.lng) && !visited.has(String(p.id))) list.push({ p, v: false });
+    const names = new Set();
+    for (const p of pls || []) if (isFinite(p.lat) && isFinite(p.lng) && !visited.has(String(p.id))) { list.push({ p, v: false }); names.add(String(p.name).toLowerCase()); }
+    for (const p of pns || []) names.add(String(p.name).toLowerCase());
+    for (const p of tilePlaces(map, o.src)) if (!names.has(p.name.toLowerCase())) list.push({ p, v: false });
     const cand = list.map(x => ({ ...x, k: keyOf(x.p), pt: map.project([x.p.lng, x.p.lat]) })).filter(x => inView(x.pt))
       .sort((a, b) => (b.v - a.v) || ((PRIORITY[b.k] || 0) - (PRIORITY[a.k] || 0)) || ((b.p.visits || 0) - (a.p.visits || 0)));
     const shown = [];

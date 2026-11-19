@@ -7,7 +7,7 @@ import { loadBase, loadDis, loadSub, locateAt, RANKS, CONTINENT_TH } from "./geo
 // สีเดียวโทนขาวเหมือนหน้าหลัก: ม่วงของแอปเป็นสีเน้นสีเดียว
 const QuestMap = lazy(() => import("./GameMap.jsx"));
 const kindOf = (p) => (p.kind && ["temple", "park", "beach", "waterfall", "museum"].includes(p.kind) ? p.kind : ["cafe", "restaurant", "hotel"].includes(p.category) ? p.category : "attraction");
-const KIND_TH = { temple: "วัด", park: "อุทยาน / สวน", beach: "ชายหาด", waterfall: "น้ำตก", museum: "พิพิธภัณฑ์", cafe: "คาเฟ่", restaurant: "ร้านอาหาร", hotel: "ที่พัก", attraction: "ที่เที่ยว" };
+const KIND_TH = { temple: "วัด", park: "อุทยาน / สวน", beach: "ชายหาด", waterfall: "น้ำตก", museum: "พิพิธภัณฑ์", cafe: "คาเฟ่", restaurant: "ร้านอาหาร", hotel: "ที่พัก", fuel: "ปั๊มน้ำมัน", shop: "ร้านค้า", forest: "ป่า / เขตอนุรักษ์", attraction: "ที่เที่ยว" };
 // ถ้าแผนที่เต็มจอพัง ให้แสดงข้อความพร้อมปุ่มปิด แทนที่จะทำให้ทั้งแอปเป็นจอขาว
 class MapGuard extends Component {
   constructor(p) { super(p); this.state = { err: null }; }
@@ -33,7 +33,7 @@ const Star = ({ c = C.mint, s = 16 }) => <svg width={s} height={s} viewBox="0 0 
 const LockIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M7 11V8a5 5 0 0 1 10 0v3M5 11h14v10H5z" /></svg>;
 const Chevron = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2.5" strokeLinecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>;
 
-export default function QuestBoard({ rest, pos, nearest, onCheckin, onLocate, onAdd, busy, refreshKey, onMore, onOpenPlace = () => {}, showToast = () => {} }) {
+export default function QuestBoard({ rest, pos, nearest, onCheckin, onLocate, onAdd, busy, refreshKey, onMore, onOpenPlace = () => {}, showToast = () => {}, guest = false }) {
   const [data, setData] = useState(null);
   const [pins, setPins] = useState([]);
   const [geo, setGeo] = useState(null); // { base, dis }
@@ -51,6 +51,24 @@ export default function QuestBoard({ rest, pos, nearest, onCheckin, onLocate, on
   const [areaAll, setAreaAll] = useState(false);
   const [viewPlaces, setViewPlaces] = useState([]); // ชื่อสถานที่ในจอ (เฉพาะซูมใกล้)
   const vpTimer = useRef(null);
+  const [adding, setAdding] = useState(false);
+  // สถานที่จากแผนที่โลก (ยังไม่อยู่ในระบบ): เพิ่มเข้าระบบแล้วเปิดหน้าสถานที่เพื่อเช็คอิน
+  const addFromMap = async (p) => {
+    if (guest) { onAdd && onAdd(); return; }
+    setAdding(true);
+    const cat = ["restaurant", "cafe", "hotel"].includes(p.kind) ? p.kind : ["shop", "fuel"].includes(p.kind) ? "other" : "attraction";
+    try {
+      const r = await rest("/rest/v1/rpc/add_place", { method: "POST", body: { p_name: p.name, p_category: cat, p_lat: p.lat, p_lng: p.lng } });
+      const id = Array.isArray(r) ? r[0] : r;
+      if (id) { setPinSel(null); onOpenPlace(id); }
+    } catch (e) {
+      const m = e.message || "";
+      if (m.includes("exists")) {
+        const d = 0.002, q = await rest(`/rest/v1/places?select=id&name=ilike.${encodeURIComponent(p.name.replace(/[%*,()]/g, ""))}&lat=gte.${p.lat - d}&lat=lte.${p.lat + d}&lng=gte.${p.lng - d}&lng=lte.${p.lng + d}&limit=1`).catch(() => []);
+        if (q && q[0]) { setPinSel(null); onOpenPlace(q[0].id); } else showToast("มีสถานที่นี้ในระบบแล้ว");
+      } else showToast(m.includes("limit reached") ? "เพิ่มสถานที่ได้วันละ 5 แห่ง วันนี้ครบแล้ว" : "เพิ่มไม่สำเร็จ ลองใหม่อีกครั้ง");
+    } finally { setAdding(false); }
+  };
   const onView = useCallback((b) => {
     clearTimeout(vpTimer.current);
     if (b.z < 13) { setViewPlaces([]); return; }
@@ -262,6 +280,7 @@ export default function QuestBoard({ rest, pos, nearest, onCheckin, onLocate, on
                 <p className="text-[15px] font-bold truncate">{pinSel.name}</p>
                 <p className="text-[12px]" style={{ color: C.muted }}>{KIND_TH[pinSel.kind] || KIND_TH[pinSel.category] || "สถานที่"}{pinSel.visits ? ` · เช็คอิน ${pinSel.visits} ครั้ง` : ""}</p>
               </div>
+              {String(pinSel.id).startsWith("osm:") && <button onClick={() => addFromMap(pinSel)} disabled={adding} className="min-h-[40px] px-3 rounded-xl text-[13px] font-bold text-white disabled:opacity-50" style={{ background: C.mint }}>{adding ? "..." : "เช็คอินที่นี่"}</button>}
               {/^\d+$/.test(String(pinSel.id)) && <button onClick={() => onOpenPlace(pinSel.id)} className="min-h-[40px] px-3 rounded-xl text-[13px] font-bold text-white" style={{ background: C.mint }}>ดูหน้าสถานที่</button>}
               <button onClick={() => setPinSel(null)} aria-label="ปิด" className="min-w-[40px] min-h-[40px] rounded-xl text-[16px]" style={{ border: `1px solid ${C.line}`, color: C.muted }}>×</button>
             </div>

@@ -536,7 +536,7 @@ function GuestPreview({ rest, showToast, onSignup, onLogin }) {
           <p className="text-xs opacity-90 mt-1">เช็คอินสถานที่จริงเพื่อเปิดตำบล อำเภอ และจังหวัดบนแผนที่ของคุณ ด้านล่างเป็นแผนที่ตัวอย่าง ลองซูมและแตะดูได้</p>
         </div>
         <p className="text-[11px] text-[#6B7280]">แผนที่ตัวอย่าง (ข้อมูลสมมุติ ไม่ใช่ของผู้ใช้จริง)</p>
-        <QuestBoard rest={demoRest} pos={null} nearest={null} onCheckin={onSignup} onLocate={onSignup} onAdd={onSignup} showToast={showToast} />
+        <QuestBoard guest rest={demoRest} pos={null} nearest={null} onCheckin={onSignup} onLocate={onSignup} onAdd={onSignup} showToast={showToast} />
         <h2 className="text-sm font-semibold pt-1" style={{ fontFamily: "'Kanit', sans-serif" }}>โพสต์ล่าสุดจากนักเที่ยว</h2>
         {posts === null && <p className="text-xs text-[#9199A8]">กำลังโหลด...</p>}
         {posts && posts.length === 0 && <p className="text-xs text-[#9199A8]">ยังไม่มีโพสต์ให้ดู</p>}
