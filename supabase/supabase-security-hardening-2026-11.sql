@@ -25,3 +25,6 @@ drop trigger if exists limit_posts_trg on public.posts;
 create trigger limit_posts_trg before insert on public.posts for each row execute function public._limit_posts();
 drop trigger if exists limit_comments_trg on public.comments;
 create trigger limit_comments_trg before insert on public.comments for each row execute function public._limit_comments();
+
+-- SEO hub pages (2026-11-20): ฟังก์ชันอ่านอย่างเดียวสำหรับสร้างหน้ารวมจังหวัด/หมวด (scripts/prerender-hubs.mjs)
+-- (ดู migration seo_hub_functions: seo_area_counts(), seo_area_top(province,category,kind,limit) — security invoker, anon execute)
