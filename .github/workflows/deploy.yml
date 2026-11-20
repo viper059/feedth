@@ -3,6 +3,8 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  schedule:
+    - cron: "0 20 * * *"   # ทุกวัน 03:00 เวลาไทย: สร้างหน้าสถานที่/sitemap ใหม่จากรีวิวล่าสุด
 permissions:
   contents: read
   pages: write
@@ -23,6 +25,11 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_SHARE_BASE: ${{ vars.VITE_SHARE_BASE }}
+      - name: สร้างหน้าสถานที่ให้ Google อ่านได้ + sitemap + robots.txt
+        run: node scripts/prerender-places.mjs
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
       - uses: actions/upload-pages-artifact@v3
         with: { path: dist }
   deploy:

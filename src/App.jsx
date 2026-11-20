@@ -1073,6 +1073,17 @@ export default function FeedApp() {
   const [unread, setUnread] = useState(0);
   const [tab, setTab] = useState("feed");
   const [placeView, setPlaceView] = useState(null);
+  // ลิงก์จากหน้าสถานที่บน Google (/?place=123) → เปิดหน้าสถานที่นั้นเลย
+  useEffect(() => {
+    try {
+      const q = new URLSearchParams(window.location.search), id = q.get("place");
+      if (id && /^\d{1,18}$/.test(id)) {
+        setPlaceView(Number(id)); q.delete("place");
+        const rest_ = q.toString();
+        window.history.replaceState(null, "", window.location.pathname + (rest_ ? "?" + rest_ : ""));
+      }
+    } catch { /* ไม่เป็นไร */ }
+  }, []);
   const [exploreProv, setExploreProv] = useState(null);
   const [profileId, setProfileId] = useState(null); // null = โปรไฟล์ตัวเอง
   const [consent, setConsent] = useState(null);
