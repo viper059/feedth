@@ -4,6 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>ปักหมุด · Pinworld</title>
+    <!-- Content-Security-Policy: อนุญาตเฉพาะแหล่งที่แอปใช้จริง (สคริปต์ของเรา + Tailwind CDN / ฟอนต์ Google / Supabase / แผนที่ OpenFreeMap) ที่เหลือบล็อกหมด
+         ถ้าเพิ่มบริการภายนอกใหม่ ต้องเพิ่มโดเมนที่นี่ด้วย  (frame-ancestors/HSTS ใส่ผ่าน Cloudflare — ดู SECURITY.md) -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co https://tiles.openfreemap.org; connect-src 'self' https://*.supabase.co https://tiles.openfreemap.org; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'" />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
     <meta name="description" content="ปักหมุด Pinworld โซเชียลเช็คอินท่องเที่ยว ปักหมุดที่ที่คุณไปจริง ปลดล็อกแผนที่ พิชิตโลก พร้อมนิยายผู้กล้า 60 ตอน" />
     <meta property="og:type" content="website" />

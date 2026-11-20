@@ -56,6 +56,7 @@ try {
       ...(rv.length ? { review: rv.slice(0, 5).map((r) => ({ "@type": "Review", reviewBody: r.txt.slice(0, 1000), author: { "@type": "Person", name: r.who }, datePublished: String(r.at).slice(0, 10), ...(r.rating >= 1 && r.rating <= 5 ? { reviewRating: { "@type": "Rating", ratingValue: r.rating, bestRating: 5, worstRating: 1 } } : {}) })) } : {}),
     };
     const html = `<!doctype html><html lang="th"><head><meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src https: data:; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)}</title>
 <meta name="description" content="${esc(desc)}">
