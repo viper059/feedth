@@ -53,7 +53,7 @@ try {
       geo: { "@type": "GeoCoordinates", latitude: pl.lat, longitude: pl.lng },
       ...(pl.province ? { address: { "@type": "PostalAddress", addressRegion: pl.province, addressCountry: "TH" } } : {}),
       ...(avg ? { aggregateRating: { "@type": "AggregateRating", ratingValue: Number(avg.toFixed(1)), reviewCount: rated.length, bestRating: 5, worstRating: 1 } } : {}),
-      ...(rv.length ? { review: rv.slice(0, 5).map((r) => ({ "@type": "Review", reviewBody: r.txt.slice(0, 400), author: { "@type": "Person", name: r.who }, datePublished: String(r.at).slice(0, 10), ...(r.rating >= 1 && r.rating <= 5 ? { reviewRating: { "@type": "Rating", ratingValue: r.rating, bestRating: 5, worstRating: 1 } } : {}) })) } : {}),
+      ...(rv.length ? { review: rv.slice(0, 5).map((r) => ({ "@type": "Review", reviewBody: r.txt.slice(0, 1000), author: { "@type": "Person", name: r.who }, datePublished: String(r.at).slice(0, 10), ...(r.rating >= 1 && r.rating <= 5 ? { reviewRating: { "@type": "Rating", ratingValue: r.rating, bestRating: 5, worstRating: 1 } } : {}) })) } : {}),
     };
     const html = `<!doctype html><html lang="th"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -72,7 +72,7 @@ try {
 <p class="t">${esc(label(pl))}${prov ? " · " + esc(prov.trim()) : ""}${avg ? ` · ⭐ ${avg.toFixed(1)} จาก ${rated.length} รีวิว` : ""}</p>
 <p><a class="b" href="${SITE}/?place=${pl.id}">เช็คอินที่นี่ในแอปปักหมุด</a><a class="b b2" href="https://www.google.com/maps/search/?api=1&query=${pl.lat},${pl.lng}" rel="noopener">เปิดใน Google Maps</a></p>
 <h2 style="font-size:18px">รีวิวและโพสต์จากสมาชิก (${rv.length})</h2>
-${rv.slice(0, 20).map((r) => `<div class="c"><p style="margin:0">${esc(r.txt.slice(0, 600))}</p><p class="t" style="margin:6px 0 0">${esc(r.who)}${r.rating ? " · " + "★".repeat(r.rating) : ""} · ${esc(String(r.at).slice(0, 10))}</p></div>`).join("\n")}
+${rv.slice(0, 20).map((r) => `<div class="c"><p style="margin:0">${esc(r.txt.slice(0, 1500))}</p><p class="t" style="margin:6px 0 0">${esc(r.who)}${r.rating ? " · " + "★".repeat(r.rating) : ""} · ${esc(String(r.at).slice(0, 10))}</p></div>`).join("\n")}
 <p class="t">ปักหมุด คือแอปเช็คอินท่องเที่ยว ปักหมุดที่ที่ไปจริง ปลดล็อกแผนที่ พิชิตโลก — <a href="${SITE}/">เปิดแอป</a></p>
 </main></body></html>`;
     const dir = join(DIST, "place", String(pl.id));

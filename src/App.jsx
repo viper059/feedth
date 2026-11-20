@@ -1505,7 +1505,7 @@ export default function FeedApp() {
   const handlePost = async () => {
     if (ciPlace && !posting) return handlePostWithCheckin();
     if ((!draft.trim() && !imgs.length) || posting) return;
-    if (draft.trim().length > 2000) { showToast("ข้อความยาวเกิน 2000 ตัวอักษร"); return; }
+    if (draft.trim().length > 5000) { showToast("ข้อความยาวเกิน 5000 ตัวอักษร"); return; }
     setPosting(true);
     let up = null;
     try {
@@ -1936,8 +1936,8 @@ export default function FeedApp() {
           </div>
         )}
         <div className="bg-white rounded-2xl border border-black/5 p-3 shadow-sm">
-          <textarea ref={draftRef} value={draft} maxLength={2000} onChange={(e) => setDraft(e.target.value)} placeholder="กำลังคิดอะไรอยู่..." rows={2} data-testid="draft" aria-label="ข้อความโพสต์" className="w-full resize-none outline-none text-[16px] leading-relaxed placeholder:text-[#9199A8] overflow-y-auto" style={{ minHeight: 56 }} />
-          {draft.length > 1600 && <p className={`text-[11px] text-right ${draft.length >= 2000 ? "text-[#EF4565] font-medium" : "text-[#9199A8]"}`} data-testid="draft-count">{draft.length}/2000</p>}
+          <textarea ref={draftRef} value={draft} maxLength={5000} onChange={(e) => setDraft(e.target.value)} placeholder="กำลังคิดอะไรอยู่..." rows={2} data-testid="draft" aria-label="ข้อความโพสต์" className="w-full resize-none outline-none text-[16px] leading-relaxed placeholder:text-[#9199A8] overflow-y-auto" style={{ minHeight: 56 }} />
+          {draft.length > 4000 && <p className={`text-[11px] text-right ${draft.length >= 5000 ? "text-[#EF4565] font-medium" : "text-[#9199A8]"}`} data-testid="draft-count">{draft.length}/5000</p>}
           {imgs.length > 0 && (
             <div className="mt-2 grid grid-cols-3 gap-1.5" data-testid="img-previews">
               {imgs.map((it, i) => (
