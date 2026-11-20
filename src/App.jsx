@@ -1517,7 +1517,7 @@ export default function FeedApp() {
       loadFeed();
     } catch (e) {
       if (up) await deletePaths(up.paths);
-      showToast("โพสต์ไม่สำเร็จ: " + e.message);
+      showToast(/post rate limit/i.test(e.message) ? "โพสต์ถี่เกินไป (ไม่เกิน 30 โพสต์ต่อชั่วโมง) รอสักครู่แล้วลองใหม่" : /too long/i.test(e.message) ? "ข้อความยาวเกินที่รับได้ (5000 ตัวอักษร)" : "โพสต์ไม่สำเร็จ: " + e.message);
     }
     setPosting(false);
   };

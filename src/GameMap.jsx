@@ -4,8 +4,11 @@
 // - มือถือ: นิ้วเดียวเลื่อนหน้า สองนิ้วเลื่อน/ซูมแผนที่ (cooperative gestures)
 // - โหลดแผนที่พื้นหลังไม่ได้ (ออฟไลน์/โดนบล็อก) → ใช้พื้นสีเรียบแทน ชั้นเกมยังทำงาน
 import { useEffect, useRef } from "react";
-import maplibregl from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+// maplibre v6: worker เป็นไฟล์แยก ให้ Vite รวมโมดูลที่มันใช้ให้ แล้วบอกตำแหน่ง
+import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
+maplibregl.setWorkerUrl(workerUrl);
 
 const P = { accent: "#6C5CE7", soft: "#C9C1FF", text: "#1F2430", line: "#E4E6EF", land: "#F7F5FF", water: "#CFE3FF", green: "#DDF1E4", building: "#ECE8FB", road: "#FFFFFF", major: "#E7E1FF" };
 const STYLE_URL = "https://tiles.openfreemap.org/styles/positron";
