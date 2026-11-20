@@ -1041,6 +1041,13 @@ export default function FeedApp() {
   const [firstPin, setFirstPin] = useState(null); // ยังไม่เคยเช็คอินเลย → แสดงการ์ดชวนปักหมุดแรก
   const [placePosts, setPlacePosts] = useState([]); // รีวิวของสถานที่ที่เปิดดู (ดึงแยก เพราะฟีดโหลดทีละหน้า)
   const [draft, setDraft] = useState("");
+  const draftRef = useRef(null);
+  // กล่องพิมพ์ขยายตามข้อความ (สูงสุด ~40% ของจอ แล้วเลื่อนในกล่อง) กันข้อความยาวจนมองไม่เห็นปุ่มโพสต์
+  useEffect(() => {
+    const el = draftRef.current; if (!el) return;
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, Math.round(window.innerHeight * 0.4)) + "px";
+  }, [draft]);
   const [imgs, setImgs] = useState([]); // [{ blob, url }] สูงสุด MAX_IMGS รูป
   const [posting, setPosting] = useState(false);
   const fileRef = useRef(null);
@@ -1459,6 +1466,7 @@ export default function FeedApp() {
 
   // โพสต์พร้อมเช็คอิน: เช็คอินตามตำแหน่งปัจจุบัน (ตรวจที่เซิร์ฟเวอร์) แล้วแนบรูป/ข้อความลงโพสต์เช็คอินนั้น — รูปจะเป็นรูปเก่าก็ได้
   const handlePostWithCheckin = async () => {
+    if (draft.trim().length > 500) { showToast(`ข้อความยาว ${draft.trim().length} ตัวอักษร โพสต์พร้อมเช็คอินได้ไม่เกิน 500 — ตัดให้สั้นลง หรือกดเอาเช็คอินออกเพื่อโพสต์ยาวได้ถึง 2000`); return; }
     setPosting(true);
     try {
       const loc = (await locateAt(ciPlace.lat, ciPlace.lng).catch(() => null)) || {};
@@ -1487,6 +1495,7 @@ export default function FeedApp() {
   const handlePost = async () => {
     if (ciPlace && !posting) return handlePostWithCheckin();
     if ((!draft.trim() && !imgs.length) || posting) return;
+    if (draft.trim().length > 2000) { showToast("ข้อความยาวเกิน 2000 ตัวอักษร"); return; }
     setPosting(true);
     let up = null;
     try {
@@ -1917,7 +1926,8 @@ export default function FeedApp() {
           </div>
         )}
         <div className="bg-white rounded-2xl border border-black/5 p-3 shadow-sm">
-          <textarea value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="กำลังคิดอะไรอยู่..." rows={2} className="w-full resize-none outline-none text-sm placeholder:text-[#9199A8]" />
+          <textarea ref={draftRef} value={draft} maxLength={ciPlace ? 500 : 2000} onChange={(e) => setDraft(e.target.value)} placeholder="กำลังคิดอะไรอยู่..." rows={2} data-testid="draft" aria-label="ข้อความโพสต์" className="w-full resize-none outline-none text-[16px] leading-relaxed placeholder:text-[#9199A8] overflow-y-auto" style={{ minHeight: 56 }} />
+          {draft.length > (ciPlace ? 400 : 1600) && <p className={`text-[11px] text-right ${draft.length >= (ciPlace ? 500 : 2000) ? "text-[#EF4565] font-medium" : "text-[#9199A8]"}`} data-testid="draft-count">{draft.length}/{ciPlace ? 500 : 2000}{ciPlace ? " (โพสต์พร้อมเช็คอินได้ไม่เกิน 500)" : ""}</p>}
           {imgs.length > 0 && (
             <div className="mt-2 grid grid-cols-3 gap-1.5" data-testid="img-previews">
               {imgs.map((it, i) => (
