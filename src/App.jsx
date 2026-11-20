@@ -1466,7 +1466,6 @@ export default function FeedApp() {
 
   // โพสต์พร้อมเช็คอิน: เช็คอินตามตำแหน่งปัจจุบัน (ตรวจที่เซิร์ฟเวอร์) แล้วแนบรูป/ข้อความลงโพสต์เช็คอินนั้น — รูปจะเป็นรูปเก่าก็ได้
   const handlePostWithCheckin = async () => {
-    if (draft.trim().length > 500) { showToast(`ข้อความยาว ${draft.trim().length} ตัวอักษร โพสต์พร้อมเช็คอินได้ไม่เกิน 500 — ตัดให้สั้นลง หรือกดเอาเช็คอินออกเพื่อโพสต์ยาวได้ถึง 2000`); return; }
     setPosting(true);
     try {
       const loc = (await locateAt(ciPlace.lat, ciPlace.lng).catch(() => null)) || {};
@@ -1487,7 +1486,7 @@ export default function FeedApp() {
       loadFeed();
     } catch (e) {
       const m = e.message || "";
-      showToast(m.includes("too far") ? "ไกลเกินไป ต้องอยู่ในรัศมี 150 ม." : m.includes("after 4 hours") ? "เช็คอินที่นี่ซ้ำได้อีกครั้งหลังผ่านไป 4 ชั่วโมง" : m.includes("suspicious") ? "เช็คอินเร็วเกินไปจากครั้งก่อน" : "เช็คอินไม่สำเร็จ: " + m);
+      showToast(/caption/i.test(m) && /check|violat|length/i.test(m) ? "ข้อความยาวเกินที่ระบบเช็คอินรับได้ ตัดให้สั้นลงหรือกดเอาเช็คอินออกก่อนโพสต์" : m.includes("too far") ? "ไกลเกินไป ต้องอยู่ในรัศมี 150 ม." : m.includes("after 4 hours") ? "เช็คอินที่นี่ซ้ำได้อีกครั้งหลังผ่านไป 4 ชั่วโมง" : m.includes("suspicious") ? "เช็คอินเร็วเกินไปจากครั้งก่อน" : "เช็คอินไม่สำเร็จ: " + m);
     }
     setPosting(false);
   };
@@ -1926,8 +1925,8 @@ export default function FeedApp() {
           </div>
         )}
         <div className="bg-white rounded-2xl border border-black/5 p-3 shadow-sm">
-          <textarea ref={draftRef} value={draft} maxLength={ciPlace ? 500 : 2000} onChange={(e) => setDraft(e.target.value)} placeholder="กำลังคิดอะไรอยู่..." rows={2} data-testid="draft" aria-label="ข้อความโพสต์" className="w-full resize-none outline-none text-[16px] leading-relaxed placeholder:text-[#9199A8] overflow-y-auto" style={{ minHeight: 56 }} />
-          {draft.length > (ciPlace ? 400 : 1600) && <p className={`text-[11px] text-right ${draft.length >= (ciPlace ? 500 : 2000) ? "text-[#EF4565] font-medium" : "text-[#9199A8]"}`} data-testid="draft-count">{draft.length}/{ciPlace ? 500 : 2000}{ciPlace ? " (โพสต์พร้อมเช็คอินได้ไม่เกิน 500)" : ""}</p>}
+          <textarea ref={draftRef} value={draft} maxLength={2000} onChange={(e) => setDraft(e.target.value)} placeholder="กำลังคิดอะไรอยู่..." rows={2} data-testid="draft" aria-label="ข้อความโพสต์" className="w-full resize-none outline-none text-[16px] leading-relaxed placeholder:text-[#9199A8] overflow-y-auto" style={{ minHeight: 56 }} />
+          {draft.length > 1600 && <p className={`text-[11px] text-right ${draft.length >= 2000 ? "text-[#EF4565] font-medium" : "text-[#9199A8]"}`} data-testid="draft-count">{draft.length}/2000</p>}
           {imgs.length > 0 && (
             <div className="mt-2 grid grid-cols-3 gap-1.5" data-testid="img-previews">
               {imgs.map((it, i) => (
